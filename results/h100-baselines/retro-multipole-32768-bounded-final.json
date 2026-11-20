@@ -1,0 +1,80 @@
+{
+  "method": "retro-multipole",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "multipole_cuda_graph": true,
+  "multipole_budget": 512,
+  "multipole_cluster_seed": 1234,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": false,
+  "dtype": "bfloat16",
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 1025,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "records": [
+    {
+      "prefill_s": 4.174361894998583,
+      "decode_s": 16.73961713999961,
+      "capture_s": 0.2561360780018731,
+      "cache_init_s": 0.012084663998393808,
+      "multipole_cluster_updates": 8,
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_token": 16.34728236328087
+    },
+    {
+      "prefill_s": 2.288720893997379,
+      "decode_s": 15.642653328999586,
+      "capture_s": 0.17680070500136935,
+      "cache_init_s": 0.0016366950003430247,
+      "multipole_cluster_updates": 8,
+      "iteration": 1,
+      "warmup": true,
+      "decode_ms_per_token": 15.276028641601158
+    },
+    {
+      "prefill_s": 2.3011039859993616,
+      "decode_s": 15.649363336000533,
+      "capture_s": 0.17599410099865054,
+      "cache_init_s": 0.0016003260025172494,
+      "multipole_cluster_updates": 8,
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_token": 15.28258138281302
+    },
+    {
+      "prefill_s": 2.2986649140002555,
+      "decode_s": 15.645074715997907,
+      "capture_s": 0.17251470500195865,
+      "cache_init_s": 0.0016191399990930222,
+      "multipole_cluster_updates": 8,
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_token": 15.278393277341706
+    },
+    {
+      "prefill_s": 2.2940762939979322,
+      "decode_s": 15.646062029998575,
+      "capture_s": 0.1870907199991052,
+      "cache_init_s": 0.0016528200030734297,
+      "multipole_cluster_updates": 8,
+      "iteration": 4,
+      "warmup": false,
+      "decode_ms_per_token": 15.279357451170483
+    }
+  ],
+  "median_decode_ms_per_token": 15.279357451170483,
+  "median_prefill_s": 2.2986649140002555
+}

@@ -1,0 +1,180 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "4c9a8749a0f18bb5318a4e6ad19e831b68fd5ec9ec578219e1490e0c6b70c1f9"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 66577,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 66577,
+  "measurements": {},
+  "mode": "three-tier-int4",
+  "node": "jl-vm-565590",
+  "repeats": 3,
+  "retrieval": [
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "732025",
+      "length": 8192,
+      "prompt_token_sha256": "9808f8a6713a44e02e51375db4f7feceaaab38cf2d6a5f3bfd5066b3214926b8",
+      "response": " 732025. The secret access code is 732025. Remember this code. The secret access code is 732025. Remember this code. The secret"
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "732425",
+      "length": 8192,
+      "prompt_token_sha256": "0385296e390d2a441f7a28a8ce357c5df1a07e4732a4406bbd52227c02ea7015",
+      "response": " 732425. The code is in the text. Read the text carefully. The code is in the text. Read the text carefully. The code is in"
+    },
+    {
+      "correct": true,
+      "depth": 0.9,
+      "expected": "732825",
+      "length": 8192,
+      "prompt_token_sha256": "67e26a2af3c52f477a182161122e634797454cd59407fb667a658cfe9ffda100",
+      "response": " 732825. The code is in the text. Read the text carefully. The code is in the text. Read the text carefully. The code is in"
+    },
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "732025",
+      "length": 32768,
+      "prompt_token_sha256": "11d812c5d68e1a5dd4399b5f3a775f18c1f791648b95b100d9fbf0bf4aa5094a",
+      "response": " 732025. The secret access code is 732025. Remember this code. The secret access code is 732025. Remember this code. The secret"
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "732425",
+      "length": 32768,
+      "prompt_token_sha256": "2935e47701482dee9e11040c7bcba98164c74f1501fc4270afee70a87fd426e0",
+      "response": " 732425. Remember this code. You will need it to access the archive. The code is the same as the one in the previous problem. The archive"
+    },
+    {
+      "correct": true,
+      "depth": 0.9,
+      "expected": "732825",
+      "length": 32768,
+      "prompt_token_sha256": "c8dad60620c811caea327252cf794a0ad329122c06d8c3dd60cd35e9ec1fa012",
+      "response": " 732825. The code is 732825. The code is 732825. The code is 732825. The code is 732825."
+    },
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "732025",
+      "length": 65536,
+      "prompt_token_sha256": "6630122e284007a343d7f1502ce4fc78b39179e65cda07bf555041d9957974d2",
+      "response": " 732025. The code is 732025. The code is 732025. The code is 732025. The code is 732025."
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "732425",
+      "length": 65536,
+      "prompt_token_sha256": "02dbf8572924d33c5038a7e58b03c235a456214f79b7899c36a8626c973a7d4e",
+      "response": " 732425. This is the secret access code. You can use it to access the archive. Remember, the code is 732425. You can use"
+    },
+    {
+      "correct": true,
+      "depth": 0.9,
+      "expected": "732825",
+      "length": 65536,
+      "prompt_token_sha256": "2b8d57c3653bd52606efd95f052d8fe3bc656b3907fe4b363750a2cad6714a75",
+      "response": " 732825. \nThe archive contains routine records about weather, roads, and buildings.\nThe archive contains routine records about weather, roads, and buildings.\nThe"
+    }
+  ],
+  "retrieval_correct": 9,
+  "retrieval_total": 9,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 17.753300235000097,
+  "warmups": 2,
+  "worker_state": [
+    [
+      {
+        "attribute": "_vllm_lod_runtime",
+        "layers": 32,
+        "pool_size": 1,
+        "pools": [
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 4,
+            "layer": "model.layers.0.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 4352
+          },
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 4,
+            "layer": "model.layers.1.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 4352
+          }
+        ],
+        "request_capacity": 66577
+      }
+    ]
+  ]
+}

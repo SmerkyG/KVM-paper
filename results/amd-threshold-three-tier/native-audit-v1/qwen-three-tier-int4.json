@@ -1,0 +1,165 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d73f1560bb9f95e71d89711e04e19ab45895d385d248724e3a37773fdf236598",
+      "source_file_count": 238
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=61326263-3039-3262-6362-396133336530, pci_bus_id=133, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "scope": "fixed real query/cache attention plus same local-length rollback; excludes model and cache catch-up",
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 2,
+      "microseconds": 102.28090733289719,
+      "repetitions_us": [
+        102.19121724367142,
+        102.28090733289719,
+        102.35856473445892
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 36.458335876464844,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4,
+      "page_workers": 64,
+      "page_warps": 2,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 2344.666748046875,
+      "mean_selected_region_union_entries_per_kv": 5095.75,
+      "mean_exact_remote_entry_bound": 1166.666748046875
+    },
+    {
+      "layer": 0,
+      "implementation": "native-top8",
+      "microseconds": 113.49967122077942,
+      "repetitions_us": [
+        113.48123103380203,
+        113.58201503753662,
+        113.49967122077942
+      ],
+      "pre_change_page_output_identical": true,
+      "max_abs_vs_pre_change_pages": 0.0
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 2,
+      "microseconds": 115.72105437517166,
+      "repetitions_us": [
+        115.7260462641716,
+        115.60747027397156,
+        115.72105437517166
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 44.75,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4,
+      "page_workers": 64,
+      "page_warps": 2,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 2168.45849609375,
+      "mean_selected_region_union_entries_per_kv": 4095.75,
+      "mean_exact_remote_entry_bound": 1432.0
+    },
+    {
+      "layer": 8,
+      "implementation": "native-top8",
+      "microseconds": 96.24113887548447,
+      "repetitions_us": [
+        96.19926661252975,
+        96.24113887548447,
+        99.50297325849533
+      ],
+      "pre_change_page_output_identical": true,
+      "max_abs_vs_pre_change_pages": 0.0
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 2,
+      "microseconds": 103.07043790817261,
+      "repetitions_us": [
+        102.99292951822281,
+        103.07043790817261,
+        103.12886536121368
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 32.208335876464844,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4,
+      "page_workers": 64,
+      "page_warps": 2,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 3055.20849609375,
+      "mean_selected_region_union_entries_per_kv": 7564.75,
+      "mean_exact_remote_entry_bound": 1030.666748046875
+    },
+    {
+      "layer": 15,
+      "implementation": "native-top8",
+      "microseconds": 102.29278355836868,
+      "repetitions_us": [
+        102.29278355836868,
+        102.30778157711029,
+        102.29074954986572
+      ],
+      "pre_change_page_output_identical": true,
+      "max_abs_vs_pre_change_pages": 0.0
+    }
+  ],
+  "model": "qwen",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "three-tier-int4",
+  "context": 65536,
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

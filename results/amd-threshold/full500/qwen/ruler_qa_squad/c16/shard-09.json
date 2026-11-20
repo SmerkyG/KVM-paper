@@ -1,0 +1,986 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 450,
+      "prompt_hash": "206dbfe1ba670f3469b6fe691b677b20c727566d84d7267c267588d391c554df",
+      "doc_hash": "7f5ad3be6e2448ee485854b613d961f7c3205ffa59b8a83dbe17322be963438e",
+      "target_hash": "d41b8010b2cea075517b550abe75316e8753f94964ba4b55a302c54b3c6d41c1",
+      "input_tokens": 62638,
+      "input_token_sha256": "e8bdde8874324aa21408c12ced70572b007ef5447c82cfe36b0e5411106e22ee",
+      "targets": [
+        "The Tech Coast",
+        "The Tech Coast",
+        "Tech Coast"
+      ],
+      "prediction": " The Tech Coast",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.915
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 451,
+      "prompt_hash": "ffa3392bb79b1fcf2de5dccaebda4ad3b79a9a023fc0f010444254abe2db2f40",
+      "doc_hash": "aedf70750e066db3802becf37a0062b0b1103330af47eaf437f5552836d20961",
+      "target_hash": "2f8ffe4adf133a54e5ba77c3b8a0e65ce96b48c15e81056c80d639dedcdd684d",
+      "input_tokens": 65011,
+      "input_token_sha256": "b679f6547e5c8c2d818a57e9be3bb6fe3e2fa9a42b76e472fa8b36c8366552a1",
+      "targets": [
+        "research",
+        "research",
+        "research"
+      ],
+      "prediction": " prestigious and world-renowned research universities",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.199
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 452,
+      "prompt_hash": "59b652c2a36e26983693e9e28f05a810d7de8bcf1a094c204fabb1c51c94fae1",
+      "doc_hash": "e545d863cb7e327aa5b4477d60ca89ec620c7079c0eeb7e1a3f5cae26d794b73",
+      "target_hash": "9fc1b69ba750e721c219c5fc68b3cd1cc479af5c0c34260c8bfb8b7b9fa88162",
+      "input_tokens": 63466,
+      "input_token_sha256": "d188e9f742821cb78738018535e71f9269adf31c518c7139a60ee5e759212c23",
+      "targets": [
+        "private",
+        "private",
+        "private"
+      ],
+      "prediction": " The provided documents do not contain information about the California Institute of Technology.",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.191
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 453,
+      "prompt_hash": "133ce9a364713b7a9bc0ffb34575f7a453ab5050688eb5920b9db9aef37b5aed",
+      "doc_hash": "810786facea086af3410c1a4b2a8ea46a947b8243cdd4dbe78f6978d4623b62b",
+      "target_hash": "2fa9abe38d9ad6c3913d86846ca6b2f220ba8387c4240d9c9ae010be1205e809",
+      "input_tokens": 61594,
+      "input_token_sha256": "5d85b680df886ee9da273db29ed504c2917e8cc0a0f84848c02aa183e632e8da",
+      "targets": [
+        "5",
+        "5",
+        "5"
+      ],
+      "prediction": " 10",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.655
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 454,
+      "prompt_hash": "655f3e4d0114138267ca60f7e16715efe145ddd1873d43521e7b635dee47dac9",
+      "doc_hash": "83c2d01f921713ae0f49974f713a553c5fbc27dec44cedd00b50e2e93dd80bf0",
+      "target_hash": "9d1aeb5094ab0f8ed6184c2aeecc67d25b62224154d9465d3dfc4e994229a325",
+      "input_tokens": 62975,
+      "input_token_sha256": "d3bcbdab4905d0f62ae0c1cc9fa0c6e6e753f62c1df81b1085ef84abc0007559",
+      "targets": [
+        "12",
+        "12",
+        "12"
+      ],
+      "prediction": " 23",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.835
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 455,
+      "prompt_hash": "c8f0d19cffe3e7e4a8752d43c3b94f42243bdaf5bc55d51822f3a74e2924664e",
+      "doc_hash": "9200cc0ceb6b4772230b7a7f1f578b997d2c596c6a311c7d8bc6358db2dcaed9",
+      "target_hash": "f7b51e76cf52b4f77807d081c1f417332b01623febcc52c6505a712a30574621",
+      "input_tokens": 64027,
+      "input_token_sha256": "a6ad62605f37eeaa96165c6c1734974ff541b4d4c6aa8e0b28e65912d2287c01",
+      "targets": [
+        "NFL",
+        "Professional",
+        "NFL"
+      ],
+      "prediction": " NFL",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.905
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 456,
+      "prompt_hash": "e69ccdb1f7d153b5bcd026953eac55eeb043e609d82e18b89643db4e412b3d04",
+      "doc_hash": "a38eafea1c7bea66dfff2ba14d2d6c860a64d59387e4b3ff090ef15859bab48e",
+      "target_hash": "ab390e704914643a08ef742d2d81114e9f5e99bc75e79e7e0a645dc95d3a8e93",
+      "input_tokens": 62732,
+      "input_token_sha256": "680e9dfe2a2c2d67e659dca619a9b568670f9c496bf5a9922d9f39668366d954",
+      "targets": [
+        "NBA",
+        "NBA",
+        "NBA"
+      ],
+      "prediction": " Basketball",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.736
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 457,
+      "prompt_hash": "0262a0199261fa6f21d5c1bb1e82cf8305520b07aad0ad7c23197bff9737541a",
+      "doc_hash": "03184627da9c74a35f10955b9eba97017cbd5148789a2b462acab3a3ed3e3a24",
+      "target_hash": "14d952d31386a46bc17eef61c1a19fcbc0f13d5dc91dce6cdb67c6ae9ee0fbe7",
+      "input_tokens": 64516,
+      "input_token_sha256": "c66e7c242cce147f90b7adca60967ed07a548944d11129590bea6fe30dd6edd0",
+      "targets": [
+        "MLB",
+        "MLB",
+        "MLB"
+      ],
+      "prediction": " MLB",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.975
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 458,
+      "prompt_hash": "7c51a67b9b149b3eb677ed3650ac542e59236b9cbbef4674547fc8b62cc877c6",
+      "doc_hash": "d37ebee3d976db318f617e338a91868a86e814acf2a56e681f6dd74487b973ec",
+      "target_hash": "1cb7978075ebc4a3b952a19e32e9daf5afa9b8e73f9bf96133416925f0123c94",
+      "input_tokens": 64392,
+      "input_token_sha256": "e6cedd5d07834cf114b9b6693a457be335c43017ba2e8f36bb95a9047e420b22",
+      "targets": [
+        "Los Angeles Kings",
+        "Los Angeles Kings",
+        "Los Angeles Kings"
+      ],
+      "prediction": " Los Angeles Kings",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.03
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 459,
+      "prompt_hash": "d6a6290859ec4279fa3b40a79792d1ad2669f232e43459381bfe3ceeee62014d",
+      "doc_hash": "c4130170acf2c6628faf52ce62e165c6fd170cecfb69fb1861f479fd5904a715",
+      "target_hash": "e7b723628b4c52b136ad1014337cfdbf5c857b5d184ec81500b3f0beb9b3bb94",
+      "input_tokens": 65434,
+      "input_token_sha256": "7322da915e4622e63b1ea57c721149985b6ea5dcb8b10e60a1d5a04175895712",
+      "targets": [
+        "LA Galaxy",
+        "LA Galaxy",
+        "LA Galaxy"
+      ],
+      "prediction": " LA Galaxy",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.137
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 460,
+      "prompt_hash": "e47aa6e47b9569f851ea2e40dae2d2efea7519914fdb9625a32076e76bbc560e",
+      "doc_hash": "234aac320af4b3e3cbaed846fcd54a2b567956ecb5fd4ec54aba1beaf832ece7",
+      "target_hash": "782edaea128fc0b8dd3239f40da74eaf218b5e0af050e3ffd32abde1a8060928",
+      "input_tokens": 64235,
+      "input_token_sha256": "6e12187d6eab29cd08db7b7058a9f5c8115873e4f1a64097593f8cb644c76173",
+      "targets": [
+        "Chivas USA",
+        "Chivas",
+        "Chivas"
+      ],
+      "prediction": " Chivas USA",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.004
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 461,
+      "prompt_hash": "66048e9fe62d762e87eef6faf2de806e0f5a58caf0d817754270ca464af48b65",
+      "doc_hash": "2a53c376ec48bd1a283548d275f627be6d993d1c8b5797325add2735f2eb70b7",
+      "target_hash": "d299a109bf1e89326dd1b3422e24a34508d0a1a75555df8a23eca06f08e830d2",
+      "input_tokens": 65086,
+      "input_token_sha256": "adb168ec9e54d9e1b5e55ce404954f902ff4329d9218687e3f3bc388be24df6b",
+      "targets": [
+        "two",
+        "two",
+        "two"
+      ],
+      "prediction": " 2",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.089
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 462,
+      "prompt_hash": "2facc8cd4e90985caa889d5df8333abfce42e80ed4be54fc7fadd10e438430c3",
+      "doc_hash": "073397316304ea49daf9a347f0daed293e4804bd24ec12a4f823358f390b35eb",
+      "target_hash": "169047a76f03b4373e4c8d3e47d14730131f49ee0665797650547aee872a3278",
+      "input_tokens": 64633,
+      "input_token_sha256": "05a3e6b524de50730f1744dc5923713a2e915664e3eafcb280d4da0aa634f782",
+      "targets": [
+        "2014",
+        "2014",
+        "2014"
+      ],
+      "prediction": " 2014",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.082
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 463,
+      "prompt_hash": "831880a8e7a85906f7b1e39cdaf6ab6f9c9f78d1226bd9a59d26e3f9633b6435",
+      "doc_hash": "4ba67445af35c990ab746e90931bd3552a553e8a61a2540261ca969efc634c04",
+      "target_hash": "c30db6f45703f907783911c93e1a487462cf112f156e9fe21359b754fbe4af44",
+      "input_tokens": 63834,
+      "input_token_sha256": "0bc0d4d9d4d946b19cf7812dca715d91a227d714ab74c311e427257d42c94502",
+      "targets": [
+        "StubHub Center",
+        "the StubHub Center",
+        "StubHub Center"
+      ],
+      "prediction": " The StubHub Center",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.973
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 464,
+      "prompt_hash": "d109ec595c1598642ecaf72405fb947abb7929462c2a181f8bf1a8ce57a1b4df",
+      "doc_hash": "c03e63602e86a76f0208112ac7c5b8c01929c327df6245265852872384392563",
+      "target_hash": "d11082d374af2504fe85b63f7014436a66ba9cc5bd94a28256efec70fe875ccc",
+      "input_tokens": 64112,
+      "input_token_sha256": "24a0624804ac1ab8239de19390c865b26a75c60d24fd63f0d97704e3284984ff",
+      "targets": [
+        "2018",
+        "in 2018",
+        "2018"
+      ],
+      "prediction": " 2018",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.042
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 465,
+      "prompt_hash": "0d5ac129ced8c2f47636dd1d45fe2f07fac290a04ed432409365942b62561c06",
+      "doc_hash": "4228f9dbd61022028937b60b0fccb05d5fa2e137e29dc8de15fd34e05b2e62b5",
+      "target_hash": "cb089e2a9b177b687a0151cdf90b422a50273a3097a3e399526275ca2ce104b3",
+      "input_tokens": 63993,
+      "input_token_sha256": "73800e9f29ceb2b531c27a40b15a5301d56f0470ad6e774a0ade2998f8023966",
+      "targets": [
+        "College",
+        "College",
+        "College"
+      ],
+      "prediction": " Rugby",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.89
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 466,
+      "prompt_hash": "d011801784050a63ab86f07458f89bde9bf6a9c1f291d268e5d409c7e57c6ae4",
+      "doc_hash": "cabc8cceaf5256261917ff4f713613be9c226956a6b2fb3c784f84dd34e62124",
+      "target_hash": "941a6a227caf92a7bdf808d8c8bf354cb7c67b4a7cc3958d3ababe0680599b2a",
+      "input_tokens": 62289,
+      "input_token_sha256": "eb4252ebe7fa77b7556f956f5bc7345699a5971a9d898221e6d758ce57a77bcf",
+      "targets": [
+        "UCLA",
+        "UCLA",
+        "UCLA"
+      ],
+      "prediction": " The documents do not state which college the Bruins belong to.",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.011
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 467,
+      "prompt_hash": "0d4dea5e9c6b8dc7190a69c0416e738246f5eb439849bfe2cc88795d0b93fcf4",
+      "doc_hash": "a436fef1f96577e305feb3363b13995fd337d5c24554afe60b580a8381b2693c",
+      "target_hash": "79ba0c910cb9034599775a3dd76ef56e4dd4d3444ab5ab97dce6a74b2000b968",
+      "input_tokens": 63799,
+      "input_token_sha256": "e3a87e910df1a037d8ee37145dc12e43c7b86c291e9d18d16d7a8d940f71f2d4",
+      "targets": [
+        "Trojans",
+        "Trojans",
+        "Trojans"
+      ],
+      "prediction": " USC Trojans",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.98
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 468,
+      "prompt_hash": "8b159d8390bcf2588aaea4810c3d4dd7bb20b13456305faabbae4fa2b462dca3",
+      "doc_hash": "992ef6e6766127c891aa2feae077af931a52b4c535bb5aee55f409a22027c7e5",
+      "target_hash": "001224e05678b427420c54820257e756f55e1caf8072d7608def127f50d06dfa",
+      "input_tokens": 63536,
+      "input_token_sha256": "def5fbe6f45dc6111e7a6987ee82a7327378593521a3b4608040c363b71f38ae",
+      "targets": [
+        "Pac-12",
+        "the Pac-12",
+        "Pac-12"
+      ],
+      "prediction": " The UCLA Bruins and the USC Trojans both field teams in NCAA Division I in the Pac-12 Conference.",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.485
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 469,
+      "prompt_hash": "92e18732dfca3bd97fa731980a20d4ce16298feb49bd7d71161c4a09cef51118",
+      "doc_hash": "f30097f032ca23dcf308e2154ff332354498834f446e6d3647460a462dec7dd8",
+      "target_hash": "3b1954b2b5c25bee377c898a1f85157bc7aaaa40eb35d1f3ecfae702dc2bbe37",
+      "input_tokens": 65322,
+      "input_token_sha256": "b73331d2fd523680cba8d3e5cb6268783535b6407140189d60a864d3edcf384e",
+      "targets": [
+        "Division I",
+        "Division I",
+        "Division I"
+      ],
+      "prediction": " Pac-12 Conference",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.226
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 470,
+      "prompt_hash": "6df4edf70e35fa9db204b0e5d8f9a53a8764b6a7ee81e03913dc68dc8c181f01",
+      "doc_hash": "7d2bafac71cc79e8df7229ad456d2962ffd2cbe5f5678c8aaa47a28ae4e0f9ff",
+      "target_hash": "00c0bc0cd1be1977a16865d88ccb8a5062a2312f5aea8143e70bf44a5187f46b",
+      "input_tokens": 63947,
+      "input_token_sha256": "f60417642be55d600ffc50af53c98fe8d84ae194f4d974cb70fa1cf54aff227c",
+      "targets": [
+        "Rugby",
+        "Rugby",
+        "Rugby"
+      ],
+      "prediction": " Rugby",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.907
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 471,
+      "prompt_hash": "31c20f795009fe6cb423cbed3ae13bfb993e80a5d48d6dcdfe4489899bdc9a4d",
+      "doc_hash": "4e7f4af3f1f969715b9f68847e0025bb00ce26205f494a64b7697e43c153edb3",
+      "target_hash": "b9ef9f12e03be843da863839fa1df93405f09b2fcf644d41467ffa775f34db63",
+      "input_tokens": 62789,
+      "input_token_sha256": "fdaef9d375d66ae1a0e21b5eda1b62e675db2d2300e471ffe57f3dcfac63a4e4",
+      "targets": [
+        "high school",
+        "high school",
+        "high school"
+      ],
+      "prediction": " high school level",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.802
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 472,
+      "prompt_hash": "eb379c81a17be72f6798f564ce486a90051085cf3f5142ecaec3063d20e03c80",
+      "doc_hash": "52ef39816df7388291f6599a4ed5bb60362881746462b435dd1dd363561527e1",
+      "target_hash": "98bb49c60145f575224f2f78d6dd1d252468b7975adf28ea2868ae08ce569f15",
+      "input_tokens": 63570,
+      "input_token_sha256": "575318daba8567fa9b2238b486a407abf7a0bcd995a0857f683e620e3ac43266",
+      "targets": [
+        "an official school sport",
+        "an official school",
+        "official school sport"
+      ],
+      "prediction": " an official school sport",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.918
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 473,
+      "prompt_hash": "68072d03dc77752981c2df1408392740d24cd9ebc8089f350a0153af7b5bcc70",
+      "doc_hash": "3dd294b79f4f22b347a31c35d368fe7c353bd1a527fdfe45f71d1f6049997ef3",
+      "target_hash": "56fa8ab9f1c87a2bb09496ed42202a78cbccb8cb6d571846c191c5f647242e88",
+      "input_tokens": 62813,
+      "input_token_sha256": "9ac47b849e8c62a91b425d7973011cf46936a78ab2adebd3e06f0907927817aa",
+      "targets": [
+        "BSkyB",
+        "BSkyB",
+        "BSkyB"
+      ],
+      "prediction": " BSkyB",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.814
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 474,
+      "prompt_hash": "d8bec4c43a0d5e68306c2de88d45023620b2ffb748363bc429b095ea1774cd3d",
+      "doc_hash": "75a354ab067d8e01c223f30fa83e9b634066b22b05554c6d9fd84a12a8073e82",
+      "target_hash": "56fa8ab9f1c87a2bb09496ed42202a78cbccb8cb6d571846c191c5f647242e88",
+      "input_tokens": 63642,
+      "input_token_sha256": "4ba47df84d88355acfdc6e6ec5b9ef82356962aba2e7050d64633617d20d206a",
+      "targets": [
+        "BSkyB",
+        "BSkyB",
+        "BSkyB"
+      ],
+      "prediction": " BSkyB",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.894
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 475,
+      "prompt_hash": "491e8dc835c125e10c90d6c6885432539d19ce8c0fe002721f36bbb870572d1c",
+      "doc_hash": "6400c16ddd5f49e49cd0b582c58066dc3730358b8c6df8fc90d5e1b4569652c3",
+      "target_hash": "169047a76f03b4373e4c8d3e47d14730131f49ee0665797650547aee872a3278",
+      "input_tokens": 63409,
+      "input_token_sha256": "44dfb9d2e27946ebd0b10ccc6c4736767e2c588e1a05f8af5208d830a7514542",
+      "targets": [
+        "2014",
+        "2014",
+        "2014"
+      ],
+      "prediction": " 2014",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.943
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 476,
+      "prompt_hash": "f8f0c5c9c590f069fcf56caed5c1bc00f385e595dbb75e0772b38666dbb2e206",
+      "doc_hash": "8d7b7f6e0ed8f17a9a3ec10b6673efac1fef359d18d67bc4bc0352e8ba2e2dd0",
+      "target_hash": "cf22bce12812749f9a3e142a9f65442a8fdf6e2354fc561ebf15bb8e5bbb33fc",
+      "input_tokens": 64308,
+      "input_token_sha256": "59f0e983e26489a745abd3b800620dba556166157cb7d641de7705a694d7fd56",
+      "targets": [
+        "Sky plc",
+        "British Sky Broadcasting Group plc",
+        "British Sky Broadcasting Group plc"
+      ],
+      "prediction": " British Sky Broadcasting Group plc",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.072
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 477,
+      "prompt_hash": "3f443f0c613031b0e55653a9c4de29ba12af72ae66b1d39be0978c9a903cea69",
+      "doc_hash": "3c3cecc67390b604af6980a096c2b24cfdffa81cf1e5b4c691b9cb0295bf4d1b",
+      "target_hash": "e64204a04f157e5f8ea856344a87f0178efc729aa89f819c08d12e1f42055049",
+      "input_tokens": 65117,
+      "input_token_sha256": "c5ca8fdd2b169867b8e23613afe70d4b646bfa5d4dda419f27e18758c530d152",
+      "targets": [
+        "Sky UK Limited",
+        "Sky UK Limited",
+        "Sky UK Limited"
+      ],
+      "prediction": " Sky",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.045
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 478,
+      "prompt_hash": "e22d6e2a152f8d78dd6d8c5f15078c0e2ef9cf525f63356e2ae004312e913b6a",
+      "doc_hash": "ab4d590c68daf1e563ae941b844b56a478ba60f940bfcf6b58471f6218f2c87d",
+      "target_hash": "4d360af33cd6a05cc6aaaa8e8e963c281a2774e8a9c07e47adfe9c5823eb621b",
+      "input_tokens": 62000,
+      "input_token_sha256": "563b2b534584562a01d619c62ed84a066ed1e524ce30c48d9d361246dd6811ef",
+      "targets": [
+        "2006",
+        "2006",
+        "2006"
+      ],
+      "prediction": " 2006",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.746
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 479,
+      "prompt_hash": "df706ff55c60d0f8f2770ff379a85f48f75216fe9da8d5522b0a72c39e1bfdfa",
+      "doc_hash": "23d48d434122fffb9fcf86b5affdc31cac6f5d67e1d8efbc0da2d6d9df2f19a7",
+      "target_hash": "d299a109bf1e89326dd1b3422e24a34508d0a1a75555df8a23eca06f08e830d2",
+      "input_tokens": 63854,
+      "input_token_sha256": "34d2402617267ea14e99ffc932bee3e07b5365a98cc1ff9acdec23474133b81f",
+      "targets": [
+        "two",
+        "two",
+        "two"
+      ],
+      "prediction": " two",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.882
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 480,
+      "prompt_hash": "b6a03ee99089fb2153bdf1368393360c8405e8df8303f27ee02b9b480f162f2f",
+      "doc_hash": "4c9daa3cd7706973c413690080fad8cae9f0fe6a65728c86adabcd3755019b72",
+      "target_hash": "341e66c440863fe94895f810e5101c24c62512c3342d295f197044c05e19ac81",
+      "input_tokens": 65136,
+      "input_token_sha256": "15e7cb6bf80e7e33895469b4dd8b59ce1350965d6832c50fac656ca291e0a564",
+      "targets": [
+        "Sky",
+        "Sky",
+        "Sky"
+      ],
+      "prediction": " BSkyB",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.107
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 481,
+      "prompt_hash": "18fe6e6d3d8a51700424f300919be3755442d9cf17dcbb05eda10c8b2117d10d",
+      "doc_hash": "06445eb85ea238e5c6ca3972eba364b2f191068c8eef390aa39047a73c688395",
+      "target_hash": "c2100daf9b6b3f268d69051038e249c4d7fc2d50c2ed079f2886f052581f3f66",
+      "input_tokens": 64901,
+      "input_token_sha256": "f3e3796c6c89b8380ca444e959b662fe717df7bf7e5d4ee2357445274e5e2d17",
+      "targets": [
+        "\u00a31.3bn",
+        "\u00a31.3bn",
+        "\u00a34.2bn"
+      ],
+      "prediction": " \u00a31.3bn",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.137
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 482,
+      "prompt_hash": "14313811a94215c4b7b674e0d637997ef50adfa5dbd3293054a09c06479377ce",
+      "doc_hash": "bb4e0551cb06154f67ffc0a4df8cb818372c26bda31c6e970309cd3229c4b3fb",
+      "target_hash": "83235f732006d00057713a878fdcabb5a83221d3be392d63c82c9bd37beaa26b",
+      "input_tokens": 64102,
+      "input_token_sha256": "c7da13cf31ab6ec48e4bc117d10cb2416c6dce8b600947dea3d9a23dd16579e7",
+      "targets": [
+        "ONdigital",
+        "ONdigital",
+        "ONdigital"
+      ],
+      "prediction": " ONdigital consortium",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.973
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 483,
+      "prompt_hash": "9a4547f2441e273c513d27caf59a78ccff963adf1b4c892b7b83d386fe72e70b",
+      "doc_hash": "bc7eb975b4c46540d48b606dc28eb465ce7f28838208b7f7b433e81434c3768c",
+      "target_hash": "bb96bed06b2f2b580840c623063e8b084fae3e81f92d53e54c1622b5ce916ab1",
+      "input_tokens": 62289,
+      "input_token_sha256": "7ef24026ae3d8274cff96a130c122ce428f6548c80976bf799641e7c63e0bcf2",
+      "targets": [
+        "Freeview",
+        "ITV Digital",
+        "ITV Digital"
+      ],
+      "prediction": " the BBC",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.714
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 484,
+      "prompt_hash": "ea27bf7704dd3d5b0b618128a10c2d5ca8264be3ad1bf9f6c0c3d2e75779881e",
+      "doc_hash": "5baa05ddb373bbb145e145caf9e60600a2725df57e9224e6d568edda43f000bf",
+      "target_hash": "93b036050c2440cd933288ea15b06a44176d23e62fbf19e86c30e2cbb71790f9",
+      "input_tokens": 63470,
+      "input_token_sha256": "49c59c979b9d82158b5a4749781f9ff2906b201304c7d648bd349a7883fc8ae9",
+      "targets": [
+        "three",
+        "three",
+        "three"
+      ],
+      "prediction": " 3",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.846
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 485,
+      "prompt_hash": "4483fe7856a9ab72e5efe0f6768a11a50c1f65668f10c1d39586c65db5894260",
+      "doc_hash": "c0ccd643eafdd21e84cd18e78e8f0d67c40780a9d3d1670b318f50bd1b5eb6a2",
+      "target_hash": "f2acd94298b7c13e0e789edc2dcb98a0173783176137b678d0f5a1bf699a4b3b",
+      "input_tokens": 64969,
+      "input_token_sha256": "ab0b912e5c7b9483bd1cab69569dbbe8c87b9c23422df588a69099fe2602b98c",
+      "targets": [
+        "Sky Three",
+        "Sky Three",
+        "Sky Three"
+      ],
+      "prediction": " Sky Three",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.058
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 486,
+      "prompt_hash": "828337c5e317fb44e2750e045a806767103fe2e835f3e53fd7a95b231c4db6ab",
+      "doc_hash": "32a66de2a2a520313b929dc0c494c87ce8dd063494972693dd9e0945fbde429a",
+      "target_hash": "cd0df28a24285996d00b4341f29f8ee924d376a86c765aa68fce89078d40ba0d",
+      "input_tokens": 62547,
+      "input_token_sha256": "92e864fda81144cf7e182a667193a3db821998a33147dfca5a0589d20970448b",
+      "targets": [
+        "Pick TV",
+        "Pick TV",
+        "Pick TV"
+      ],
+      "prediction": " Pick TV",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.742
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 487,
+      "prompt_hash": "02bee35b75061533197021c2a179860a8673e7d6fc829446d674c719f7ceebbe",
+      "doc_hash": "5fed26269fecfbb74620d3bf0f8760830d1588c631c2d71a8af9a88433aef5bd",
+      "target_hash": "b7c25a29391439174ef2e3da48a98ccbc12bec779e92dad1a8e35a6e14e7ef5e",
+      "input_tokens": 64135,
+      "input_token_sha256": "f1722d431b9daa166277a72a42e8fbf84fc7cd6db2d9a6f2eff0a31f6276bed5",
+      "targets": [
+        "Sky+ PVR",
+        "Sky+ PVR",
+        "Sky+ PVR"
+      ],
+      "prediction": " Sky+ PVR",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.008
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 488,
+      "prompt_hash": "48a483b9b5f1dc963df467fbecc9c2b1beb17c6d2f88789ea720077a831d9643",
+      "doc_hash": "10059a320ac04ece9a1b10f754ffc3aa3a0be029bf14c90494846cebf472fbe9",
+      "target_hash": "4427255961fb3db297681c6f5c9f5500f58075e0dd953fdac64abb5a5903d33b",
+      "input_tokens": 64410,
+      "input_token_sha256": "c1d74ed42171d4f7088cd6bdc01a6606436fde586d2396ede51394de04ccb58c",
+      "targets": [
+        "September 2007",
+        "September 2007",
+        "March 2008"
+      ],
+      "prediction": " September 2007",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.105
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 489,
+      "prompt_hash": "acc2cc3cf7f6af70047ee63a73488983097e3842976f2a6f8df00abbe91017eb",
+      "doc_hash": "a45ae757475a41f922eb3c74a6dfea7fa0f85d896d1940e080ccf7876147ce89",
+      "target_hash": "bf55d1993865c6ba24ec9887a3c1662580800982e2b03b6343fff1373d67096e",
+      "input_tokens": 64029,
+      "input_token_sha256": "fac2db4d563267788e23ea605bae638aec1d236444d47aff67e97ab116335b4b",
+      "targets": [
+        "monthly fee",
+        "a monthly fee",
+        "SkyHD box"
+      ],
+      "prediction": " a monthly fee",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.981
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 490,
+      "prompt_hash": "cde9a681a117ee77bfd387acbf226cf36eac92396426785586fd03cf66e7f277",
+      "doc_hash": "1cef4f235303d28b60d8050ade4d3141f9f6838bab472fd6eac21824e910acd5",
+      "target_hash": "2d4a9f7b73e7e6ca4b564e4df6ab1af40e7705d6252af2751fc7f469c3ba46b5",
+      "input_tokens": 65191,
+      "input_token_sha256": "f25f68dadb9d8c9afb0dad18c6d53707b65d0cdd5699f343bae46a1292aa2fed",
+      "targets": [
+        "January 2010",
+        "In January 2010",
+        "February 2011"
+      ],
+      "prediction": " January 2010",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 8.193
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 491,
+      "prompt_hash": "0d78373eb0dce782825c3641df819ab36b8465586a4e6a31170185f5b6809f3e",
+      "doc_hash": "717b8da6389220f8b52ef864dd7e3b30530917d8a8d30aa38f87567f888fe833",
+      "target_hash": "32aaa086496472b62ffc828079154037375b4c78922ef6766e14b7be2add90b7",
+      "input_tokens": 63517,
+      "input_token_sha256": "77a810c3fdd424ff017c5f6139e5b08537ea46d5d44ba4c6dbffc0a468dd3d16",
+      "targets": [
+        "Sky+HD Box",
+        "Sky+HD Box",
+        "Sky+HD Box"
+      ],
+      "prediction": " Sky+HD Box",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.906
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 492,
+      "prompt_hash": "7029265e271f12eab6919c4ff531ed4d11ee64293f30dd0612849a61fe4ef233",
+      "doc_hash": "ef5cbc0f46e170646c632b0c9f8ed6f51f02a96e6d9a5af84ac6adf69a00a563",
+      "target_hash": "ce301c59b4f81145219ead5fc60a0f3a17d84bc6ce4ed2d7aa8e69ef77e2e5c5",
+      "input_tokens": 64658,
+      "input_token_sha256": "dff13f955cde45b1595d8b34a5d623575068b0729d3599492fc6579091f45d1c",
+      "targets": [
+        "VideoGuard",
+        "VideoGuard pay-TV",
+        "VideoGuard"
+      ],
+      "prediction": " VideoGuard",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.028
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 493,
+      "prompt_hash": "d9c7a371b3a1276a7182dfd60b09630852ce8c3a2c3387b5a8be7911d446429e",
+      "doc_hash": "7aab50bb6f28655d4622f18e5aa624959428beaec6725a88c0f8ee166cb97c72",
+      "target_hash": "56861789aec2028b0904a8b0b9231d53d5b3ae65d4ece400330fec086bcf6128",
+      "input_tokens": 64132,
+      "input_token_sha256": "88311742386e0af0209a110ef5d94af492c88573aa3e49bdf4333d92e8f8969d",
+      "targets": [
+        "NDS",
+        "NDS",
+        "NDS"
+      ],
+      "prediction": " NDS",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.961
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 494,
+      "prompt_hash": "11cd9d35c59710e08321c426f802fc0863dc7ec15568a6c61f65231fabb69d60",
+      "doc_hash": "a09041a63f82d2f8442ae6552239fba76689efeeb7269e71ea93c606f98250ef",
+      "target_hash": "9d3988eb40b6ae5ca438eaa8aeb29e3cea7de1e1980f4189d0e2dd6a68fd4c19",
+      "input_tokens": 63800,
+      "input_token_sha256": "0f8469b6ed8434504b65dcb016e53f75fed283d30ff5d46dcc17d6739f22af56",
+      "targets": [
+        "Cisco Systems",
+        "Cisco Systems",
+        "Cisco Systems company"
+      ],
+      "prediction": " NDS",
+      "score": 0.0,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.911
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 495,
+      "prompt_hash": "940be71359a38996ce8aeb0b2df0db01b62bd75f6b435591ea0020be48ddba03",
+      "doc_hash": "c7467401fd2c6cf53f696a217822b0672f87132cba90e925468df91bea2840a0",
+      "target_hash": "56fa8ab9f1c87a2bb09496ed42202a78cbccb8cb6d571846c191c5f647242e88",
+      "input_tokens": 64870,
+      "input_token_sha256": "4fa2bff913d3e9cfb6cdb659e1dc7c49ec4d16a03f95abd8301f2482a5e783ca",
+      "targets": [
+        "BSkyB",
+        "BSkyB",
+        "BSkyB"
+      ],
+      "prediction": " BSkyB",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.078
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 496,
+      "prompt_hash": "2945388c8a74846dac4fe4445ebdb9faccd85cc210913e7a34a157eab66e34b2",
+      "doc_hash": "bc8d050bbac6753b97156f876813ec597d30f9279f8919fa2dc543774b33cea4",
+      "target_hash": "7a818678c3e276aa5207ed2f4b3be3a71d9792ae55e3a0c4659802799796129c",
+      "input_tokens": 64709,
+      "input_token_sha256": "e3554c02f592f40b76f24ea187a2855b378cf7b104307ae036dfc6f34b9f0a23",
+      "targets": [
+        "Sky+",
+        "Sky+",
+        "PVR"
+      ],
+      "prediction": " Sky+",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.031
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 497,
+      "prompt_hash": "94b6bc406b46836e37d7aac0bdf0929f5fcb493b27b35c220de79a1e55418542",
+      "doc_hash": "d4f10ef0745b7ee29b432da06c9a15178ad20bde2aff845b1573b531c16660b8",
+      "target_hash": "b996dd90f2e02be76c6bdaab0146f4037f198dc885835f29fa7b63d6ac57c537",
+      "input_tokens": 63755,
+      "input_token_sha256": "023a9b0dbff9cf655a3ef5fcb10e1bac7983d856cce705b09a5e79b3f0c086ec",
+      "targets": [
+        "2007",
+        "2007",
+        "2007"
+      ],
+      "prediction": " 2007",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.009
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 498,
+      "prompt_hash": "c691201b38b93d3e6218a502325cb536e8938ec0876dbbae0db0d3595c7ef01f",
+      "doc_hash": "337e18deda35fc91f941fbe4a8f06ed9b0e4f4945a2430324083c4822027a29a",
+      "target_hash": "4a5cc3350b136594db387b6484201144e47369ddfe8085728e5db304bbaa5bb7",
+      "input_tokens": 63531,
+      "input_token_sha256": "1908e23004853aa71319bc7ba3c94715ff5f372ac6e5573e6cfd6df3799a7047",
+      "targets": [
+        "basic channels",
+        "the basic channels",
+        "the basic channels"
+      ],
+      "prediction": " basic channels",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.861
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 499,
+      "prompt_hash": "ebad9d1bb95084338ca06d968f509d66e21aa6b854a0c97c0e14bf1c52101dfc",
+      "doc_hash": "56fc5a4f0ab02e7262e2ae1cd9f49d89e376708e080c59cff2639b3231d4ba71",
+      "target_hash": "70f636136bd10e26e728c9e358d6d09ae224431ef2f53abe5580ed24be04a211",
+      "input_tokens": 64729,
+      "input_token_sha256": "3f9ec27bec28027bd7a90989c8ecfe8b2e7c083e07973e6d4867c86eea5c45f6",
+      "targets": [
+        "substantially increased the asking price",
+        "that BSkyB had substantially increased the asking price for the channels",
+        "increased the asking price"
+      ],
+      "prediction": " substantially increased the asking price for the channels",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.214
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 67.33333333333333
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": {
+    "rule": "entry",
+    "mass_multiplier": 16.0,
+    "entry_bound": 16,
+    "max_regions": 8,
+    "leaf_backend": "grouped-eight",
+    "work_bound": 16,
+    "tile_queries": 512,
+    "prefill_block_size": 16384,
+    "reuse_mean": true,
+    "no_host_sync": true,
+    "packed": true,
+    "fuse_pack": false,
+    "pair_reuse": false,
+    "implementation": "fused"
+  },
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 2.995496486997581,
+      "decode_s": 0.008451816000160761,
+      "capture_s": 0.22161266799957957,
+      "cache_init_s": 0.29800917000102345,
+      "decode_warmup_s": 0.0,
+      "prefill_cap_audit": [
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 186367,
+          "capped_regions": 16218,
+          "uncapped_entries": 364275,
+          "capped_entries": 46635,
+          "above_cap_heads": 1967,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 13877,
+          "capped_regions": 10671,
+          "uncapped_entries": 43150,
+          "capped_entries": 28290,
+          "above_cap_heads": 620,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 162853,
+          "capped_regions": 16381,
+          "uncapped_entries": 428753,
+          "capped_entries": 56902,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 169561,
+          "capped_regions": 16335,
+          "uncapped_entries": 427150,
+          "capped_entries": 44244,
+          "above_cap_heads": 2021,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 168816,
+          "capped_regions": 16377,
+          "uncapped_entries": 454454,
+          "capped_entries": 56714,
+          "above_cap_heads": 2039,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 220314,
+          "capped_regions": 16384,
+          "uncapped_entries": 579746,
+          "capped_entries": 43019,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 214412,
+          "capped_regions": 16384,
+          "uncapped_entries": 573056,
+          "capped_entries": 47836,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 250143,
+          "capped_regions": 16384,
+          "uncapped_entries": 684107,
+          "capped_entries": 49821,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 202260,
+          "capped_regions": 16384,
+          "uncapped_entries": 646762,
+          "capped_entries": 54830,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 156523,
+          "capped_regions": 16384,
+          "uncapped_entries": 621133,
+          "capped_entries": 72458,
+          "above_cap_heads": 2047,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 171259,
+          "capped_regions": 16383,
+          "uncapped_entries": 615464,
+          "capped_entries": 75281,
+          "above_cap_heads": 2047,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 162750,
+          "capped_regions": 16378,
+          "uncapped_entries": 664915,
+          "capped_entries": 73609,
+          "above_cap_heads": 2045,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 235320,
+          "capped_regions": 16382,
+          "uncapped_entries": 641872,
+          "capped_entries": 80359,
+          "above_cap_heads": 2040,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 86955,
+          "capped_regions": 16372,
+          "uncapped_entries": 699112,
+          "capped_entries": 106129,
+          "above_cap_heads": 2043,
+          "zero_regions_heads": 1,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 86683,
+          "capped_regions": 16380,
+          "uncapped_entries": 681110,
+          "capped_entries": 132162,
+          "above_cap_heads": 2042,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 112438,
+          "capped_regions": 16332,
+          "uncapped_entries": 591577,
+          "capped_entries": 80905,
+          "above_cap_heads": 2022,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 192763,
+          "capped_regions": 16382,
+          "uncapped_entries": 661542,
+          "capped_entries": 65287,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 149683,
+          "capped_regions": 16384,
+          "uncapped_entries": 566966,
+          "capped_entries": 61326,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 146438,
+          "capped_regions": 16380,
+          "uncapped_entries": 567739,
+          "capped_entries": 90441,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 171768,
+          "capped_regions": 16384,
+          "uncapped_entries": 527892,
+          "capped_entries": 49462,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 160726,
+          "capped_regions": 16384,
+          "uncapped_entries": 513037,
+          "capped_entries": 42086,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 136766,
+          "capped_regions": 16382,
+          "uncapped_entries": 479689,
+          "capped_entries": 72427,
+          "above_cap_heads": 2044,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 128269,
+          "capped_regions": 16384,
+          "uncapped_entries": 449273,
+          "capped_entries": 63694,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 149237,
+          "capped_regions": 16384,
+          "uncapped_entries": 415959,
+          "capped_entries": 44458,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 155711,
+          "capped_regions": 16380,
+          "uncapped_entries": 480023,
+          "capped_entries": 49779,
+          "above_cap_heads": 2044,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 144493,
+          "capped_regions": 16384,
+          "uncapped_entries": 441660,
+          "capped_entries": 50566,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 160744,
+          "capped_regions": 16384,
+          "uncapped_entries": 520934,
+          "capped_entries": 57542,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 148186,
+          "capped_regions": 16381,
+          "uncapped_entries": 476763,
+          "capped_entries": 69568,
+          "above_cap_heads": 2045,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 154663,
+          "capped_regions": 16384,
+          "uncapped_entries": 472277,
+          "capped_entries": 67208,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 192288,
+          "capped_regions": 16384,
+          "uncapped_entries": 521155,
+          "capped_entries": 78201,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 134159,
+          "capped_regions": 16384,
+          "uncapped_entries": 470230,
+          "capped_entries": 57330,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 151853,
+          "capped_regions": 16341,
+          "uncapped_entries": 398991,
+          "capped_entries": 51960,
+          "above_cap_heads": 2020,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        }
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.451816000160761,
+      "decode_ms_per_token": 8.451816000160761,
+      "decode_tokens_per_second": 118.31776744559738
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.451816000160761,
+  "median_decode_tokens_per_second": 118.31776744559738,
+  "median_decode_ms_per_token": 8.451816000160761,
+  "median_prefill_s": 2.995496486997581
+}

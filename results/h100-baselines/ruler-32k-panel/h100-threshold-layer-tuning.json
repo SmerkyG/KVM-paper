@@ -1,0 +1,101 @@
+{
+  "stage": "complete",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "length": 32768,
+  "layer": 15,
+  "replays": 80,
+  "steps_per_replay": 16,
+  "records": [
+    {
+      "kind": "top8",
+      "tile": 0,
+      "splits": 0,
+      "microseconds": 47.597724199295044,
+      "max_abs_vs_first_threshold": null
+    },
+    {
+      "kind": "threshold",
+      "tile": 32,
+      "splits": 8,
+      "microseconds": 71.58799767494202,
+      "max_abs_vs_first_threshold": 0.0
+    },
+    {
+      "kind": "threshold",
+      "tile": 32,
+      "splits": 16,
+      "microseconds": 55.666524171829224,
+      "max_abs_vs_first_threshold": 0.0
+    },
+    {
+      "kind": "threshold",
+      "tile": 32,
+      "splits": 32,
+      "microseconds": 53.35025191307068,
+      "max_abs_vs_first_threshold": 0.0
+    },
+    {
+      "kind": "threshold",
+      "tile": 32,
+      "splits": 64,
+      "microseconds": 50.73997378349304,
+      "max_abs_vs_first_threshold": 0.0
+    },
+    {
+      "kind": "threshold",
+      "tile": 64,
+      "splits": 8,
+      "microseconds": 70.59862613677979,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 64,
+      "splits": 16,
+      "microseconds": 55.401402711868286,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 64,
+      "splits": 32,
+      "microseconds": 51.0528028011322,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 64,
+      "splits": 64,
+      "microseconds": 48.65235090255737,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 128,
+      "splits": 8,
+      "microseconds": 68.59779953956604,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 128,
+      "splits": 16,
+      "microseconds": 57.29857683181763,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 128,
+      "splits": 32,
+      "microseconds": 52.42002606391907,
+      "max_abs_vs_first_threshold": 0.00048828125
+    },
+    {
+      "kind": "threshold",
+      "tile": 128,
+      "splits": 64,
+      "microseconds": 49.03090000152588,
+      "max_abs_vs_first_threshold": 0.00048828125
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "method": "retro-squeezed",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": true,
+  "squeezed_index": "/home/ubuntu/comparison/results/squeezed-32768-index.pt",
+  "squeezed_index_read_s": 0.5382758609994198,
+  "squeezed_offline_clustering_s": 356.16576912300025,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": false,
+  "dtype": "bfloat16",
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 1025,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "records": [
+    {
+      "prefill_s": 1.749665706000087,
+      "decode_s": 13.371087269999407,
+      "capture_s": 0.5202088609985367,
+      "cache_init_s": 0.11657017900142819,
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_token": 13.057702412108796
+    },
+    {
+      "prefill_s": 1.5912221480029984,
+      "decode_s": 13.387387157003104,
+      "capture_s": 0.13258146700172802,
+      "cache_init_s": 0.0878832689995761,
+      "iteration": 1,
+      "warmup": true,
+      "decode_ms_per_token": 13.073620270510844
+    },
+    {
+      "prefill_s": 1.6082050990007701,
+      "decode_s": 13.386249413000769,
+      "capture_s": 0.13382850699781557,
+      "cache_init_s": 0.0908875690001878,
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_token": 13.072509192383563
+    },
+    {
+      "prefill_s": 1.606343633000506,
+      "decode_s": 13.6791999019988,
+      "capture_s": 0.1337238089981838,
+      "cache_init_s": 0.08192817400049535,
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_token": 13.358593654295703
+    },
+    {
+      "prefill_s": 1.612186329002725,
+      "decode_s": 13.688840531001915,
+      "capture_s": 0.13347229099963442,
+      "cache_init_s": 0.08581580100144492,
+      "iteration": 4,
+      "warmup": false,
+      "decode_ms_per_token": 13.368008331056558
+    }
+  ],
+  "median_decode_ms_per_token": 13.358593654295703,
+  "median_prefill_s": 1.6082050990007701
+}

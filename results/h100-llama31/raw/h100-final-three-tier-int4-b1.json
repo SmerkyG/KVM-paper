@@ -1,0 +1,334 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "4c9a8749a0f18bb5318a4e6ad19e831b68fd5ec9ec578219e1490e0c6b70c1f9"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 66577,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 66577,
+  "measurements": {
+    "32768": {
+      "decode_ms_per_batch_step": 7.964085745117089,
+      "prefill_seconds": 1.6876547840001876,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "745893b9a405926f3aff351d3af7d43c12364b0a497af5ff7a11ea002d32f198",
+          "unique_16_token_block_ratio": 0.998046875
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.967598221680028,
+          "decode_seconds": 8.158820579000349,
+          "elapsed_seconds": 10.686455964999823,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 2.5241395230000307
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.959224439453294,
+          "decode_seconds": 8.150245826000173,
+          "elapsed_seconds": 9.840983492000305,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 1.6880656949997501
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.074102564453067,
+          "decode_seconds": 8.267881025999941,
+          "elapsed_seconds": 9.958064064000155,
+          "output_token_sha256": [
+            "743a6097f3e9659108d02902ae53157cfbcc98998146fefe10ff2e6cbde5624a"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.6876547840001876
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.960102688476578,
+          "decode_seconds": 8.151145153000016,
+          "elapsed_seconds": 9.8424608360001,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.6891008319998946
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.964085745117089,
+          "decode_seconds": 8.155223802999899,
+          "elapsed_seconds": 9.842754668999987,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.6852551040001345
+        }
+      ]
+    },
+    "65536": {
+      "decode_ms_per_batch_step": 8.15901900292948,
+      "prefill_seconds": 4.334194181999919,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "f7cc515045e0c4a607f60b9ec14ccff8ece81d7e5600fa6b638e021bc2715bf9",
+          "unique_16_token_block_ratio": 0.986572265625
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.168336866210879,
+          "decode_seconds": 8.36437695099994,
+          "elapsed_seconds": 13.32386220599983,
+          "output_token_sha256": [
+            "980c89e2a6c4eb2563190b024a7e044a0a75f19a891821ddb92a8d9d84c6a1c1"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 4.955960105000031
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.142127009765687,
+          "decode_seconds": 8.337538058000064,
+          "elapsed_seconds": 12.662515562999943,
+          "output_token_sha256": [
+            "50aa8e5a9d9de6e528051f94449c6fc3cc233b73ff9d86ad928e488245dc6e59"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 4.32084249799982
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.164257371093608,
+          "decode_seconds": 8.360199547999855,
+          "elapsed_seconds": 12.698745502999827,
+          "output_token_sha256": [
+            "4b75788bf67a3eeee0610789b7fa60e94fe672380c8cc31682b445d4363c17fc"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 4.334705437000139
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.145111467773525,
+          "decode_seconds": 8.34059414300009,
+          "elapsed_seconds": 12.657745794999755,
+          "output_token_sha256": [
+            "36fd163b040327d3a130a2297e58f9759271fc789a3c68763f19ac3b1c87fb81"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 4.313562033999915
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.15901900292948,
+          "decode_seconds": 8.354835458999787,
+          "elapsed_seconds": 12.692687901999761,
+          "output_token_sha256": [
+            "5561be71278d1d84cdb942b64fe6dd11f7ba9a4c85768a1e52b7b98c8be4c6c7"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 4.334194181999919
+        }
+      ]
+    },
+    "8192": {
+      "decode_ms_per_batch_step": 7.870470859375089,
+      "prefill_seconds": 0.362137556000107,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "fba0e71ae71325b64c46ebb0847da0256886f955147511276926080b4d7b8028",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.900590539062335,
+          "decode_seconds": 8.090204711999831,
+          "elapsed_seconds": 8.938591791999897,
+          "output_token_sha256": [
+            "4bfa678aa5aefd236dc34397c4b5ccdcf463fb6c279cc0902c71819cbe09acba"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 0.8427368419997947
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.868966468750127,
+          "decode_seconds": 8.05782166400013,
+          "elapsed_seconds": 8.419271935000324,
+          "output_token_sha256": [
+            "974d13d2d997438eeffb90c40e963f7895991bbaa7a2ed5a7618f83a8937933b"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 0.3600541499999963
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.870326992187593,
+          "decode_seconds": 8.059214840000095,
+          "elapsed_seconds": 8.422604072000013,
+          "output_token_sha256": [
+            "c8aeb99ad1ebd4e1b4f95b6a6da35d6644234b803573299a10295bc725e5a544"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 0.362137556000107
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.874845061523583,
+          "decode_seconds": 8.06384134300015,
+          "elapsed_seconds": 8.424817879999864,
+          "output_token_sha256": [
+            "c8aeb99ad1ebd4e1b4f95b6a6da35d6644234b803573299a10295bc725e5a544"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 0.3596132849997957
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.870470859375089,
+          "decode_seconds": 8.059362160000092,
+          "elapsed_seconds": 8.423095405999902,
+          "output_token_sha256": [
+            "6a06ce044e308c6731e6324caddf3d4a62b5ed9b149ea42e5ed08f685156acea"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 0.3622430729997177
+        }
+      ]
+    }
+  },
+  "mode": "three-tier-int4",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "7f4b667f0a77edffe0cff8a599834afcccff77a8f596b94d69bccaaa186adeeb",
+  "prompt_source": {
+    "batch_size": 1,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "repeats": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 19.3639635239997,
+  "warmups": 2,
+  "worker_state": [
+    [
+      {
+        "attribute": "_vllm_lod_runtime",
+        "layers": 32,
+        "pool_size": 1,
+        "pools": [
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 4,
+            "layer": "model.layers.0.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 4352
+          },
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 4,
+            "layer": "model.layers.1.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 4352
+          }
+        ],
+        "request_capacity": 66577
+      }
+    ]
+  ]
+}

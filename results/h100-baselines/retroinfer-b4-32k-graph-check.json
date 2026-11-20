@@ -1,0 +1,262 @@
+{
+  "method": "retro",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 4,
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 20,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "records": [
+    {
+      "prefill_s": 8.40962508300072,
+      "decode_s": 0.27077742899928126,
+      "capture_s": 0.16874308099795599,
+      "cache_init_s": 4.873727371999848,
+      "output_token_ids": [
+        [
+          489,
+          489,
+          10,
+          8042,
+          446,
+          5451,
+          32857,
+          304,
+          2134,
+          369,
+          56150,
+          489,
+          602,
+          489,
+          13320,
+          6360,
+          504,
+          443,
+          692,
+          489
+        ],
+        [
+          489,
+          489,
+          10,
+          8042,
+          446,
+          5451,
+          32857,
+          304,
+          2134,
+          369,
+          56150,
+          489,
+          602,
+          489,
+          13320,
+          6360,
+          504,
+          443,
+          692,
+          489
+        ],
+        [
+          489,
+          489,
+          10,
+          8042,
+          446,
+          5451,
+          32857,
+          304,
+          2134,
+          369,
+          56150,
+          489,
+          602,
+          489,
+          13320,
+          6360,
+          504,
+          443,
+          692,
+          489
+        ],
+        [
+          489,
+          489,
+          10,
+          8042,
+          446,
+          5451,
+          32857,
+          304,
+          2134,
+          369,
+          56150,
+          489,
+          602,
+          489,
+          13320,
+          6360,
+          504,
+          443,
+          692,
+          489
+        ]
+      ],
+      "graph_same_cache_checks": {
+        "0": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 489,
+          "eager_argmax": 489,
+          "graph_argmax_by_request": [
+            489,
+            489,
+            489,
+            489
+          ],
+          "eager_argmax_by_request": [
+            489,
+            489,
+            489,
+            489
+          ]
+        },
+        "1": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 10,
+          "eager_argmax": 10,
+          "graph_argmax_by_request": [
+            10,
+            10,
+            10,
+            10
+          ],
+          "eager_argmax_by_request": [
+            10,
+            10,
+            10,
+            10
+          ]
+        },
+        "14": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 6360,
+          "eager_argmax": 6360,
+          "graph_argmax_by_request": [
+            6360,
+            6360,
+            6360,
+            6360
+          ],
+          "eager_argmax_by_request": [
+            6360,
+            6360,
+            6360,
+            6360
+          ]
+        },
+        "15": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 504,
+          "eager_argmax": 504,
+          "graph_argmax_by_request": [
+            504,
+            504,
+            504,
+            504
+          ],
+          "eager_argmax_by_request": [
+            504,
+            504,
+            504,
+            504
+          ]
+        },
+        "16": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 128699,
+          "eager_argmax": 128699,
+          "graph_argmax_by_request": [
+            443,
+            443,
+            443,
+            443
+          ],
+          "eager_argmax_by_request": [
+            443,
+            443,
+            443,
+            443
+          ]
+        },
+        "17": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 385460,
+          "eager_argmax": 385460,
+          "graph_argmax_by_request": [
+            692,
+            692,
+            692,
+            692
+          ],
+          "eager_argmax_by_request": [
+            692,
+            692,
+            692,
+            692
+          ]
+        },
+        "18": {
+          "max_abs": 0.0,
+          "mean_abs": 0.0,
+          "graph_argmax": 489,
+          "eager_argmax": 489,
+          "graph_argmax_by_request": [
+            489,
+            489,
+            489,
+            489
+          ],
+          "eager_argmax_by_request": [
+            489,
+            489,
+            489,
+            489
+          ]
+        }
+      },
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_batch_step": 14.251443631541118,
+      "decode_ms_per_token": 3.5628609078852795,
+      "decode_tokens_per_second": 280.6733200801671
+    }
+  ],
+  "median_decode_ms_per_batch_step": 14.251443631541118,
+  "median_decode_tokens_per_second": 280.6733200801671,
+  "median_decode_ms_per_token": 3.5628609078852795,
+  "median_prefill_s": 8.40962508300072
+}

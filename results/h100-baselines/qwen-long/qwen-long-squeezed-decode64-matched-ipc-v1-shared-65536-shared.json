@@ -1,0 +1,168 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 65536,
+  "batch_size": 1,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 2.0,
+    "original_max_position_embeddings": 32768
+  },
+  "context_limit": 65536,
+  "methods": [
+    "lod",
+    "dense",
+    "squeezed-p90"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 63488,
+  "warmup_steps": 512,
+  "dense_kv_source": "device",
+  "captures_host_kv": true,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 63488,
+      "prefill_token_id": 2681,
+      "input_token_sha256": "f4c8626ccfba39cf4ce164f82ae0c0fdcb6768d15e7110435d6ddff6d77baec0",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 4.190538285999537,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.1961856980005905,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.214438478999909,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 8.195675191407403
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16,
+            "graph_argmax_by_request": [
+              16
+            ],
+            "eager_argmax_by_request": [
+              16
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 5.5205775450003784,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.530398251000406,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.541496743000607,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 10.801559083985168
+        },
+        "squeezed-p90": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 6.234751527999833,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.244821438999679,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.272845106999739,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 12.196916873046248,
+          "last_layer_selected_prefix_counts": [
+            9917,
+            178,
+            2343,
+            308,
+            455,
+            3085,
+            681,
+            140,
+            5329,
+            3456,
+            3290,
+            19747,
+            5216,
+            9201,
+            18239,
+            11177,
+            716,
+            222,
+            5119,
+            2384,
+            8269,
+            1668,
+            2032,
+            1243,
+            2441,
+            4511,
+            3815,
+            4040,
+            101,
+            112,
+            101,
+            120
+          ]
+        }
+      },
+      "squeezed_index": {
+        "seconds": 192.23722194699985,
+        "clusters": 3169,
+        "cluster_percent": 5,
+        "threshold": {
+          "0.5": 1.2491392453739536e-07,
+          "0.7": 7.225780223052425e-07,
+          "0.8": 1.8577745777292876e-06,
+          "0.9": 6.412854872905882e-06
+        },
+        "observation_window": 100,
+        "reused": false
+      },
+      "elapsed_s": 282.39983135999955
+    }
+  ]
+}

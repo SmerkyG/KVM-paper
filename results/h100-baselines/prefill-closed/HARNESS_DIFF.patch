@@ -1,0 +1,10 @@
+--- final2/h100_comparison.py
++++ final3/h100_comparison.py
+@@ -555,6 +555,7 @@
+                            if os.environ.get('LOD_H100_PREFILL_IMPLEMENTATION') == 'fast' else None,
+                        "fast_score_reuse": os.environ.get('LOD_H100_PREFILL_IMPLEMENTATION') == 'fast',
+                        "fast_select_m": int(os.environ.get('LOD_H100_FAST_SELECT_M', '1')),
++                       "fast_full_select": os.environ.get('LOD_H100_FAST_FULL_SELECT') == '1',
+                        "fast_saved_correction": os.environ.get('LOD_H100_FAST_SAVED_CORRECTION') == '1',
+                        "fast_route_capacity": int(os.environ.get('LOD_H100_FAST_ROUTE_CAPACITY', '128')),
+                        "fast_cap_early_exit": os.environ.get('LOD_H100_FAST_CAP_EARLY_EXIT', '1') == '1',

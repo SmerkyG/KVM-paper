@@ -1,0 +1,296 @@
+{
+  "stage": "complete",
+  "scope": "Tune the threshold producer on real in-memory 64K prefill inputs.\n\nDiagnostic only: stops model execution after checking and timing equivalent\nproducer shapes. No Q/K/V snapshot is saved and no model speed is inferred.\n",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "scores_shape": [
+      32,
+      4096,
+      2896
+    ]
+  },
+  "records": [
+    {
+      "m": 64,
+      "n": 64,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 2.2724960327148436,
+      "samples_ms": [
+        2.3294143676757812,
+        2.264236831665039,
+        2.2724960327148436
+      ]
+    },
+    {
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.2608991622924806,
+      "samples_ms": [
+        2.2608991622924806,
+        2.2600831985473633,
+        2.2629695892333985
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.988505554199219,
+      "samples_ms": [
+        3.0315872192382813,
+        2.988505554199219,
+        2.9633920669555662
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 4.086774444580078,
+      "samples_ms": [
+        4.137936019897461,
+        4.083286285400391,
+        4.086774444580078
+      ]
+    },
+    {
+      "m": 128,
+      "n": 64,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 4.842246246337891,
+      "samples_ms": [
+        4.881046295166016,
+        4.842246246337891,
+        4.840425491333008
+      ]
+    },
+    {
+      "m": 128,
+      "n": 64,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 2.5659839630126955,
+      "samples_ms": [
+        2.5864736557006838,
+        2.565782356262207,
+        2.5659839630126955
+      ]
+    },
+    {
+      "m": 128,
+      "n": 128,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.4791168212890624,
+      "samples_ms": [
+        2.5096672058105467,
+        2.478726387023926,
+        2.4791168212890624
+      ]
+    },
+    {
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.75097107887268e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 3.6013153076171873,
+      "samples_ms": [
+        3.638576126098633,
+        3.6013153076171873,
+        3.59354248046875
+      ]
+    },
+    {
+      "m": 64,
+      "n": 256,
+      "warps": 4,
+      "stages": 2,
+      "valid": false,
+      "error": "out of resource: shared memory, Required: 344064, Hardware limit: 232448. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "m": 64,
+      "n": 256,
+      "warps": 8,
+      "stages": 2,
+      "valid": false,
+      "error": "out of resource: shared memory, Required: 344064, Hardware limit: 232448. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "m": 64,
+      "n": 64,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 4.396368026733398,
+      "samples_ms": [
+        4.436463928222656,
+        4.396368026733398,
+        4.257107162475586
+      ]
+    },
+    {
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "stages": 1,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.75097107887268e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 3.3777694702148438,
+      "samples_ms": [
+        3.3777694702148438,
+        3.3871265411376954,
+        3.364876937866211
+      ]
+    },
+    {
+      "m": 64,
+      "n": 256,
+      "warps": 4,
+      "stages": 1,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.750226020812988e-05,
+        1.9073486328125e-06,
+        1.9073486328125e-06,
+        0.0
+      ],
+      "median_ms": 11.141827392578126,
+      "samples_ms": [
+        11.135855865478515,
+        11.145769500732422,
+        11.141827392578126
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "stages": 1,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.8171104431152343,
+      "samples_ms": [
+        2.8120096206665037,
+        2.8171104431152343,
+        2.8183712005615233
+      ]
+    },
+    {
+      "m": 128,
+      "n": 128,
+      "warps": 8,
+      "stages": 1,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.2935104370117188,
+      "samples_ms": [
+        2.288860893249512,
+        2.2960384368896483,
+        2.2935104370117188
+      ]
+    }
+  ],
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+}

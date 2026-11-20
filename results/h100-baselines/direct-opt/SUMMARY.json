@@ -1,0 +1,4393 @@
+{
+  "profiles": {
+    "threshold-directopt-baseline-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-baseline-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 12.339344570005778,
+      "samples_s": [
+        12.339344570005778
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006837759992107749,
+        "fast_produce": 1.39579782640934,
+        "fast_select": 1.1531856305152175,
+        "direct_closed_normalize": 0.9778168969452382,
+        "direct_closed_pv": 0.5761185594797135,
+        "fast_closed_project": 1.5698239371776583,
+        "dispatch_prepare": 0.0012773439686279747,
+        "dispatch_group": 0.09372332802787424,
+        "dispatch_blocks": 0.0013715839744545513,
+        "dispatch": 0.0975633601024747,
+        "pack": 0.0012707519687246529,
+        "kernel": 2.0067329605072737,
+        "reduce": 0.6839350076168775,
+        "total": 2.789502079248429,
+        "fast_exact": 2.8400240623354915,
+        "fast_merge": 0.08383641593717037
+      },
+      "regions_per_query_head": 22.667952292556063,
+      "entries_per_query_head": 1460.4546512901236,
+      "route_coarse_s": 4.118807394102216
+    },
+    "threshold-directopt-baseline-v1-top8-128000-profiles.json": {
+      "file": "threshold-directopt-baseline-v1-top8-128000-profiles.json",
+      "variant": "top8",
+      "length": 128000,
+      "median_s": 9.599153663002653,
+      "samples_s": [
+        9.599153663002653
+      ],
+      "peak_allocated_bytes": 44350199296,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "dispatch_prepare": 0.00032745599374175066,
+        "dispatch_group": 0.044224959999322896,
+        "dispatch_blocks": 0.0003467199953738601,
+        "dispatch": 0.04523750394582749,
+        "pack": 0.0003420479940250516,
+        "kernel": 0.7167531852722168
+      },
+      "regions_per_query_head": 7.982110102242286,
+      "entries_per_query_head": 522.9465172268929,
+      "route_coarse_s": 3.10055283164978
+    },
+    "threshold-directopt-bitmap-split-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-bitmap-split-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.803782632006914,
+      "samples_s": [
+        11.803782632006914
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006771712021902202,
+        "fast_produce": 1.2795610252618792,
+        "fast_select": 0.003805791980354116,
+        "direct_bitmap_pack": 0.4635027840659022,
+        "direct_closed_normalize": 1.7162674227356913,
+        "direct_closed_pv": 0.5760511040985584,
+        "fast_closed_project": 2.309130397975445,
+        "dispatch_prepare": 0.0013027519764145837,
+        "dispatch_group": 0.09294710410013794,
+        "dispatch_blocks": 0.0013824959803605452,
+        "dispatch": 0.09685280004143715,
+        "pack": 0.0012997119766660035,
+        "kernel": 2.009259519919753,
+        "reduce": 0.6868663358092307,
+        "total": 2.7942783645391467,
+        "fast_exact": 2.843491749823093,
+        "fast_merge": 0.08392038407549263
+      },
+      "regions_per_query_head": 22.59431202039806,
+      "entries_per_query_head": 1458.7739811206084,
+      "route_coarse_s": 3.592497215217678
+    },
+    "threshold-directopt-bitmap-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-bitmap-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.89614362998691,
+      "samples_s": [
+        11.89614362998691
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006849984018132091,
+        "fast_produce": 1.2790965126752851,
+        "fast_select": 0.003931199964601547,
+        "direct_bitmap_pack": 0.3693270081803203,
+        "direct_closed_normalize": 1.797493502438068,
+        "direct_closed_pv": 0.5768788799345493,
+        "fast_closed_project": 2.391282560706139,
+        "dispatch_prepare": 0.0012865279722027482,
+        "dispatch_group": 0.09469203205406668,
+        "dispatch_blocks": 0.0013617279770551246,
+        "dispatch": 0.09854252793639899,
+        "pack": 0.0012979199738474563,
+        "kernel": 2.010501794442534,
+        "reduce": 0.6858178558349608,
+        "total": 2.796160093903542,
+        "fast_exact": 2.8465760953426362,
+        "fast_merge": 0.08391727996431292
+      },
+      "regions_per_query_head": 22.59473111213894,
+      "entries_per_query_head": 1459.4449936578033,
+      "route_coarse_s": 3.674310273346026
+    },
+    "threshold-directopt-bitmap-v1-combined-128000-profiles.json": {
+      "file": "threshold-directopt-bitmap-v1-combined-128000-profiles.json",
+      "variant": "combined",
+      "length": 128000,
+      "median_s": 11.993948609000654,
+      "samples_s": [
+        11.993948609000654
+      ],
+      "peak_allocated_bytes": 71348972032,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": true,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": true,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006845759995281695,
+        "direct_shared_prepare": 0.00354790400248021,
+        "fast_produce": 1.2775899518132205,
+        "fast_select": 0.003917215975699947,
+        "direct_bitmap_pack": 0.3682645118534565,
+        "direct_closed_normalize": 1.7934615018963815,
+        "direct_closed_pv": 0.5762819208204749,
+        "fast_closed_project": 2.3724595510959623,
+        "dispatch_prepare": 0.0012725759679451585,
+        "dispatch_group": 0.094547456022352,
+        "dispatch_blocks": 0.0013572479743743317,
+        "dispatch": 0.09840857599675656,
+        "pack": 0.001404543980490416,
+        "kernel": 1.9966621720790865,
+        "fast_exact": 2.14710511893034,
+        "fast_merge": 0.8842303049713373
+      },
+      "regions_per_query_head": 22.538007508724107,
+      "entries_per_query_head": 1454.0935294037565,
+      "route_coarse_s": 3.653966718884883
+    },
+    "threshold-directopt-bitmap-w4-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-bitmap-w4-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.948969921999378,
+      "samples_s": [
+        11.948969921999378
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006851968003436923,
+        "fast_produce": 1.279723997592926,
+        "fast_select": 0.003943935972172767,
+        "direct_bitmap_pack": 0.3701644476205112,
+        "direct_closed_normalize": 1.8558991675376897,
+        "direct_closed_pv": 0.5771170243024826,
+        "fast_closed_project": 2.4499293118715286,
+        "dispatch_prepare": 0.0012710719677852466,
+        "dispatch_group": 0.09506400012597442,
+        "dispatch_blocks": 0.0013429759732680397,
+        "dispatch": 0.09886060808226466,
+        "pack": 0.0012786879676859825,
+        "kernel": 2.010247773990035,
+        "reduce": 0.6870379516780376,
+        "total": 2.797425021290779,
+        "fast_exact": 2.8479192920923233,
+        "fast_merge": 0.08405555194988845
+      },
+      "regions_per_query_head": 22.636314689566237,
+      "entries_per_query_head": 1457.6633169804145,
+      "route_coarse_s": 3.733597245436627
+    },
+    "threshold-directopt-fixed-v2-select-128000-profiles.json": {
+      "file": "threshold-directopt-fixed-v2-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.891138395993039,
+      "samples_s": [
+        11.891138395993039
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006853375997394322,
+        "fast_produce": 1.2802842239141463,
+        "fast_select": 0.003927711970172821,
+        "direct_bitmap_pack": 0.4644196478798984,
+        "direct_closed_normalize": 1.7859335040450097,
+        "direct_closed_pv": 0.5774578562527897,
+        "fast_closed_project": 2.380367230892181,
+        "dispatch_prepare": 0.00130419197678566,
+        "dispatch_group": 0.09537180803716183,
+        "dispatch_blocks": 0.0013959359818836673,
+        "dispatch": 0.09929417607933282,
+        "pack": 0.001302495977957733,
+        "kernel": 2.00776313610375,
+        "reduce": 0.6876086074858904,
+        "total": 2.7959684135317806,
+        "fast_exact": 2.8464713587164874,
+        "fast_merge": 0.08402496003732082
+      },
+      "regions_per_query_head": 22.631830556677023,
+      "entries_per_query_head": 1453.0870581373163,
+      "route_coarse_s": 3.6645791667765
+    },
+    "threshold-directopt-fuse-hoist-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-fuse-hoist-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 14.438435410993407,
+      "samples_s": [
+        14.438435410993407
+      ],
+      "peak_allocated_bytes": 71281338880,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": true,
+        "direct_fused_selection": true,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006828703973442317,
+        "direct_shared_prepare": 0.0035567679945379504,
+        "fast_produce": 1.2774101462364196,
+        "fast_select": 0.004227808001684026,
+        "direct_closed_normalize": 4.38007254755497,
+        "direct_closed_pv": 0.5743871361464262,
+        "fast_closed_project": 4.957226049661638,
+        "dispatch_prepare": 0.0013084159763529898,
+        "dispatch_group": 0.09248489601165058,
+        "dispatch_blocks": 0.0013886079804506153,
+        "dispatch": 0.09645776005834339,
+        "pack": 0.0013723519806517288,
+        "kernel": 2.0031214731931684,
+        "reduce": 0.6827263357937337,
+        "total": 2.7836779222488413,
+        "fast_exact": 2.834028742074966,
+        "fast_merge": 0.08359478396177292
+      },
+      "regions_per_query_head": 22.59473111213894,
+      "entries_per_query_head": 1459.4449936578033,
+      "route_coarse_s": 6.238864003899741
+    },
+    "threshold-directopt-fuse-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-fuse-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 14.418064842000604,
+      "samples_s": [
+        14.418064842000604
+      ],
+      "peak_allocated_bytes": 71272950272,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006774943992495536,
+        "fast_produce": 1.277202851116657,
+        "fast_select": 0.0038393919833470133,
+        "direct_closed_normalize": 4.382303358912469,
+        "direct_closed_pv": 0.5739421448558569,
+        "fast_closed_project": 4.973029222011567,
+        "dispatch_prepare": 0.0012622719665523617,
+        "dispatch_group": 0.09023427208140491,
+        "dispatch_blocks": 0.00135772797325626,
+        "dispatch": 0.09404297609254715,
+        "pack": 0.0012655999677954242,
+        "kernel": 1.9970660820603372,
+        "reduce": 0.6820036803334952,
+        "total": 2.7743783323168754,
+        "fast_exact": 2.823628606915474,
+        "fast_merge": 0.08348268805071711
+      },
+      "regions_per_query_head": 22.602351678620785,
+      "entries_per_query_head": 1456.1901650997477,
+      "route_coarse_s": 6.254071465111571
+    },
+    "threshold-directopt-fuse-v1-hoist-128000-profiles.json": {
+      "file": "threshold-directopt-fuse-v1-hoist-128000-profiles.json",
+      "variant": "hoist",
+      "length": 128000,
+      "median_s": 12.336795196009916,
+      "samples_s": [
+        12.336795196009916
+      ],
+      "peak_allocated_bytes": 71348972032,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": true,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006860992005094885,
+        "direct_shared_prepare": 0.0035688639953732485,
+        "fast_produce": 1.3992554549574854,
+        "fast_select": 1.1569354552328586,
+        "direct_closed_normalize": 0.9745240969061849,
+        "direct_closed_pv": 0.5762428163737059,
+        "fast_closed_project": 1.5533495664596557,
+        "dispatch_prepare": 0.0012690239672083407,
+        "dispatch_group": 0.09457040001079442,
+        "dispatch_blocks": 0.0013724479750962927,
+        "dispatch": 0.0983968319930136,
+        "pack": 0.0012654719679849218,
+        "kernel": 2.0096551677733663,
+        "reduce": 0.686461792051792,
+        "total": 2.7957792659997938,
+        "fast_exact": 2.846524318814277,
+        "fast_merge": 0.08393475198745724
+      },
+      "regions_per_query_head": 22.667540515234712,
+      "entries_per_query_head": 1460.5074016326064,
+      "route_coarse_s": 4.109540476649999
+    },
+    "threshold-directopt-leaf128x32-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-leaf128x32-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 12.604218923996086,
+      "samples_s": [
+        12.604218923996086
+      ],
+      "peak_allocated_bytes": 71338486272,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006836832018569112,
+        "fast_produce": 1.3949727368950846,
+        "fast_select": 1.1503813442885875,
+        "direct_closed_normalize": 0.9770462397933006,
+        "direct_closed_pv": 0.5753452479690312,
+        "fast_closed_project": 1.5683039375543593,
+        "dispatch_prepare": 0.0012962879750411957,
+        "dispatch_group": 0.09313535983487967,
+        "dispatch_blocks": 0.0013946559790056197,
+        "dispatch": 0.09704131193831564,
+        "pack": 0.0012901439752895383,
+        "kernel": 2.2715987850129604,
+        "reduce": 0.6834389122724533,
+        "total": 3.053369151175022,
+        "fast_exact": 3.103833314955234,
+        "fast_merge": 0.08370380801148715
+      },
+      "regions_per_query_head": 22.66741675630622,
+      "entries_per_query_head": 1459.4768270702536,
+      "route_coarse_s": 4.113658018738031
+    },
+    "threshold-directopt-leaf128x64-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-leaf128x64-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 12.812712964994716,
+      "samples_s": [
+        12.812712964994716
+      ],
+      "peak_allocated_bytes": 71338486272,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006808671992272138,
+        "fast_produce": 1.3888575047254563,
+        "fast_select": 1.1462953928709032,
+        "direct_closed_normalize": 0.9755750396549702,
+        "direct_closed_pv": 0.5744126081466674,
+        "fast_closed_project": 1.5658392012119289,
+        "dispatch_prepare": 0.0012713279671734197,
+        "dispatch_group": 0.09317359998449684,
+        "dispatch_blocks": 0.0013663999736309052,
+        "dispatch": 0.0969975359663367,
+        "pack": 0.0012694719682913276,
+        "kernel": 2.497123712390661,
+        "reduce": 0.6790986240208148,
+        "total": 3.2744893485307696,
+        "fast_exact": 3.3247444774508477,
+        "fast_merge": 0.0834271999448538
+      },
+      "regions_per_query_head": 22.72690545528307,
+      "entries_per_query_head": 1461.3005792285323,
+      "route_coarse_s": 4.100992098808288
+    },
+    "threshold-directopt-leaf16x64-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-leaf16x64-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 15.138655126997037,
+      "samples_s": [
+        15.138655126997037
+      ],
+      "peak_allocated_bytes": 71353166336,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006781343994662164,
+        "fast_produce": 1.383651391386986,
+        "fast_select": 1.1397033280134203,
+        "direct_closed_normalize": 0.9748434554934501,
+        "direct_closed_pv": 0.5727778875976801,
+        "fast_closed_project": 1.5634198419451713,
+        "dispatch_prepare": 0.0012735039673279973,
+        "dispatch_group": 0.09680003219097853,
+        "dispatch_blocks": 0.0013696959738153966,
+        "dispatch": 0.10062995192781092,
+        "pack": 0.001269727968261577,
+        "kernel": 4.866568415164948,
+        "reduce": 0.6729946562945843,
+        "total": 5.6414627532362935,
+        "fast_exact": 5.691776576519014,
+        "fast_merge": 0.08332310402579604
+      },
+      "regions_per_query_head": 22.610617987606503,
+      "entries_per_query_head": 1454.6219326684234,
+      "route_coarse_s": 4.086774561345577
+    },
+    "threshold-directopt-leaf32x32-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-leaf32x32-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 13.599330683995504,
+      "samples_s": [
+        13.599330683995504
+      ],
+      "peak_allocated_bytes": 71344777728,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.0068388480059802526,
+        "fast_produce": 1.393098975837231,
+        "fast_select": 1.1505854082256557,
+        "direct_closed_normalize": 0.9767785932421685,
+        "direct_closed_pv": 0.5751574715077877,
+        "fast_closed_project": 1.5678575016856198,
+        "dispatch_prepare": 0.0012934399736113846,
+        "dispatch_group": 0.09624927986785768,
+        "dispatch_blocks": 0.0013871999781113118,
+        "dispatch": 0.10013926400989295,
+        "pack": 0.0012897599744610489,
+        "kernel": 3.281449243426322,
+        "reduce": 0.6813323532640935,
+        "total": 4.064210619986057,
+        "fast_exact": 4.11485996878147,
+        "fast_merge": 0.08373852802626788
+      },
+      "regions_per_query_head": 22.710838659094016,
+      "entries_per_query_head": 1459.9300031924467,
+      "route_coarse_s": 4.111541885748506
+    },
+    "threshold-directopt-leaf32x64-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-leaf32x64-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 13.276294783005142,
+      "samples_s": [
+        13.276294783005142
+      ],
+      "peak_allocated_bytes": 71344777728,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006824223997071385,
+        "fast_produce": 1.3877918075919156,
+        "fast_select": 1.1452476489841936,
+        "direct_closed_normalize": 0.9756881924867632,
+        "direct_closed_pv": 0.5746608322858809,
+        "fast_closed_project": 1.5662808625698086,
+        "dispatch_prepare": 0.0013096319794422017,
+        "dispatch_group": 0.09596870406344535,
+        "dispatch_blocks": 0.001408575984998606,
+        "dispatch": 0.09991542403772473,
+        "pack": 0.0013046399800805376,
+        "kernel": 2.965427423387766,
+        "reduce": 0.6773903034478425,
+        "total": 3.7440377913713445,
+        "fast_exact": 3.794669184625148,
+        "fast_merge": 0.08355308794230223
+      },
+      "regions_per_query_head": 22.613026111497792,
+      "entries_per_query_head": 1454.5124519418139,
+      "route_coarse_s": 4.099320319145917
+    },
+    "threshold-directopt-leaf64-w8-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-leaf64-w8-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 13.463714783996693,
+      "samples_s": [
+        13.463714783996693
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006755231995135544,
+        "fast_produce": 1.27468201559782,
+        "fast_select": 0.003909311992581933,
+        "direct_bitmap_pack": 0.3676215043812991,
+        "direct_closed_normalize": 1.784750592648983,
+        "direct_closed_pv": 0.5746204795986415,
+        "fast_closed_project": 2.376136637151242,
+        "dispatch_prepare": 0.0012716479672817515,
+        "dispatch_group": 0.09363049614429474,
+        "dispatch_blocks": 0.0013402239722199738,
+        "dispatch": 0.09742697600275281,
+        "pack": 0.0012823039691429582,
+        "kernel": 3.6106088631153113,
+        "reduce": 0.6800560638904569,
+        "total": 4.389374209225179,
+        "fast_exact": 4.438707832098007,
+        "fast_merge": 0.08361743998713791
+      },
+      "regions_per_query_head": 22.59473111213894,
+      "entries_per_query_head": 1459.4449936578033,
+      "route_coarse_s": 3.6547279647416437
+    },
+    "threshold-directopt-leaf64x64-v1-baseline-128000-profiles.json": {
+      "file": "threshold-directopt-leaf64x64-v1-baseline-128000-profiles.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 12.762373542995192,
+      "samples_s": [
+        12.762373542995192
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.0068001920115202666,
+        "fast_produce": 1.3900828488469126,
+        "fast_select": 1.1476106557101011,
+        "direct_closed_normalize": 0.9759902076423168,
+        "direct_closed_pv": 0.5745794558227061,
+        "fast_closed_project": 1.5664638702869413,
+        "dispatch_prepare": 0.0013052799778524786,
+        "dispatch_group": 0.09438787203282119,
+        "dispatch_blocks": 0.0014044479842996221,
+        "dispatch": 0.0983227200470865,
+        "pack": 0.0013013759789755567,
+        "kernel": 2.4452971890568733,
+        "reduce": 0.6796346562057735,
+        "total": 3.2245559446811676,
+        "fast_exact": 3.2748943299055093,
+        "fast_merge": 0.08362713593803348
+      },
+      "regions_per_query_head": 22.727128282599494,
+      "entries_per_query_head": 1461.5169414992727,
+      "route_coarse_s": 4.104157374843956
+    },
+    "threshold-directopt-merge-v1-merge-128000-profiles.json": {
+      "file": "threshold-directopt-merge-v1-merge-128000-profiles.json",
+      "variant": "merge",
+      "length": 128000,
+      "median_s": 12.421616809006082,
+      "samples_s": [
+        12.421616809006082
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_fused_merge": true,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006748063990846276,
+        "fast_produce": 1.3924293125271798,
+        "fast_select": 1.1502746255248784,
+        "direct_closed_normalize": 0.9768257282376288,
+        "direct_closed_pv": 0.5753563833385706,
+        "fast_closed_project": 1.5679590091705318,
+        "dispatch_prepare": 0.0013017279761843381,
+        "dispatch_group": 0.09197216004878282,
+        "dispatch_blocks": 0.0013746879809768873,
+        "dispatch": 0.09588627206534146,
+        "pack": 0.0013263679775409399,
+        "kernel": 1.9957958054244518,
+        "fast_exact": 2.1422590706944455,
+        "fast_merge": 0.8811826875805853
+      },
+      "regions_per_query_head": 22.557055254594996,
+      "entries_per_query_head": 1454.8601474411992,
+      "route_coarse_s": 4.11066294722259
+    },
+    "threshold-directopt-workers1056-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-workers1056-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.925996564998059,
+      "samples_s": [
+        11.925996564998059
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.006852224012836814,
+        "fast_produce": 1.278501183986664,
+        "fast_select": 0.003973375977249816,
+        "direct_bitmap_pack": 0.3691092797070742,
+        "direct_closed_normalize": 1.7956711651086807,
+        "direct_closed_pv": 0.576472192004323,
+        "fast_closed_project": 2.3890755827426906,
+        "dispatch_prepare": 0.001273311967262998,
+        "dispatch_group": 0.09587792003154758,
+        "dispatch_blocks": 0.0013449919725535431,
+        "dispatch": 0.09967894399166104,
+        "pack": 0.0012798719685524703,
+        "kernel": 2.0439097601771357,
+        "reduce": 0.6847802231162786,
+        "total": 2.8296487966775894,
+        "fast_exact": 2.8804068136215215,
+        "fast_merge": 0.08392681600339714
+      },
+      "regions_per_query_head": 22.591450586231478,
+      "entries_per_query_head": 1459.2875020438378,
+      "route_coarse_s": 3.6715501427066046
+    },
+    "threshold-directopt-workers528-v1-select-128000-profiles.json": {
+      "file": "threshold-directopt-workers528-v1-select-128000-profiles.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.924830365998787,
+      "samples_s": [
+        11.924830365998787
+      ],
+      "peak_allocated_bytes": 71340583424,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ],
+      "gpu_seconds": {
+        "fast_prepare": 0.0067868479937314985,
+        "fast_produce": 1.2782658873796462,
+        "fast_select": 0.0038316799781750884,
+        "direct_bitmap_pack": 0.3691561919078231,
+        "direct_closed_normalize": 1.796032736182213,
+        "direct_closed_pv": 0.5762265914827583,
+        "fast_closed_project": 2.389067803502083,
+        "dispatch_prepare": 0.0012927679746644574,
+        "dispatch_group": 0.09328054408729076,
+        "dispatch_blocks": 0.0013655359795084223,
+        "dispatch": 0.09715139193832874,
+        "pack": 0.001302815976087004,
+        "kernel": 2.0411312955617906,
+        "reduce": 0.6854955520778895,
+        "total": 2.825081057310104,
+        "fast_exact": 2.874566754162312,
+        "fast_merge": 0.08384547195397317
+      },
+      "regions_per_query_head": 22.591450586231478,
+      "entries_per_query_head": 1459.2875020438378,
+      "route_coarse_s": 3.671165370859904
+    }
+  },
+  "models": {
+    "threshold-directopt-final-v1-dense-dense-32768-models.json": {
+      "file": "threshold-directopt-final-v1-dense-dense-32768-models.json",
+      "variant": "dense",
+      "length": 32768,
+      "median_s": 1.561619857995538,
+      "samples_s": [
+        1.5620539349911269,
+        1.561390394999762,
+        1.561619857995538
+      ],
+      "peak_allocated_bytes": 22017247744,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-dense-dense-65536-models.json": {
+      "file": "threshold-directopt-final-v1-dense-dense-65536-models.json",
+      "variant": "dense",
+      "length": 65536,
+      "median_s": 4.7487333370081615,
+      "samples_s": [
+        4.76241017600114,
+        4.7487333370081615,
+        4.747101960994769
+      ],
+      "peak_allocated_bytes": 27134822912,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-dense-dense-128000-models.json": {
+      "file": "threshold-directopt-final-v1-dense-dense-128000-models.json",
+      "variant": "dense",
+      "length": 128000,
+      "median_s": 15.697643923995201,
+      "samples_s": [
+        15.669727943997714,
+        15.697643923995201,
+        15.72595530100807
+      ],
+      "peak_allocated_bytes": 36890200576,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-baseline-32768-models.json": {
+      "file": "threshold-directopt-final-v1-baseline-32768-models.json",
+      "variant": "baseline",
+      "length": 32768,
+      "median_s": 1.8295978660025867,
+      "samples_s": [
+        1.8295978660025867,
+        1.8357643839990487,
+        1.8234329269907903
+      ],
+      "peak_allocated_bytes": 35900018688,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-baseline-65536-models.json": {
+      "file": "threshold-directopt-final-v1-baseline-65536-models.json",
+      "variant": "baseline",
+      "length": 65536,
+      "median_s": 5.009284753003158,
+      "samples_s": [
+        5.009284753003158,
+        5.008311073994264,
+        5.025354596000398
+      ],
+      "peak_allocated_bytes": 44085736448,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-baseline-128000-models.json": {
+      "file": "threshold-directopt-final-v1-baseline-128000-models.json",
+      "variant": "baseline",
+      "length": 128000,
+      "median_s": 12.26766324401251,
+      "samples_s": [
+        12.246100996999303,
+        12.27529132500058,
+        12.26766324401251
+      ],
+      "peak_allocated_bytes": 71340576768,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": true,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": false,
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-select-32768-models.json": {
+      "file": "threshold-directopt-final-v1-select-32768-models.json",
+      "variant": "select",
+      "length": 32768,
+      "median_s": 1.7548484900034964,
+      "samples_s": [
+        1.7537332799984142,
+        1.7592373759980546,
+        1.7548484900034964
+      ],
+      "peak_allocated_bytes": 35900018688,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-select-65536-models.json": {
+      "file": "threshold-directopt-final-v1-select-65536-models.json",
+      "variant": "select",
+      "length": 65536,
+      "median_s": 4.760800862000906,
+      "samples_s": [
+        4.758592293001129,
+        4.760800862000906,
+        4.7646232080005575
+      ],
+      "peak_allocated_bytes": 44085736448,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-select-128000-models.json": {
+      "file": "threshold-directopt-final-v1-select-128000-models.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.752738627998042,
+      "samples_s": [
+        11.749121325003216,
+        11.752738627998042,
+        11.758967821995611
+      ],
+      "peak_allocated_bytes": 71340576768,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-top8-32768-models.json": {
+      "file": "threshold-directopt-final-v1-top8-32768-models.json",
+      "variant": "top8",
+      "length": 32768,
+      "median_s": 1.654305079995538,
+      "samples_s": [
+        1.6511969529965427,
+        1.654305079995538,
+        1.6545781629974954
+      ],
+      "peak_allocated_bytes": 25770068992,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-top8-65536-models.json": {
+      "file": "threshold-directopt-final-v1-top8-65536-models.json",
+      "variant": "top8",
+      "length": 65536,
+      "median_s": 4.167644943998312,
+      "samples_s": [
+        4.163066615990829,
+        4.175382002009428,
+        4.167644943998312
+      ],
+      "peak_allocated_bytes": 32340644352,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v1-top8-128000-models.json": {
+      "file": "threshold-directopt-final-v1-top8-128000-models.json",
+      "variant": "top8",
+      "length": 128000,
+      "median_s": 9.530851149000227,
+      "samples_s": [
+        9.525617231993238,
+        9.530851149000227,
+        9.548424969994812
+      ],
+      "peak_allocated_bytes": 44350085120,
+      "configuration": null,
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v2-select-32768-models.json": {
+      "file": "threshold-directopt-final-v2-select-32768-models.json",
+      "variant": "select",
+      "length": 32768,
+      "median_s": 1.7599144050036557,
+      "samples_s": [
+        1.755786896988866,
+        1.7664412199956132,
+        1.7599144050036557
+      ],
+      "peak_allocated_bytes": 35900018688,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v2-select-65536-models.json": {
+      "file": "threshold-directopt-final-v2-select-65536-models.json",
+      "variant": "select",
+      "length": 65536,
+      "median_s": 4.747929524004576,
+      "samples_s": [
+        4.7334600030008005,
+        4.7551634879928315,
+        4.747929524004576
+      ],
+      "peak_allocated_bytes": 44085736448,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    },
+    "threshold-directopt-final-v2-select-128000-models.json": {
+      "file": "threshold-directopt-final-v2-select-128000-models.json",
+      "variant": "select",
+      "length": 128000,
+      "median_s": 11.81568534699909,
+      "samples_s": [
+        11.804540115990676,
+        11.81568534699909,
+        11.816644310005358
+      ],
+      "peak_allocated_bytes": 71340576768,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": 4096,
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          2
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "identity": [
+        "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+        "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+        "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+        "bfloat16",
+        8192
+      ]
+    }
+  },
+  "checks": {
+    "threshold-directopt-bitmap-v1-select-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-bitmap-v1-combined-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-fixed-v1-select-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-fuse-v1-select-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-fuse-v1-hoist-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-merge-v1-merge-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-merge-v1-combined-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-rounding-v1-select-0-rounding.json": {
+      "stage": "complete",
+      "kind": "strict-proxy-rounding",
+      "samples": 1024,
+      "legacy_max_abs": 0.0,
+      "fma_differences": 318,
+      "fma_false_positive_decisions": 165
+    },
+    "threshold-directopt-winner-v1-select-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    },
+    "threshold-directopt-winner-v2-select-0-checks.json": {
+      "cases": 3,
+      "frontiers": 3
+    }
+  },
+  "verification": {
+    "threshold-directopt-fixed-v2-select-32768-verify.json": {
+      "length": 32768,
+      "frontiers": 32,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_reference_error": 0.0078125,
+      "proxy_arithmetic": "legacy-rounded-product"
+    },
+    "threshold-directopt-fixed-v2-select-65536-verify.json": {
+      "length": 65536,
+      "frontiers": 96,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_reference_error": 0.0078125,
+      "proxy_arithmetic": "legacy-rounded-product"
+    },
+    "threshold-directopt-fixed-v2-select-128000-verify.json": {
+      "length": 128000,
+      "frontiers": 224,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_reference_error": 0.015625,
+      "proxy_arithmetic": "legacy-rounded-product"
+    },
+    "threshold-directopt-winner-v2-select-32768-verify.json": {
+      "length": 32768,
+      "frontiers": 32,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_reference_error": 0.0078125,
+      "proxy_arithmetic": null
+    },
+    "threshold-directopt-winner-v2-select-65536-verify.json": {
+      "length": 65536,
+      "frontiers": 96,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_reference_error": 0.015625,
+      "proxy_arithmetic": null
+    },
+    "threshold-directopt-winner-v2-select-128000-verify.json": {
+      "length": 128000,
+      "frontiers": 224,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_reference_error": 0.015625,
+      "proxy_arithmetic": null
+    }
+  },
+  "quality": {
+    "threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json": {
+      "tasks": {
+        "cwe": {
+          "n": 32,
+          "first": 34.375
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json": "749177f14bd4ee05a855c522dde529c0024e6b9cd2f15871d2138bf5f3af203a"
+      },
+      "same_scores": 32,
+      "n": 32,
+      "variant": "baseline",
+      "proxy_arithmetic": null
+    },
+    "threshold-directopt-winner-cwe-v1-select-32768-quality.json": {
+      "tasks": {
+        "cwe": {
+          "n": 32,
+          "first": 30.312499999999996
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-winner-cwe-v1-select-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-winner-cwe-v1-select-32768-quality.json": "581057f7c3344b23d037b34f540696a53b7c21d55125670614653badb500ca79"
+      },
+      "same_scores": 22,
+      "n": 32,
+      "variant": "select",
+      "proxy_arithmetic": null
+    },
+    "threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json": {
+      "tasks": {
+        "cwe": {
+          "n": 32,
+          "first": 34.375
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json": "8e39a98d858a8fb0ab85f4e9896018c343b61b01790494674c464e0ab69b41d9"
+      },
+      "same_scores": 30,
+      "n": 32,
+      "variant": "select",
+      "proxy_arithmetic": "legacy-rounded-product"
+    },
+    "threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 2,
+          "first": 100.0
+        },
+        "niah_multikey_3": {
+          "n": 2,
+          "first": 100.0
+        },
+        "qa_1": {
+          "n": 2,
+          "first": 100.0
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json": "5e21671f0964675940b70bfb23621e11ce9ee78173321d8b5bc1f3a991363067"
+      },
+      "same_scores": 6,
+      "n": 6,
+      "variant": "select",
+      "proxy_arithmetic": "legacy-rounded-product"
+    },
+    "threshold-directopt-winner-panel-v1-select-32768-quality.json": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 2,
+          "first": 100.0
+        },
+        "niah_multikey_3": {
+          "n": 2,
+          "first": 100.0
+        },
+        "qa_1": {
+          "n": 2,
+          "first": 100.0
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-winner-panel-v1-select-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-winner-panel-v1-select-32768-quality.json": "013a0205b22f134ec9289c869848be89c9defb6c424782c455f03ad684f304c0"
+      },
+      "same_scores": 6,
+      "n": 6,
+      "variant": "select",
+      "proxy_arithmetic": null
+    }
+  },
+  "numerics": {
+    "threshold-directopt-same-input-v1-select-32768-numerics.json": {
+      "calls": 1,
+      "different": false
+    },
+    "threshold-directopt-trace-v1-select-32768-numerics.json": {
+      "calls": 3,
+      "different": true
+    },
+    "threshold-directopt-trace-v2-select-32768-numerics.json": {
+      "calls": 3,
+      "different": true
+    },
+    "threshold-directopt-trace-v3-select-32768-numerics.json": {
+      "calls": 128,
+      "different": false
+    }
+  },
+  "inputs_sha256": {
+    "results/h100-baselines/ruler-32k-panel/llama-tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "results/h100-baselines/direct-opt/threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json": "749177f14bd4ee05a855c522dde529c0024e6b9cd2f15871d2138bf5f3af203a",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-panel-v1-prefix-closed-tuned-ruler.json": "d0c9616214953ef2a9ae26085e1b459e4d439a47c9e4513f608a820d01b422b9",
+    "threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json": "749177f14bd4ee05a855c522dde529c0024e6b9cd2f15871d2138bf5f3af203a",
+    "provenance/1794337001288287025-threshold-directopt-baseline-cwe-v2-baseline-32768-quality/run.json": "9b031dd1a0254eb28424af0a16c565ccca6acd6674e276583c1bd450ac52df5e",
+    "threshold-directopt-baseline-v1-baseline-128000-profiles.json": "0ef0ae5bf10c9f6978d0ecd2cf521e12873f0826ee85ddd7d0a9838f63d2dde2",
+    "provenance/1794334625599035277-threshold-directopt-baseline-v1-baseline-128000-profiles/run.json": "b2575ed67190b5b0c483bc05089c4c7be1f6b62e2ecc7c43de4de29f9b58c06a",
+    "threshold-directopt-baseline-v1-top8-128000-profiles.json": "5a6f612de98d9ec5934d6c33abec834dbc8de0e7f80af6e43f51dccdb77dd9f5",
+    "provenance/1794334625657702723-threshold-directopt-baseline-v1-top8-128000-profiles/run.json": "32fefcdb5e850be1463645b1172016da5f04643925a99b77e8f466c31ac836c1",
+    "threshold-directopt-bitmap-split-v1-select-128000-profiles.json": "518fedb041ffa6cdce075677a9b2d7cb81a3774ef081b132e0fef0d218d6451d",
+    "provenance/1794335576485857426-threshold-directopt-bitmap-split-v1-select-128000-profiles/run.json": "5692e8706d321e4fd7dcee4894be489ce6d76f33360ec69b3c6442077159e3f1",
+    "threshold-directopt-bitmap-v1-select-0-checks.json": "3610898a2581f453c0d100b9b5e59eb364ad2f814bd7492b81d333d337691949",
+    "provenance/1794335201901350384-threshold-directopt-bitmap-v1-select-0-checks/run.json": "bd915214745ba70c10bb14627c60ae9f393f7d7067941ed1992fae75dcfeeab6",
+    "threshold-directopt-bitmap-v1-combined-0-checks.json": "3610898a2581f453c0d100b9b5e59eb364ad2f814bd7492b81d333d337691949",
+    "provenance/1794335201962283956-threshold-directopt-bitmap-v1-combined-0-checks/run.json": "5a609afd077a60c7ac0edf7f1f79c503c2c5799e1d334ffea01c731bd2d78ad6",
+    "threshold-directopt-bitmap-v1-select-128000-profiles.json": "78f2e4eb3483c89ad2af24996c9c5266bc051101f740b5d811e91560ff1a7a17",
+    "provenance/1794335372127035031-threshold-directopt-bitmap-v1-select-128000-profiles/run.json": "b82ea2b04d9678f8d7ef2eedcceeb40e845f5558b1db1af6db546090c818c1c4",
+    "threshold-directopt-bitmap-v1-combined-128000-profiles.json": "9287f55878a1e80e32da4e6db867718b72c72225a21b52ae3a0f72f20825a632",
+    "provenance/1794335372189669393-threshold-directopt-bitmap-v1-combined-128000-profiles/run.json": "56fccabb1f334190ba05dafdef7f95e5606b2db888f423a2337d71cf11e46358",
+    "threshold-directopt-bitmap-w4-v1-select-128000-profiles.json": "5a5263712f0f4316aa49098c9a51eeb535d85d220a5d69d50919a44382910994",
+    "provenance/1794335372284614922-threshold-directopt-bitmap-w4-v1-select-128000-profiles/run.json": "a5a8a45a0882104aa30f8b361bbe6e4af0c4e8805501fece26869047c7502c0a",
+    "threshold-directopt-final-v1-dense-dense-32768-models.json": "25237a149b2bb0c6906932cf16aab3ff9275411fae7b584847e55327be390d95",
+    "provenance/1794336036393264732-threshold-directopt-final-v1-dense-dense-32768-models/run.json": "336950a91558ca8cae2dc17cadb429201c97b62dd0a967eb3b8ebd2176d23b87",
+    "threshold-directopt-final-v1-dense-dense-65536-models.json": "0cdaf9fc968828bc4915bda472a3577ee1369e2da244e9c4adf34c71604cbbdc",
+    "provenance/1794336036450542813-threshold-directopt-final-v1-dense-dense-65536-models/run.json": "a04cab25400ea8ece027000679aaa4e07a2e4c7030f29dd9857bb9b750bb7eac",
+    "threshold-directopt-final-v1-dense-dense-128000-models.json": "40b07009cc525cda44f26ff969aa244af5e66ece04cbe2e6a8afb5c67941e313",
+    "provenance/1794336036510814035-threshold-directopt-final-v1-dense-dense-128000-models/run.json": "51b311e5fbef9b61295a59227a28d51ffdc673221672fd04c91ec2f06977680b",
+    "threshold-directopt-final-v1-baseline-32768-models.json": "02e099690f890aebe3dddf11052bb7c967adbf2216509676217a830a19e73db6",
+    "provenance/1794335954615947287-threshold-directopt-final-v1-baseline-32768-models/run.json": "fba7873bbf8b49445480cb76f9a2ab86e1fedda5027cf810daec9ba6c9835da2",
+    "threshold-directopt-final-v1-baseline-65536-models.json": "359316bbd6d55d1def66f16c61c6c56a70b5d74f21a8fc4464555d2afb2d0ab5",
+    "provenance/1794335954675512973-threshold-directopt-final-v1-baseline-65536-models/run.json": "3de95124d580e79a2c124c2357ca7f408ff1167fff639b44b1009ae67229364e",
+    "threshold-directopt-final-v1-baseline-128000-models.json": "1cf28a1d9015e3bb6be512647e41ef2b4647d7f48689550c64b1e76b3d6acc5b",
+    "provenance/1794335954734049464-threshold-directopt-final-v1-baseline-128000-models/run.json": "4f5fb2a0e9dfcd58ae8ea3dd847e2c345fc77d94fde38ba3da640da0110c682d",
+    "threshold-directopt-final-v1-select-32768-models.json": "29ec1aa2d8796f63505b002736ffdb7a75310935a6029966c663c3705c9227b2",
+    "provenance/1794335954794071642-threshold-directopt-final-v1-select-32768-models/run.json": "ac5a73fdfdc3ba3d271d9a160d08e548f32b307e3de5de7940dbf2c22d48ccb0",
+    "threshold-directopt-final-v1-select-65536-models.json": "e2372089d363fdc295a46dc86070753e57464176c0696452b4d23255d2437e16",
+    "provenance/1794335954854049129-threshold-directopt-final-v1-select-65536-models/run.json": "56037b5fb21af0904f2ead640611fb61542d01cd425cc61c5c75ad232a210988",
+    "threshold-directopt-final-v1-select-128000-models.json": "48958071ef67e6938beb51a0fc0e3dee76ea534374a6fda5bf32307623548ed7",
+    "provenance/1794335954913768412-threshold-directopt-final-v1-select-128000-models/run.json": "c262e99b941c1dfca8485409e59f7512992f47e8f48e5b5f2a4b5a5774786696",
+    "threshold-directopt-final-v1-top8-32768-models.json": "e297e72779637710490406ec0f9ea19170c4ee6939fdf156341061de7de16498",
+    "provenance/1794335954974755704-threshold-directopt-final-v1-top8-32768-models/run.json": "c6c3405657e2ffe27f8c54a170b4300e32e987dec767d1b130b6a2ea86e4bc79",
+    "threshold-directopt-final-v1-top8-65536-models.json": "8176510249095b3731d9626a052fd0394a169648e7db290eb3c22e911bb0e36f",
+    "provenance/1794335955034026792-threshold-directopt-final-v1-top8-65536-models/run.json": "e5d9b20c212381e939d7b736429c292582ef719bb1054bfb156301fcc7395217",
+    "threshold-directopt-final-v1-top8-128000-models.json": "9f2f001ee4dd98a0ff87e277e67ad64d912f709a97edc833e6d04f6c61ee73fd",
+    "provenance/1794335955095298004-threshold-directopt-final-v1-top8-128000-models/run.json": "4f9f7f85689e064dac3e72ffa7fd9c6e1a9e7c6c8cc0284b5ddafd48c14a5d5d",
+    "threshold-directopt-final-v2-select-32768-models.json": "5751d5a15873f0f50c51462c759a8218e07520d914ed949467eb372fecb599f7",
+    "provenance/1794338148877883400-threshold-directopt-final-v2-select-32768-models/run.json": "fe80a18a27b456eb8cf8469c946d635a36642e66fc9edca56946ac7eabe496ca",
+    "threshold-directopt-final-v2-select-65536-models.json": "a43dd7ef0d21139dc6a7de547caac26c2fb4fb81ad95b7fd4eac201b14e70e35",
+    "provenance/1794338148937359987-threshold-directopt-final-v2-select-65536-models/run.json": "e6fda8a3e60c3116eb0ea5680758f57659336beea2f9a3898b0aa6c7efc3ef7b",
+    "threshold-directopt-final-v2-select-128000-models.json": "e4174125206a2438c95017424ad6a0ee12df5742545e593d0c63407b6a88ed86",
+    "provenance/1794338148995471961-threshold-directopt-final-v2-select-128000-models/run.json": "7ae50602b62bd06fc0aa70c3f92e9a6d2055980a54bb3395de6341be03899c60",
+    "threshold-directopt-fixed-v1-select-0-checks.json": "3610898a2581f453c0d100b9b5e59eb364ad2f814bd7492b81d333d337691949",
+    "provenance/1794337766887456726-threshold-directopt-fixed-v1-select-0-checks/run.json": "74a3dfee48cab1d0e344f14f8c01d2d84a272145c66f02a847caa017ecdbf6dd",
+    "threshold-directopt-fixed-v2-select-128000-profiles.json": "6733af44140d8db7095c2ca8b87bce5333d2be4c16dd025563a0f8f3fbe8d6ac",
+    "provenance/1794337940525879925-threshold-directopt-fixed-v2-select-128000-profiles/run.json": "6c77797b5171a76cb46d4e4168d37c169d1f4abfbcc60b9d0c923db27e394f50",
+    "threshold-directopt-fixed-v2-select-32768-verify.json": "06d3f3c9e325d6d8663f8f986a92dc41000b21c7827600c9688d31b8100c3a18",
+    "provenance/1794337940276111437-threshold-directopt-fixed-v2-select-32768-verify/run.json": "47abd1f23e4e16518dffda90b61b0c6ced7551be8288ba12ce838c013ecee530",
+    "threshold-directopt-fixed-v2-select-65536-verify.json": "1eb3341f62c3028fa0a502f8917f3e39c1da2a4c50a32527d49d2d835fabbd29",
+    "provenance/1794337940372259452-threshold-directopt-fixed-v2-select-65536-verify/run.json": "e4fba23fe80467c46cb1189a145e1ad32106af9c1702521c311c09efd17f27dd",
+    "threshold-directopt-fixed-v2-select-128000-verify.json": "b11a0cfd34283a5ea7acf7a3846da12a5a4f434498ff74c86f2ddd5c89873158",
+    "provenance/1794337940431173478-threshold-directopt-fixed-v2-select-128000-verify/run.json": "6553f85c2f35611fdbff9e01d88367c71dc6de81262c8926810c5e9ccd868e06",
+    "threshold-directopt-fuse-hoist-v1-select-128000-profiles.json": "5de0f576e8d33a678f67a9dc86985e445667d1737243d54da82219f994db0197",
+    "provenance/1794334824893509824-threshold-directopt-fuse-hoist-v1-select-128000-profiles/run.json": "0a6dd242f1bd6616da9b6d8e617f021b762f8714bbf5c9d5b6d5084640ac780b",
+    "threshold-directopt-fuse-v1-select-0-checks.json": "58a242977433a35642804443c3138f65c71afd1545d3c1c77d4613d7ecbc12cf",
+    "provenance/1794334744191044278-threshold-directopt-fuse-v1-select-0-checks/run.json": "558f62b4310c2fe3de05a2d199c2228448cd66b1df3f5088ac571665c6c9bba2",
+    "threshold-directopt-fuse-v1-hoist-0-checks.json": "58a242977433a35642804443c3138f65c71afd1545d3c1c77d4613d7ecbc12cf",
+    "provenance/1794334744251991941-threshold-directopt-fuse-v1-hoist-0-checks/run.json": "aa764830554d01672eea66f22855fb5fc6530ba7969a7fd5d0069e62bd062064",
+    "threshold-directopt-fuse-v1-select-128000-profiles.json": "3892bedb810849b3a668cf2d5834f6122de1998d2e1a651dd6d4ca56987178f7",
+    "provenance/1794334824727794976-threshold-directopt-fuse-v1-select-128000-profiles/run.json": "8406dbb09747e7860de460c7ba524024ca6c3161bb0d16f6a547cd0a963d0daa",
+    "threshold-directopt-fuse-v1-hoist-128000-profiles.json": "9e6e7ba14d8af3446b0194e89e6aff9da709af34de4e6137a5bafb51e4a6b295",
+    "provenance/1794334824794057335-threshold-directopt-fuse-v1-hoist-128000-profiles/run.json": "fa8d3d08391100d5b2a8ac57024e5de5ab352d1986c6ce45b40991f3655c0d49",
+    "threshold-directopt-fuse-v2-select-128000-probe.json": "e41a51876a1112530052ff8d9ceb3fff59497eaf3c3b53f69b000e70fed5488c",
+    "provenance/1794335038874751417-threshold-directopt-fuse-v2-select-128000-probe/run.json": "30b376e420ae764752cfecd57ea3c8ac29dfc36f055ed71a686c36c91dff9d8a",
+    "threshold-directopt-leaf128x32-v1-baseline-128000-profiles.json": "1491c246f12d8c9fa9794c3043bf84880de253ec95b711cf678d77b98c4abef0",
+    "provenance/1794335163196075460-threshold-directopt-leaf128x32-v1-baseline-128000-profiles/run.json": "c8b389d69456d2651429c197e5df0b95e9175747f4e390d7aa9d0a9eb72fb6ba",
+    "threshold-directopt-leaf128x64-v1-baseline-128000-profiles.json": "7b8623560c47f4c629ac1c37b9491593cda433eb0c3954501851bb66268dae28",
+    "provenance/1794335163286012364-threshold-directopt-leaf128x64-v1-baseline-128000-profiles/run.json": "a30d3cab63083b9f068b47bf436b718bdf96b31699f00c47d12b99aeb1dc858c",
+    "threshold-directopt-leaf16x64-v1-baseline-128000-profiles.json": "b88c9e56f2752cd37ac949842cb279c7b13788f662e0eccde6e6f5a1e75b225d",
+    "provenance/1794334825086313710-threshold-directopt-leaf16x64-v1-baseline-128000-profiles/run.json": "8ded336c428b3ecc83c0a5b933867b1988cb279a73fb5cc459e7fd19a14b1852",
+    "threshold-directopt-leaf32x32-v1-baseline-128000-profiles.json": "96e62a8eb15119e6e45c64a1ff1630231e017f1ffe186abe9f9585a042e10629",
+    "provenance/1794334825177908517-threshold-directopt-leaf32x32-v1-baseline-128000-profiles/run.json": "f57d2c3cfb489f2ecb5b98ed482d97918fa464a3d6ecf0cd3f962a525d526002",
+    "threshold-directopt-leaf32x64-v1-baseline-128000-profiles.json": "059a97316428f2db04645bcff33833135ab50097459a5e1c87b18141796246d2",
+    "provenance/1794334824990856000-threshold-directopt-leaf32x64-v1-baseline-128000-profiles/run.json": "a9d93ba1774d5ca5259b8e447eed0fd2b852d381f7b548bd1ab6c8fa19ae245e",
+    "threshold-directopt-leaf64-w8-v1-select-128000-profiles.json": "c9030dcacd4afcce0c8aab8e1420da483e66db2ba44832ad8e37a7b5948426de",
+    "provenance/1794335576669110567-threshold-directopt-leaf64-w8-v1-select-128000-profiles/run.json": "2d529acc2271f4d671fd190c9b792d27874fe93dab63b497c569dfde46c3db04",
+    "threshold-directopt-leaf64x64-v1-baseline-128000-profiles.json": "aa98c38961565af497b2ddfd97b31b1465c93f6cb9bad7c1ca911ad474e5fe70",
+    "provenance/1794335163378280905-threshold-directopt-leaf64x64-v1-baseline-128000-profiles/run.json": "19275a0915e10b735b08f5255519168dd438d0b5eb9b0e9f931c5789a64dded0",
+    "threshold-directopt-merge-v1-merge-0-checks.json": "58a242977433a35642804443c3138f65c71afd1545d3c1c77d4613d7ecbc12cf",
+    "provenance/1794334941233236416-threshold-directopt-merge-v1-merge-0-checks/run.json": "daa3ae12dae254f7bf08055a304832a99c068fd3149aa85c504f54362d047dde",
+    "threshold-directopt-merge-v1-combined-0-checks.json": "3610898a2581f453c0d100b9b5e59eb364ad2f814bd7492b81d333d337691949",
+    "provenance/1794334941296578296-threshold-directopt-merge-v1-combined-0-checks/run.json": "7db1c57202e05ffd7364b04da3301b8c38a55bf8a919b0944d9ce8b5d5b9b451",
+    "threshold-directopt-merge-v1-merge-128000-profiles.json": "be5d3ec3d39ae81670db14b66ad7aa8f6a94da355aaaba05007c8907744282d4",
+    "provenance/1794335163103773121-threshold-directopt-merge-v1-merge-128000-profiles/run.json": "1fcb4f59dc471e91a12225104e8965d54fe4bcfbcf0b8087b3fb04d37a982e6a",
+    "threshold-directopt-rounding-v1-select-0-rounding.json": "298c6682eb960fd07054a3cc21d05180c140e51ed8cedd741784bce477f8020c",
+    "provenance/1794338412226143014-threshold-directopt-rounding-v1-select-0-rounding/run.json": "a478ff5fc11a192ad1a525649378088216f504396abe34b0505314fd0f3ee78f",
+    "threshold-directopt-same-input-v1-select-32768-numerics.json": "dd8863378944970fc2980429e3af6e74ca5ab5b73a0b71819b31612067724d02",
+    "provenance/1794336831656712404-threshold-directopt-same-input-v1-select-32768-numerics/run.json": "31f8af820829b36a4f2a925b6251f9ed48d8859046f3f99458cd402d52ab03dc",
+    "threshold-directopt-trace-v1-select-32768-numerics.json": "c493a6c2aab045ec1ccf6878b7de6dbb59aa2f5544e9ddb8d4328f961d5ceb39",
+    "provenance/1794337056523188933-threshold-directopt-trace-v1-select-32768-numerics/run.json": "21f04af8f6602fbcfacab1f2b75d4cc96f043fc0e090ff02f15323895d5a44a3",
+    "threshold-directopt-trace-v2-select-32768-numerics.json": "c493a6c2aab045ec1ccf6878b7de6dbb59aa2f5544e9ddb8d4328f961d5ceb39",
+    "provenance/1794337340236267621-threshold-directopt-trace-v2-select-32768-numerics/run.json": "bb9d7f82e7c81cf041b58af1990a43b1efabde86bc094c08bd8ac06ea96b65bf",
+    "threshold-directopt-trace-v3-select-32768-numerics.json": "4dd3d66078aa746bff2458c9f9e7e5157ce47d330fe5dc24b29d86ea9a68e5c7",
+    "provenance/1794337766793652770-threshold-directopt-trace-v3-select-32768-numerics/run.json": "9b90a55ad2f5301bf934505fed46fcb95edd57f715849577ab264f4e1c8a9216",
+    "threshold-directopt-winner-cwe-v1-select-32768-quality.json": "581057f7c3344b23d037b34f540696a53b7c21d55125670614653badb500ca79",
+    "provenance/1794335955261585916-threshold-directopt-winner-cwe-v1-select-32768-quality/run.json": "e2a057a3bfe4ef8ca9d521b0f041ca995f944d95968f07007ad949ad6a78ef65",
+    "threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json": "8e39a98d858a8fb0ab85f4e9896018c343b61b01790494674c464e0ab69b41d9",
+    "provenance/1794337940075706234-threshold-directopt-winner-fixed-cwe-v1-select-32768-quality/run.json": "95917ed4360976956f0536e942f42d54654fcf932096e42463148f81f2ab7bd5",
+    "threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json": "5e21671f0964675940b70bfb23621e11ce9ee78173321d8b5bc1f3a991363067",
+    "provenance/1794337940168690499-threshold-directopt-winner-fixed-panel-v1-select-32768-quality/run.json": "2df877c1b7580f7182f836375bfb0e83cbed694891d53ec44d0eab809ce62cc5",
+    "threshold-directopt-winner-panel-v1-select-32768-quality.json": "013a0205b22f134ec9289c869848be89c9defb6c424782c455f03ad684f304c0",
+    "provenance/1794335955354897983-threshold-directopt-winner-panel-v1-select-32768-quality/run.json": "46e6b0d108e0938564c46a8a3d27b59e7711442d70d820363c8046e5afee3e31",
+    "threshold-directopt-winner-v1-select-0-checks.json": "3610898a2581f453c0d100b9b5e59eb364ad2f814bd7492b81d333d337691949",
+    "provenance/1794335783146156023-threshold-directopt-winner-v1-select-0-checks/run.json": "8d0e745e7d08c7ea8be03d5f43fe0d781a67046f43e1a21c586c821d8029a1f5",
+    "threshold-directopt-winner-v2-select-0-checks.json": "3610898a2581f453c0d100b9b5e59eb364ad2f814bd7492b81d333d337691949",
+    "provenance/1794335902360069316-threshold-directopt-winner-v2-select-0-checks/run.json": "36eb4d6e259c4fb16586548dbc0d73cfe2038cad926388a595980dbe16aa5a02",
+    "threshold-directopt-winner-v2-select-32768-verify.json": "c838de46c9c3a7550c083b344dccfedf7712d1270330d0f1daf7b6a5e43061dd",
+    "provenance/1794335902453377121-threshold-directopt-winner-v2-select-32768-verify/run.json": "a55e20da3a3d3bb28c728db1be807af2ebbd6cdbc43da8d88698096426a63693",
+    "threshold-directopt-winner-v2-select-65536-verify.json": "bb53ed333596bbcb5c101a7fb5180cfa52e961536d0236d6fbc3037fa07f80fa",
+    "provenance/1794335902511407918-threshold-directopt-winner-v2-select-65536-verify/run.json": "d40babc793099fbb6568581c5fba4890704223f2177f521bb7d8240ac39154c1",
+    "threshold-directopt-winner-v2-select-128000-verify.json": "ff8409ccb7d915b502184f41c654304120fbf16291ba2f72d1755cded9eba709",
+    "provenance/1794335902570594656-threshold-directopt-winner-v2-select-128000-verify/run.json": "53be4c975ac8fe231e54b5e87c557e2ea4351eea5293777c05bb8dbd469036ec",
+    "threshold-directopt-workers1056-v1-select-128000-profiles.json": "b0703965a3f48fa1f188419ead302b58b6558895252303c359cae7a49d395940",
+    "provenance/1794335576579368304-threshold-directopt-workers1056-v1-select-128000-profiles/run.json": "144ad614aec3bd93778d56a510c163a94f7895f7816334cfecdc8cf79b7d2825",
+    "threshold-directopt-workers528-v1-select-128000-profiles.json": "a32dac5e801eb5f29e5d13ff525afc5117d45a7f1dc071bff93629a57a91945e",
+    "provenance/1794335576760356114-threshold-directopt-workers528-v1-select-128000-profiles/run.json": "ced705ccfe17f37771800727bd224cd9d5d5b2de7d1d3039fc9475c34bc7a82e"
+  },
+  "quality_reference": {
+    "tasks": {
+      "cwe": {
+        "n": 32,
+        "first": 34.375
+      },
+      "niah_multikey_2": {
+        "n": 2,
+        "first": 100.0
+      },
+      "niah_multikey_3": {
+        "n": 2,
+        "first": 100.0
+      },
+      "qa_1": {
+        "n": 2,
+        "first": 100.0
+      }
+    },
+    "identity": [
+      "meta-llama/Llama-3.1-8B-Instruct",
+      "0e9e39f249a16976918f6564b8830bc894c89659",
+      null,
+      "bf16",
+      "bf16",
+      "greedy, fixed task limits, ignore eos",
+      "dataset"
+    ],
+    "files": [
+      "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json",
+      "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-panel-v1-prefix-closed-tuned-ruler.json"
+    ],
+    "sha256": {
+      "threshold-directopt-baseline-cwe-v2-baseline-32768-quality.json": "749177f14bd4ee05a855c522dde529c0024e6b9cd2f15871d2138bf5f3af203a",
+      "threshold-offset-scaled-fp16-panel-v1-prefix-closed-tuned-ruler.json": "d0c9616214953ef2a9ae26085e1b459e4d439a47c9e4513f608a820d01b422b9"
+    }
+  },
+  "final": {
+    "32768": {
+      "select": {
+        "file": "threshold-directopt-final-v2-select-32768-models.json",
+        "variant": "select",
+        "length": 32768,
+        "median_s": 1.7599144050036557,
+        "samples_s": [
+          1.755786896988866,
+          1.7664412199956132,
+          1.7599144050036557
+        ],
+        "peak_allocated_bytes": 35900018688,
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": 4096,
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": false,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": true,
+          "direct_proxy_arithmetic": "legacy-rounded-product",
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            2
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "dense": {
+        "file": "threshold-directopt-final-v1-dense-dense-32768-models.json",
+        "variant": "dense",
+        "length": 32768,
+        "median_s": 1.561619857995538,
+        "samples_s": [
+          1.5620539349911269,
+          1.561390394999762,
+          1.561619857995538
+        ],
+        "peak_allocated_bytes": 22017247744,
+        "configuration": null,
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "baseline": {
+        "file": "threshold-directopt-final-v1-baseline-32768-models.json",
+        "variant": "baseline",
+        "length": 32768,
+        "median_s": 1.8295978660025867,
+        "samples_s": [
+          1.8295978660025867,
+          1.8357643839990487,
+          1.8234329269907903
+        ],
+        "peak_allocated_bytes": 35900018688,
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": 4096,
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": true,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": false,
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            2
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "top8": {
+        "file": "threshold-directopt-final-v1-top8-32768-models.json",
+        "variant": "top8",
+        "length": 32768,
+        "median_s": 1.654305079995538,
+        "samples_s": [
+          1.6511969529965427,
+          1.654305079995538,
+          1.6545781629974954
+        ],
+        "peak_allocated_bytes": 25770068992,
+        "configuration": null,
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      }
+    },
+    "65536": {
+      "select": {
+        "file": "threshold-directopt-final-v2-select-65536-models.json",
+        "variant": "select",
+        "length": 65536,
+        "median_s": 4.747929524004576,
+        "samples_s": [
+          4.7334600030008005,
+          4.7551634879928315,
+          4.747929524004576
+        ],
+        "peak_allocated_bytes": 44085736448,
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": 4096,
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": false,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": true,
+          "direct_proxy_arithmetic": "legacy-rounded-product",
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            2
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "dense": {
+        "file": "threshold-directopt-final-v1-dense-dense-65536-models.json",
+        "variant": "dense",
+        "length": 65536,
+        "median_s": 4.7487333370081615,
+        "samples_s": [
+          4.76241017600114,
+          4.7487333370081615,
+          4.747101960994769
+        ],
+        "peak_allocated_bytes": 27134822912,
+        "configuration": null,
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "baseline": {
+        "file": "threshold-directopt-final-v1-baseline-65536-models.json",
+        "variant": "baseline",
+        "length": 65536,
+        "median_s": 5.009284753003158,
+        "samples_s": [
+          5.009284753003158,
+          5.008311073994264,
+          5.025354596000398
+        ],
+        "peak_allocated_bytes": 44085736448,
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": 4096,
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": true,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": false,
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            2
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "top8": {
+        "file": "threshold-directopt-final-v1-top8-65536-models.json",
+        "variant": "top8",
+        "length": 65536,
+        "median_s": 4.167644943998312,
+        "samples_s": [
+          4.163066615990829,
+          4.175382002009428,
+          4.167644943998312
+        ],
+        "peak_allocated_bytes": 32340644352,
+        "configuration": null,
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      }
+    },
+    "128000": {
+      "select": {
+        "file": "threshold-directopt-final-v2-select-128000-models.json",
+        "variant": "select",
+        "length": 128000,
+        "median_s": 11.81568534699909,
+        "samples_s": [
+          11.804540115990676,
+          11.81568534699909,
+          11.816644310005358
+        ],
+        "peak_allocated_bytes": 71340576768,
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": 4096,
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": false,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": true,
+          "direct_proxy_arithmetic": "legacy-rounded-product",
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            2
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "dense": {
+        "file": "threshold-directopt-final-v1-dense-dense-128000-models.json",
+        "variant": "dense",
+        "length": 128000,
+        "median_s": 15.697643923995201,
+        "samples_s": [
+          15.669727943997714,
+          15.697643923995201,
+          15.72595530100807
+        ],
+        "peak_allocated_bytes": 36890200576,
+        "configuration": null,
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "baseline": {
+        "file": "threshold-directopt-final-v1-baseline-128000-models.json",
+        "variant": "baseline",
+        "length": 128000,
+        "median_s": 12.26766324401251,
+        "samples_s": [
+          12.246100996999303,
+          12.27529132500058,
+          12.26766324401251
+        ],
+        "peak_allocated_bytes": 71340576768,
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": 4096,
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": true,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": false,
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            2
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      },
+      "top8": {
+        "file": "threshold-directopt-final-v1-top8-128000-models.json",
+        "variant": "top8",
+        "length": 128000,
+        "median_s": 9.530851149000227,
+        "samples_s": [
+          9.525617231993238,
+          9.530851149000227,
+          9.548424969994812
+        ],
+        "peak_allocated_bytes": 44350085120,
+        "configuration": null,
+        "identity": [
+          "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+          "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+          "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+          "bfloat16",
+          8192
+        ]
+      }
+    }
+  },
+  "hardware": [
+    "NVIDIA H100 80GB HBM3, GPU-e990762e-21ba-1072-8311-be210c4e4762, 580.196.07, 81559 MiB"
+  ],
+  "pending": [],
+  "failed": [
+    {
+      "id": "1794335783239070066-threshold-directopt-winner-v1-select-32768-verify",
+      "name": "threshold-directopt-winner-v1-select-32768-verify",
+      "variant": "select",
+      "length": 32768,
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794335783298629018-threshold-directopt-winner-v1-select-65536-verify",
+      "name": "threshold-directopt-winner-v1-select-65536-verify",
+      "variant": "select",
+      "length": 65536,
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794335783357956931-threshold-directopt-winner-v1-select-128000-verify",
+      "name": "threshold-directopt-winner-v1-select-128000-verify",
+      "variant": "select",
+      "length": 128000,
+      "state": "finished",
+      "exit_code": 1
+    }
+  ],
+  "stage": "complete",
+  "quality_final": {
+    "threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json": {
+      "tasks": {
+        "cwe": {
+          "n": 32,
+          "first": 34.375
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-winner-fixed-cwe-v1-select-32768-quality.json": "8e39a98d858a8fb0ab85f4e9896018c343b61b01790494674c464e0ab69b41d9"
+      },
+      "same_scores": 30,
+      "n": 32,
+      "variant": "select",
+      "proxy_arithmetic": "legacy-rounded-product"
+    },
+    "threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 2,
+          "first": 100.0
+        },
+        "niah_multikey_3": {
+          "n": 2,
+          "first": 100.0
+        },
+        "qa_1": {
+          "n": 2,
+          "first": 100.0
+        }
+      },
+      "identity": [
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "0e9e39f249a16976918f6564b8830bc894c89659",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "dataset"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/direct-opt/threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json"
+      ],
+      "sha256": {
+        "threshold-directopt-winner-fixed-panel-v1-select-32768-quality.json": "5e21671f0964675940b70bfb23621e11ce9ee78173321d8b5bc1f3a991363067"
+      },
+      "same_scores": 6,
+      "n": 6,
+      "variant": "select",
+      "proxy_arithmetic": "legacy-rounded-product"
+    }
+  },
+  "validated_final": true
+}

@@ -1,0 +1,100 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-full",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": null,
+  "prompt_tokens": 65536,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 4.939804516994627,
+      "decode_s": 0.01082482399942819,
+      "capture_s": 0.15770767799403984,
+      "dense_prefill_attention_profile": {
+        "calls": 32,
+        "gpu_seconds": 3.392982894897461
+      },
+      "cache_init_s": 0.1170701619994361,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 10.82482399942819,
+      "decode_ms_per_token": 10.82482399942819,
+      "decode_tokens_per_second": 92.38025487091743
+    },
+    {
+      "prefill_s": 4.782903057996009,
+      "decode_s": 0.010720926999056246,
+      "capture_s": 0.13089677200332517,
+      "dense_prefill_attention_profile": {
+        "calls": 32,
+        "gpu_seconds": 3.4130860900878908
+      },
+      "cache_init_s": 0.0847978259989759,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.720926999056246,
+      "decode_ms_per_token": 10.720926999056246,
+      "decode_tokens_per_second": 93.27551620191325
+    },
+    {
+      "prefill_s": 4.777082877000794,
+      "decode_s": 0.010695773999032099,
+      "capture_s": 0.13173662399640307,
+      "dense_prefill_attention_profile": {
+        "calls": 32,
+        "gpu_seconds": 3.4054991989135743
+      },
+      "cache_init_s": 0.07819873400148936,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.695773999032099,
+      "decode_ms_per_token": 10.695773999032099,
+      "decode_tokens_per_second": 93.49487003843703
+    }
+  ],
+  "median_decode_ms_per_batch_step": 10.708350499044172,
+  "median_decode_tokens_per_second": 93.38519312017513,
+  "median_decode_ms_per_token": 10.708350499044172,
+  "median_prefill_s": 4.779992967498401
+}

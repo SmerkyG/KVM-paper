@@ -1,0 +1,60 @@
+{
+  "measurement_scope": "synthetic single-layer component measurements, not full-model inference",
+  "length": 131072,
+  "results": [
+    {
+      "batch": 1,
+      "split": 2048,
+      "stages": {
+        "0.1": {
+          "dense_ms": 0.2577280104160309,
+          "lookup_ms": 0.19961600005626678,
+          "replacement_ms": 0.09302400052547455,
+          "sparse_ms": 0.07635200023651123
+        },
+        "0.05": {
+          "dense_ms": 0.26121601462364197,
+          "lookup_ms": 0.17628799378871918,
+          "replacement_ms": 0.09247999638319016,
+          "sparse_ms": 0.06518399715423584
+        }
+      }
+    },
+    {
+      "batch": 4,
+      "split": 2048,
+      "stages": {
+        "0.1": {
+          "dense_ms": 0.8338239789009094,
+          "lookup_ms": 0.20656000077724457,
+          "replacement_ms": 0.0947519987821579,
+          "sparse_ms": 0.13116799294948578
+        },
+        "0.05": {
+          "dense_ms": 0.8346079587936401,
+          "lookup_ms": 0.19182398915290833,
+          "replacement_ms": 0.09468799829483032,
+          "sparse_ms": 0.07558400183916092
+        }
+      }
+    },
+    {
+      "batch": 16,
+      "split": 2048,
+      "stages": {
+        "0.1": {
+          "dense_ms": 3.0120959281921387,
+          "lookup_ms": 0.49884799122810364,
+          "replacement_ms": 0.18572799861431122,
+          "sparse_ms": 0.3720319867134094
+        },
+        "0.05": {
+          "dense_ms": 3.016160011291504,
+          "lookup_ms": 0.4841279983520508,
+          "replacement_ms": 0.18572799861431122,
+          "sparse_ms": 0.19939200580120087
+        }
+      }
+    }
+  ]
+}

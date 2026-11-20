@@ -1,0 +1,7319 @@
+{
+  "stage": "complete",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 131072,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 65536,
+  "methods": [
+    "gpu-squeezed-p80"
+  ],
+  "prefill": "dense causal",
+  "prefill_by_method": {
+    "gpu-squeezed-p80": "dense causal"
+  },
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": null,
+  "warmup_steps": null,
+  "dense_kv_source": null,
+  "captures_host_kv": false,
+  "cohort_sha256": "bf80f84fb9b17e30ef154117b8165b352e70cb07e5b925d32b6498be51005c2b",
+  "records": [
+    {
+      "task": "cwe",
+      "source_row": 9,
+      "index": 9,
+      "answers": [
+        "temporariness",
+        "directory",
+        "rush",
+        "ferry",
+        "attendant",
+        "update",
+        "comptroller",
+        "tsunami",
+        "radish",
+        "underwire"
+      ],
+      "prompt_sha256": "e27671774facc5065e23b3c33ddcbd613f38c982e31d9472806ca15d73ae98ab",
+      "input_tokens": 65204,
+      "prefill_token_id": 16,
+      "input_token_sha256": "ac642340166be6a19300992552211245b9a5d1caa812f97019621aca23d215ce",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            9565,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            4513,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4161,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6281,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            6086,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            4643,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12581.0693359375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 11828.0224609375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11243.3349609375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 12032.7822265625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11154.9228515625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10781.3115234375
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10946.19921875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10417.8515625
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10854.794921875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10246.8505859375
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11279.2578125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9843.953125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11780.619140625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10267.5625
+            }
+          ],
+          "cache_setup_s": 5.760523072000069,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.480169759015553e-06
+            },
+            "seconds": 5.533379769003659,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65104,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 723593,
+          "prediction": "1. the (occurs 134 times) 2. and (occurs 123 times) 3. a (occurs 114 times) 4. of (occurs 104 times) 5. to (occurs 96 times) 6. in (occurs 94 times) 7. that (occurs 86 times) 8. is (occurs 84 times) 9. for (occurs 82 times) 10. with (occurs 79 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.880268376997265,
+      "elapsed_s": 17.00071081799979
+    },
+    {
+      "task": "cwe",
+      "source_row": 14,
+      "index": 14,
+      "answers": [
+        "killing",
+        "disillusioned",
+        "nationality",
+        "circuit",
+        "vice",
+        "crane",
+        "treaty",
+        "tech",
+        "promenade",
+        "questionnaire"
+      ],
+      "prompt_sha256": "6e33bb6a7fe5d614ea05cac7252d530cfe016088f2812a7ed4c5d902c6a60f6b",
+      "input_tokens": 65095,
+      "prefill_token_id": 16,
+      "input_token_sha256": "836f77b96605b2f5bfefbd81ea77f5f799ab12c5d204050567667b6d1b85051c",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            15,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            15,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            15,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            21251,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            18670,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            19899,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            19423,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            19104,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            21112,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            13104,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007,
+            271,
+            791,
+            1160,
+            315
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12513.1005859375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10697.44921875
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11623.1943359375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 12138.125
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11380.435546875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11007.2275390625
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10373.9453125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10959.7841796875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11151.1298828125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 11634.0166015625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10757.2041015625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11536.0908203125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9797.568359375
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10930.5966796875
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10095.6357421875
+            }
+          ],
+          "cache_setup_s": 5.717137961997651,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.70204429095611e-06
+            },
+            "seconds": 5.4910628119978355,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64995,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 723592,
+          "prediction": "1. the (occurs 1200 times) 2. and (occurs 1140 times) 3. a (occurs 1040 times) 4. of (occurs 940 times) 5. to (occurs 860 times) 6. that (occurs 840 times) 7. in (occurs 780 times) 8. is (occurs 760 times) 9. for (occurs 740 times) 10. with (occurs 720 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.709419561004324,
+      "elapsed_s": 13.64034093299415
+    },
+    {
+      "task": "cwe",
+      "source_row": 16,
+      "index": 16,
+      "answers": [
+        "contract",
+        "tune-up",
+        "balloonist",
+        "gather",
+        "terracotta",
+        "percentage",
+        "brush",
+        "train",
+        "undertaker",
+        "synthesis"
+      ],
+      "prompt_sha256": "e8c6826e72278a1d82099f1f5451165239cba1cae053409dd7f82c359695cef2",
+      "input_tokens": 65130,
+      "prefill_token_id": 16,
+      "input_token_sha256": "e191be4d346ee842b8eddf340a436002d1aa8d9b7e520a1e962f1dc9bff894eb",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6281,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5332,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            2614,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            1227,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12573.5146484375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9992.3017578125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10325.86328125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11805.7978515625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11277.3994140625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10283.5166015625
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10891.294921875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10143.9267578125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11289.03125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10908.8525390625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11192.7607421875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10742.6357421875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11377.5361328125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9690.8310546875
+            }
+          ],
+          "cache_setup_s": 5.895184935005091,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.088887857913505e-06
+            },
+            "seconds": 5.6084878140027286,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65030,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 724413,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 104 times) 4. of (occurs 94 times) 5. to (occurs 84 times) 6. in (occurs 78 times) 7. that (occurs 74 times) 8. is (occurs 72 times) 9. for (occurs 68 times) 10. with (occurs 64 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.701182308002899,
+      "elapsed_s": 14.757286608000868
+    },
+    {
+      "task": "cwe",
+      "source_row": 36,
+      "index": 36,
+      "answers": [
+        "fairy",
+        "mochi",
+        "decorate",
+        "forage",
+        "generate",
+        "tower",
+        "transport",
+        "subdued",
+        "tuxedo",
+        "numeric"
+      ],
+      "prompt_sha256": "dd62ce9c322a850fdeb40326a056518522f401a320acc4c24950dd91790477bd",
+      "input_tokens": 65295,
+      "prefill_token_id": 16,
+      "input_token_sha256": "fc5e47cd50cf480a2f11f7cb9be0a64446c0f37d8a1a8060c231230345f6bec3",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            21970,
+            320,
+            14310,
+            1759,
+            220,
+            1958,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            4647,
+            14946,
+            320,
+            14310,
+            1759,
+            220,
+            1187,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            25031,
+            320,
+            14310,
+            1759,
+            220,
+            1419,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            259,
+            2249,
+            66981,
+            320,
+            14310,
+            1759,
+            220,
+            1313,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            7710,
+            320,
+            14310,
+            1759,
+            220,
+            1691,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            7068,
+            320,
+            14310,
+            1759,
+            220,
+            508,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            369,
+            425,
+            320,
+            14310,
+            1759,
+            220,
+            777,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            3094,
+            66997,
+            7490,
+            320,
+            14310,
+            1759,
+            220,
+            972,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            3094,
+            12,
+            942,
+            320,
+            14310,
+            1759,
+            220,
+            1114,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            3094,
+            1481,
+            299,
+            700,
+            320,
+            14310,
+            1759,
+            220,
+            845,
+            3115,
+            8
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12678.4306640625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 11938.1630859375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 12424.8623046875
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11019.677734375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11876.2158203125
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11708.2412109375
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10647.6904296875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 11576.7138671875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11134.8564453125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 11689.861328125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10228.48828125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10923.90625
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11772.3466796875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 11669.5673828125
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10612.6328125
+            }
+          ],
+          "cache_setup_s": 5.66405955299706,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.109840342105599e-06
+            },
+            "seconds": 5.435596722003538,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65195,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 724721,
+          "prediction": "1. tower (occurs 34 times) 2. mochi (occurs 24 times) 3. numeric (occurs 23 times) 4. tuxedo (occurs 22 times) 5. transport (occurs 21 times) 6. generate (occurs 20 times) 7. forage (occurs 19 times) 8. step-daughter (occurs 18 times) 9. step-son (occurs 17 times) 10. step-brother (occurs 16 times)",
+          "score": 0.7
+        }
+      },
+      "prefill_s": 4.7423727349960245,
+      "elapsed_s": 13.693318691999593
+    },
+    {
+      "task": "cwe",
+      "source_row": 58,
+      "index": 58,
+      "answers": [
+        "brainy",
+        "cell",
+        "snowman",
+        "mention",
+        "shower",
+        "cloistered",
+        "maniacal",
+        "thermostat",
+        "sub",
+        "pregnancy"
+      ],
+      "prompt_sha256": "f128fc18ef520c76c40080b098c7336f96c291340feae7be050bfc7d82af1d25",
+      "input_tokens": 65271,
+      "prefill_token_id": 16,
+      "input_token_sha256": "1d450821543c2bc7c278ca65161e02e69461e6ec6274046122e00a04f3f709fa",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            966,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            2131,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3971,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6889,
+            1758,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4278,
+            1927,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            1041,
+            1187,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            27468,
+            24,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            26281,
+            20,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            19,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            24347,
+            17,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12246.45703125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9607.25
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11500.03125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11368.109375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 8512.9521484375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10759.7607421875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 9701.287109375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9017.8330078125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10197.404296875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9710.501953125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 9098.2509765625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10198.3466796875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9478.4833984375
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10469.4404296875
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10634.4365234375
+            }
+          ],
+          "cache_setup_s": 5.79899471400131,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.980636615277035e-06
+            },
+            "seconds": 5.570283521999954,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65171,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 725288,
+          "prediction": "1. the (occurs 12030 times) 2. and (occurs 11455 times) 3. a (occurs 10451 times) 4. of (occurs 10335 times) 5. to (occurs 10236 times) 6. in (occurs 10024 times) 7. that (occurs 9869 times) 8. is (occurs 9645 times) 9. for (occurs 9434 times) 10. with (occurs 9342 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.713487414002884,
+      "elapsed_s": 13.797745400996064
+    },
+    {
+      "task": "cwe",
+      "source_row": 66,
+      "index": 66,
+      "answers": [
+        "nightgown",
+        "analyst",
+        "expectancy",
+        "voiceless",
+        "forage",
+        "llama",
+        "idea",
+        "null",
+        "chub",
+        "signal"
+      ],
+      "prompt_sha256": "b4f2e856c6fe8e55307f89179d1eaf4bade418154308f6a682184d4bca5c28df",
+      "input_tokens": 65243,
+      "prefill_token_id": 16,
+      "input_token_sha256": "0ebb24f5a3827ea66f17881f2a7fa32b02283ec77112ecce12e0863c82d180c2",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            3814,
+            70,
+            785,
+            320,
+            14310,
+            1759,
+            220,
+            1187,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            4623,
+            320,
+            14310,
+            1759,
+            220,
+            1419,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            523,
+            392,
+            320,
+            14310,
+            1759,
+            220,
+            1313,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            8450,
+            320,
+            14310,
+            1759,
+            220,
+            1691,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            369,
+            425,
+            320,
+            14310,
+            1759,
+            220,
+            508,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            66995,
+            320,
+            14310,
+            1759,
+            220,
+            777,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            927,
+            4215,
+            291,
+            320,
+            14310,
+            1759,
+            220,
+            972,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            3814,
+            320,
+            14310,
+            1759,
+            220,
+            1114,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            892,
+            320,
+            14310,
+            1759,
+            220,
+            845,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            1938,
+            320,
+            14310,
+            1759,
+            220,
+            868,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007,
+            271
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12544.388671875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 12717.4384765625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 12301.5361328125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11425.7021484375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11269.7890625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11018.8466796875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10900.830078125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 11745.1044921875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 9329.3203125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 12102.87890625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11612.7578125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9961.296875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11585.009765625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10559.47265625
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10486.7314453125
+            }
+          ],
+          "cache_setup_s": 6.019622425999842,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.179127583687659e-06
+            },
+            "seconds": 5.7923337500033085,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65143,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 725887,
+          "prediction": "1. nightgown (occurs 24 times) 2. idea (occurs 23 times) 3. chub (occurs 22 times) 4. signal (occurs 21 times) 5. forage (occurs 20 times) 6. expectancy (occurs 19 times) 7. overjoyed (occurs 18 times) 8. night (occurs 17 times) 9. time (occurs 16 times) 10. day (occurs 15 times)",
+          "score": 0.6
+        }
+      },
+      "prefill_s": 4.711480022997421,
+      "elapsed_s": 13.91004040799453
+    },
+    {
+      "task": "cwe",
+      "source_row": 76,
+      "index": 76,
+      "answers": [
+        "tapioca",
+        "painful",
+        "lord",
+        "poppy",
+        "workable",
+        "margarine",
+        "encounter",
+        "briefing",
+        "witness",
+        "lane"
+      ],
+      "prompt_sha256": "073fe49fa791b9c6292615e94f41aa8c2e44ab84bb87fc29766d58d00f7620b6",
+      "input_tokens": 65192,
+      "prefill_token_id": 16,
+      "input_token_sha256": "7557662a29cda1b235c3004c2b2d738faab9d9145c063d4f3f02fff1e5807092",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            15,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            15,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            15,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            21251,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            18670,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            21221,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            19423,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            11711,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            13104,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            17814,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007,
+            271,
+            791,
+            1160,
+            315
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12876.9052734375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10143.3037109375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11660.4404296875
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11955.8046875
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 9441.498046875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10879.9697265625
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10526.2685546875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10942.25
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11291.998046875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10684.0712890625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 9477.3427734375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11664.1669921875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9204.3544921875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10723.4599609375
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10381.4384765625
+            }
+          ],
+          "cache_setup_s": 5.786130289998255,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.627716291201068e-06
+            },
+            "seconds": 5.550248412000656,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65092,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 726180,
+          "prediction": "1. the (occurs 1200 times) 2. and (occurs 1140 times) 3. a (occurs 1040 times) 4. of (occurs 940 times) 5. to (occurs 860 times) 6. in (occurs 830 times) 7. that (occurs 780 times) 8. is (occurs 750 times) 9. for (occurs 720 times) 10. with (occurs 680 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.737816799999564,
+      "elapsed_s": 13.673864037002204
+    },
+    {
+      "task": "cwe",
+      "source_row": 96,
+      "index": 96,
+      "answers": [
+        "nutritious",
+        "fan",
+        "sorghum",
+        "jog",
+        "deficit",
+        "truculent",
+        "coleslaw",
+        "alight",
+        "supervision",
+        "hole"
+      ],
+      "prompt_sha256": "016e23a3f87aae5256ac35523c9af6aaf328e4ad336e50b3ffb1ccfb832bd05a",
+      "input_tokens": 65339,
+      "prefill_token_id": 16,
+      "input_token_sha256": "a0e84318a914157b52e99ed80a5733ca681fcedb992199a6379fe1c0ffea5a63",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            1682,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            1774,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3971,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            16,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            24344,
+            20,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            23800,
+            16,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            25298,
+            16,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            21975,
+            16,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            22608,
+            16,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            22048,
+            16,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12832.9931640625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9958.0458984375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10481.8193359375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11689.40625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 10927.3916015625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 9953.6826171875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10562.8271484375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10387.9873046875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10624.6484375
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10710.2001953125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11104.931640625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9492.3974609375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11515.67578125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9129.60546875
+            }
+          ],
+          "cache_setup_s": 5.785537484000088,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.630331997963367e-06
+            },
+            "seconds": 5.562982932002342,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65239,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 726826,
+          "prediction": "1. the (occurs 12029) 2. and (occurs 11445) 3. a (occurs 10451) 4. of (occurs 9431) 5. to (occurs 8445) 6. in (occurs 7441) 7. that (occurs 6931) 8. is (occurs 6441) 9. for (occurs 5931) 10. with (occurs 5461)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.716736082002171,
+      "elapsed_s": 13.622088299998723
+    },
+    {
+      "task": "cwe",
+      "source_row": 100,
+      "index": 100,
+      "answers": [
+        "attenuation",
+        "trailer",
+        "jackal",
+        "hackwork",
+        "alto",
+        "rent",
+        "pasta",
+        "grandpa",
+        "solve",
+        "fasten"
+      ],
+      "prompt_sha256": "c8e137604ff43ae2792fd1aabd815c65993851bae28dc41d8c31ec18b4d5ddd9",
+      "input_tokens": 65343,
+      "prefill_token_id": 16,
+      "input_token_sha256": "d73f310df54b2d80f344add44268c624aef431bd3f1fca19248f00b0d3d32a81",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            1682,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            1114,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            2131,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6889,
+            2946,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4278,
+            3971,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            1041,
+            1774,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            26281,
+            16,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            24,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            24347,
+            17,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            26026,
+            18,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12527.90234375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9937.02734375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11497.5126953125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10390.720703125
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 9433.5849609375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10880.30859375
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10501.7421875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9420.078125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10433.423828125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10492.93359375
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10853.6982421875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10550.8193359375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9859.06640625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10409.9619140625
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10293.6298828125
+            }
+          ],
+          "cache_setup_s": 5.772701832996972,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.814909854962025e-06
+            },
+            "seconds": 5.52593703999446,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65243,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 727213,
+          "prediction": "1. the (occurs 12029 times) 2. and (occurs 11417 times) 3. a (occurs 10455 times) 4. of (occurs 10359 times) 5. to (occurs 10251 times) 6. in (occurs 10045 times) 7. that (occurs 9641 times) 8. is (occurs 9439 times) 9. for (occurs 9342 times) 10. with (occurs 9263 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.759730166995723,
+      "elapsed_s": 13.742897484000423
+    },
+    {
+      "task": "cwe",
+      "source_row": 107,
+      "index": 107,
+      "answers": [
+        "almighty",
+        "timing",
+        "stucco",
+        "fund",
+        "heat",
+        "tambourine",
+        "stroke",
+        "duration",
+        "instrumentalist",
+        "lining"
+      ],
+      "prompt_sha256": "9f991dc95e2e209399b3654111a145b230f901e28b979eadb8cd9402fd0fc72b",
+      "input_tokens": 65266,
+      "prefill_token_id": 16,
+      "input_token_sha256": "64387565bc1e75b38ed2ad1524d723f74ee7d01fa8f91a5ac410c1b0a65f4cd1",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6365,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6086,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            4643,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            4767,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12483.361328125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9983.19921875
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10725.55859375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 12219.1044921875
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11000.1748046875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10018.1328125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10551.4580078125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9937.330078125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10569.1552734375
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10654.20703125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10961.814453125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9612.767578125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10298.041015625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8884.13671875
+            }
+          ],
+          "cache_setup_s": 5.656817287999729,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.006244009564398e-06
+            },
+            "seconds": 5.428509689998464,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65166,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 727586,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 93 times) 4. of (occurs 86 times) 5. to (occurs 84 times) 6. in (occurs 82 times) 7. that (occurs 79 times) 8. is (occurs 78 times) 9. for (occurs 76 times) 10. with (occurs 74 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.723929129002499,
+      "elapsed_s": 13.408268093000515
+    },
+    {
+      "task": "cwe",
+      "source_row": 112,
+      "index": 112,
+      "answers": [
+        "marker",
+        "stupid",
+        "scarecrow",
+        "can",
+        "resolve",
+        "ptarmigan",
+        "executive",
+        "silent",
+        "version",
+        "reservoir"
+      ],
+      "prompt_sha256": "98a8e8d3b9cff2a1aa802abd9a0065d2d55ca91aacfa20cc1f570d12993eb616",
+      "input_tokens": 64936,
+      "prefill_token_id": 16,
+      "input_token_sha256": "1b6bc257394e6940223964b861a5ddcfe5b772380780820fc9406c5a25cd424f",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            4161,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            6281,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6083,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            2421,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            6086,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12522.7763671875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9984.330078125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10039.8623046875
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11722.5771484375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11489.333984375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 9889.201171875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10214.705078125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10008.974609375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10229.064453125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10229.0361328125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10760.1455078125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9403.609375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11258.8408203125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9325.1796875
+            }
+          ],
+          "cache_setup_s": 5.728301561997796,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.348525519366376e-06
+            },
+            "seconds": 5.470167751002009,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64836,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 728172,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 104 times) 4. of (occurs 96 times) 5. to (occurs 94 times) 6. in (occurs 92 times) 7. that (occurs 88 times) 8. is (occurs 86 times) 9. for (occurs 84 times) 10. with (occurs 82 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.6728100209948025,
+      "elapsed_s": 13.798921300993243
+    },
+    {
+      "task": "cwe",
+      "source_row": 129,
+      "index": 129,
+      "answers": [
+        "behalf",
+        "radish",
+        "middle",
+        "mouser",
+        "splendid",
+        "recliner",
+        "carrot",
+        "womanly",
+        "youngster",
+        "lie"
+      ],
+      "prompt_sha256": "37aba3802a167242d2fdbddc9902ef18aa6ce3c2766e57d58312ffe7f91e5cd1",
+      "input_tokens": 65088,
+      "prefill_token_id": 16,
+      "input_token_sha256": "8298fe2408fc0725f56cb7bbe05616426ef3b67c70ea4c6f1478c7e531592745",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6365,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6069,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            3076,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            2287,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            1227,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            5538,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12577.72265625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10353.1884765625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10230.931640625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11972.6337890625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11465.2099609375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10781.08203125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10987.2578125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10200.283203125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10929.2666015625
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 11723.109375
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11061.357421875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9785.7919921875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11401.119140625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8794.1982421875
+            }
+          ],
+          "cache_setup_s": 5.6995745439999155,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.7064589782385156e-06
+            },
+            "seconds": 5.470738671996514,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64988,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 728462,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 93 times) 4. of (occurs 83 times) 5. to (occurs 78 times) 6. that (occurs 74 times) 7. is (occurs 69 times) 8. in (occurs 66 times) 9. for (occurs 64 times) 10. with (occurs 62 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.70806427700154,
+      "elapsed_s": 13.449078767000174
+    },
+    {
+      "task": "cwe",
+      "source_row": 161,
+      "index": 161,
+      "answers": [
+        "tugboat",
+        "kindness",
+        "tasty",
+        "ignore",
+        "wicked",
+        "tonic",
+        "yahoo",
+        "brace",
+        "restored",
+        "vomit"
+      ],
+      "prompt_sha256": "4e4c172c358d2bdb41873a7728e77c6b290cbbd9918a735e31c0442f1fce7079",
+      "input_tokens": 65201,
+      "prefill_token_id": 16,
+      "input_token_sha256": "c76298b07e86d3f85d15601151203c235e11a370386881b7eeaf352b1fdd9e50",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            16,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            24,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            24344,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            23800,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            21975,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            23816,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            21789,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            22303,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            22048,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            20618,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12633.208984375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9952.7548828125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11236.572265625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11868.8740234375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 12070.7919921875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 9875.98046875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 11211.46484375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10947.595703125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11058.4638671875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10270.759765625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10535.0029296875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10815.0615234375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11190.4833984375
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10497.15234375
+            }
+          ],
+          "cache_setup_s": 5.956138984998688,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.5953719311219174e-06
+            },
+            "seconds": 5.685849863999465,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65101,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 729035,
+          "prediction": "1. the (occurs 1201 times) 2. and (occurs 1049 times) 3. a (occurs 844 times) 4. of (occurs 744 times) 5. to (occurs 644 times) 6. in (occurs 584 times) 7. that (occurs 563 times) 8. is (occurs 554 times) 9. for (occurs 546 times) 10. with (occurs 535 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.7091402179939905,
+      "elapsed_s": 13.980591993997223
+    },
+    {
+      "task": "cwe",
+      "source_row": 162,
+      "index": 162,
+      "answers": [
+        "sunflower",
+        "say",
+        "scanner",
+        "rivulet",
+        "flare",
+        "bush",
+        "preservation",
+        "everybody",
+        "cry",
+        "sphynx"
+      ],
+      "prompt_sha256": "183e2840f9da5dbebca37714e7b906421952d393e87dd561b84e2929321223f5",
+      "input_tokens": 65027,
+      "prefill_token_id": 16,
+      "input_token_sha256": "a4621f4a77711179979630a0ca87317730927cdd493ef90414222f113b19055f",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            966,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            914,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            2371,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            6365,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            5313,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            5958,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            2397,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            2131,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            1774,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            1927,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12677.3798828125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10054.1181640625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11632.7841796875
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 12319.0498046875
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 8488.59375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11143.1953125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 9946.62109375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 8382.0732421875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10342.91796875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9856.9736328125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 8591.615234375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10284.6669921875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9466.162109375
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8732.03515625
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10216.541015625
+            }
+          ],
+          "cache_setup_s": 5.750533712998731,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.021992248861352e-06
+            },
+            "seconds": 5.452008432002913,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64927,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 729517,
+          "prediction": "1. the (occurs 12030 times) 2. and (occurs 12025 times) 3. a (occurs 12004 times) 4. of (occurs 11993 times) 5. to (occurs 11985 times) 6. in (occurs 11973 times) 7. that (occurs 11965 times) 8. is (occurs 11955 times) 9. for (occurs 11945 times) 10. with (occurs 11936 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.6884353650020785,
+      "elapsed_s": 13.926681414995983
+    },
+    {
+      "task": "cwe",
+      "source_row": 218,
+      "index": 218,
+      "answers": [
+        "ethics",
+        "pentagon",
+        "infrastructure",
+        "bagel",
+        "earthy",
+        "consistency",
+        "drug",
+        "substance",
+        "curiosity",
+        "beauty"
+      ],
+      "prompt_sha256": "a0d112c200247eb355c33306e6657f6fc6c12d41a69e4d9d4bc4b02cc823af7e",
+      "input_tokens": 65248,
+      "prefill_token_id": 16,
+      "input_token_sha256": "d20ce19e6d95fdd7bfa998e92146f718b596cd3308ab3c17503630c5fb212232",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6365,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            3076,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            2287,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12662.0283203125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10108.06640625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10545.05859375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11630.0615234375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11391.126953125
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 9939.6328125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10603.6455078125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10237.974609375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10808.8330078125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10705.1826171875
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10890.7265625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9580.9267578125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11075.345703125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9383.1806640625
+            }
+          ],
+          "cache_setup_s": 5.58891017499991,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.951241291768383e-06
+            },
+            "seconds": 5.36023444699822,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65148,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 729885,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 104 times) 4. of (occurs 93 times) 5. to (occurs 86 times) 6. in (occurs 84 times) 7. that (occurs 78 times) 8. is (occurs 74 times) 9. for (occurs 69 times) 10. with (occurs 66 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.75819013799628,
+      "elapsed_s": 13.573555998998927
+    },
+    {
+      "task": "cwe",
+      "source_row": 220,
+      "index": 220,
+      "answers": [
+        "intervenor",
+        "surname",
+        "threatening",
+        "giddy",
+        "cartridge",
+        "solidarity",
+        "rightful",
+        "politician",
+        "lace",
+        "spruce"
+      ],
+      "prompt_sha256": "779cd7e062f8e5678e412be562a0a1a093a59dbd63c962b1dec6393c78a1e119",
+      "input_tokens": 65351,
+      "prefill_token_id": 16,
+      "input_token_sha256": "77f1812fb5bef5cbdb55a124fa886155b5f998986af1ef855271c42d13dfa0f3",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            2148,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            7461,
+            2721,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            2131,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            6889,
+            2131,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            4278,
+            5932,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            1041,
+            3971,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            1041,
+            2148,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            27468,
+            20,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            26281,
+            20,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            20,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12673.345703125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10181.271484375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11567.7265625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10401.5849609375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 9593.3916015625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11047.810546875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10515.2197265625
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9009.9521484375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10634.4541015625
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9767.6611328125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 9542.1591796875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10497.4423828125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10291.2197265625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10961.6259765625
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10932.3349609375
+            }
+          ],
+          "cache_setup_s": 5.852522487999522,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.654242613672977e-06
+            },
+            "seconds": 5.612361851999594,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65251,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 730477,
+          "prediction": "1. the (occurs 12031 times) 2. and (occurs 10695 times) 3. of (occurs 10455 times) 4. to (occurs 10355 times) 5. a (occurs 10281 times) 6. in (occurs 10051 times) 7. that (occurs 10031 times) 8. is (occurs 9865 times) 9. for (occurs 9645 times) 10. with (occurs 9435 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.756237144996703,
+      "elapsed_s": 14.483679087003111
+    },
+    {
+      "task": "cwe",
+      "source_row": 229,
+      "index": 229,
+      "answers": [
+        "ahead",
+        "sled",
+        "shoot",
+        "septicaemia",
+        "permit",
+        "macrofauna",
+        "magical",
+        "tempo",
+        "declaration",
+        "urgency"
+      ],
+      "prompt_sha256": "5d135398e0b21e0eaf32ba3e6b536a8ff46e2e24616d66fa5411f87e11105d6f",
+      "input_tokens": 65168,
+      "prefill_token_id": 16,
+      "input_token_sha256": "0e71039ecdce4e67e11a9014d9814f9fe2e4e192bdefdbac415201390ee1d42e",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6365,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6069,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            5332,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            3076,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12326.8720703125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9649.1396484375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10198.205078125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11772.4462890625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11196.556640625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10408.9482421875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10090.658203125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10226.9375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10776.98046875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10198.408203125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11180.7578125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10379.69140625
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11097.7294921875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8816.9345703125
+            }
+          ],
+          "cache_setup_s": 5.745857975001854,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.963304829492699e-06
+            },
+            "seconds": 5.5162652310027624,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65068,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 730637,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 104 times) 4. of (occurs 93 times) 5. to (occurs 86 times) 6. in (occurs 83 times) 7. that (occurs 78 times) 8. is (occurs 74 times) 9. for (occurs 72 times) 10. with (occurs 69 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.719719276996329,
+      "elapsed_s": 13.496723072996247
+    },
+    {
+      "task": "cwe",
+      "source_row": 233,
+      "index": 233,
+      "answers": [
+        "license",
+        "stew",
+        "subtitle",
+        "wrist",
+        "prose",
+        "jasmine",
+        "graph",
+        "vine",
+        "extinction",
+        "chronometer"
+      ],
+      "prompt_sha256": "ab69b1e092efb9c077f5a488cd93128449081b9129a5003c7381e0a9d42020d1",
+      "input_tokens": 64919,
+      "prefill_token_id": 16,
+      "input_token_sha256": "83d44f17f6f58c412894ddf02b2bb9f5850e5cced6be0ec048ad2d065bfc4638",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            15,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            24,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            24,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            24344,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            25926,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            24402,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            23800,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            25392,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            23888,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007,
+            271,
+            791,
+            1948,
+            220
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12664.90625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9948.693359375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11509.69140625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10661.3271484375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 10373.5458984375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10554.5390625
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10351.375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10594.32421875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11048.3330078125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10920.2041015625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10429.7880859375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11378.72265625
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9244.935546875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10685.1455078125
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 9754.08203125
+            }
+          ],
+          "cache_setup_s": 5.66155425299803,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.7510546866978984e-06
+            },
+            "seconds": 5.433771290001459,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64819,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 731233,
+          "prediction": "1. the (occurs 1200 times) 2. and (occurs 1149 times) 3. a (occurs 1049 times) 4. of (occurs 943 times) 5. to (occurs 844 times) 6. in (occurs 794 times) 7. that (occurs 764 times) 8. is (occurs 744 times) 9. for (occurs 694 times) 10. with (occurs 664 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.664000237004075,
+      "elapsed_s": 13.452384340998833
+    },
+    {
+      "task": "cwe",
+      "source_row": 239,
+      "index": 239,
+      "answers": [
+        "trot",
+        "subset",
+        "blogger",
+        "importance",
+        "corps",
+        "dogsled",
+        "placement",
+        "century",
+        "rake",
+        "homogenate"
+      ],
+      "prompt_sha256": "c3c4a3fb71fecc4aacd8cae26a8c161ba3e094152747ef3e4be6001013253783",
+      "input_tokens": 65065,
+      "prefill_token_id": 16,
+      "input_token_sha256": "0d4c507a5b624096145a29e9b3cd1f7f9b8fd97dd3456315e6048f1e036e4d68",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            966,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            777,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            7461,
+            3174,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            1187,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            16,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            24347,
+            16,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            24870,
+            16,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            19355,
+            16,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            25515,
+            16,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            26563,
+            16,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12502.234375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9977.59765625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11763.181640625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11552.236328125
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 8909.3310546875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10564.0009765625
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 9580.9560546875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 11578.3427734375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10761.83203125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9694.1962890625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11558.2607421875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10832.1435546875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10627.1689453125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 11467.2109375
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10550.9453125
+            }
+          ],
+          "cache_setup_s": 5.68886835599551,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.7599622778070625e-06
+            },
+            "seconds": 5.463141426997026,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64965,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 731877,
+          "prediction": "1. the (occurs 12030 times) 2. and (occurs 11419 times) 3. of (occurs 10641 times) 4. to (occurs 10424 times) 5. a (occurs 9431 times) 6. in (occurs 9341 times) 7. that (occurs 8761 times) 8. is (occurs 8641 times) 9. for (occurs 8541 times) 10. with (occurs 8461 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.722864428003959,
+      "elapsed_s": 13.698406299001363
+    },
+    {
+      "task": "cwe",
+      "source_row": 246,
+      "index": 246,
+      "answers": [
+        "diam",
+        "colon",
+        "keyboard",
+        "hard-hat",
+        "resume",
+        "tapioca",
+        "propaganda",
+        "gingerbread",
+        "value",
+        "anxiety"
+      ],
+      "prompt_sha256": "c73c023c952ad0cc37d0fe10f386351f1406dfb6a37589ce886d82e39ad5ddce",
+      "input_tokens": 65209,
+      "prefill_token_id": 16,
+      "input_token_sha256": "a011a0f4d65b8fedce9e96e5415de4eb99244ca90a3328f75124c8d89b257496",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            9565,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            4513,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4161,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6281,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            6086,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12591.08984375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 11276.23046875
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10295.2978515625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11836.8408203125
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 10870.5009765625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 9638.8310546875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10063.6201171875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10071.609375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10038.2666015625
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9709.7529296875
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10695.0166015625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9380.318359375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10498.1064453125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10721.0263671875
+            }
+          ],
+          "cache_setup_s": 5.804729244002374,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.16046520715463e-06
+            },
+            "seconds": 5.574518532004731,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65109,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 732108,
+          "prediction": "1. the (occurs 134 times) 2. and (occurs 123 times) 3. a (occurs 114 times) 4. of (occurs 104 times) 5. to (occurs 96 times) 6. in (occurs 94 times) 7. that (occurs 86 times) 8. is (occurs 84 times) 9. for (occurs 82 times) 10. with (occurs 78 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.717822644997796,
+      "elapsed_s": 13.569963705005648
+    },
+    {
+      "task": "cwe",
+      "source_row": 256,
+      "index": 256,
+      "answers": [
+        "pest",
+        "mystery",
+        "barbeque",
+        "widget",
+        "vector",
+        "burly",
+        "official",
+        "beech",
+        "dump truck",
+        "slapstick"
+      ],
+      "prompt_sha256": "69f1347f868c5d7e51f37b85072829ce27c59c0f046a35eb203ba9324f52f479",
+      "input_tokens": 65265,
+      "prefill_token_id": 16,
+      "input_token_sha256": "8aebf66aaf19fbdd76fcd9ec4b20f841137238c62af9882961c434b45494ceb5",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            4033,
+            320,
+            14310,
+            1759,
+            220,
+            6550,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            387,
+            4842,
+            320,
+            14310,
+            1759,
+            220,
+            4331,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            44885,
+            320,
+            14310,
+            1759,
+            220,
+            4103,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            10488,
+            11092,
+            320,
+            14310,
+            1759,
+            220,
+            1958,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            3703,
+            1395,
+            593,
+            320,
+            14310,
+            1759,
+            220,
+            843,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            4724,
+            320,
+            14310,
+            1759,
+            220,
+            2148,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            2653,
+            320,
+            14310,
+            1759,
+            220,
+            1682,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            27144,
+            320,
+            14310,
+            1759,
+            220,
+            1591,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            76920,
+            320,
+            14310,
+            1759,
+            220,
+            1544,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            4732,
+            320,
+            14310,
+            1759,
+            220,
+            1627,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007,
+            271,
+            791,
+            1948
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12514.4794921875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 11184.6708984375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 12778.037109375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11041.4609375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11778.7734375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 9502.5283203125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 12506.4951171875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 12043.4189453125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 9843.1396484375
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 12678.52734375
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 9164.2041015625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10178.3828125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10707.322265625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10711.419921875
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 9784.4677734375
+            }
+          ],
+          "cache_setup_s": 5.764400095999008,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.1848028306267224e-06
+            },
+            "seconds": 5.521960243997455,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65165,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 732703,
+          "prediction": "1. official (occurs 105 times) 2. beech (occurs 53 times) 3. pest (occurs 52 times) 4. dump truck (occurs 34 times) 5. barbeque (occurs 32 times) 6. vector (occurs 31 times) 7. hard (occurs 29 times) 8. junior (occurs 28 times) 9. hawk (occurs 27 times) 10. speed (occurs 26 times)",
+          "score": 0.6
+        }
+      },
+      "prefill_s": 4.711561868003628,
+      "elapsed_s": 13.672354873997392
+    },
+    {
+      "task": "cwe",
+      "source_row": 257,
+      "index": 257,
+      "answers": [
+        "worry",
+        "normalisation",
+        "ride",
+        "masterpiece",
+        "hallowed",
+        "reconcile",
+        "rock",
+        "survival",
+        "twine",
+        "bolt"
+      ],
+      "prompt_sha256": "22915d48be1e1bf6394fa6c2b0f2342b3cc00df821f62e7476103064efcb7e98",
+      "input_tokens": 65167,
+      "prefill_token_id": 16,
+      "input_token_sha256": "e5558bf27777aa1febcc846de29cde1c40cce308c6a5134462af77771b438e0d",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            2304,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            1419,
+            8,
+            220,
+            18,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            7461,
+            3174,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3971,
+            8,
+            220,
+            20,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            16,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            24344,
+            16,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            23800,
+            16,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            22768,
+            16,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            21975,
+            16,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            23816,
+            16,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12362.0400390625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9816.658203125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10285.4052734375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11565.0830078125
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 10775.5966796875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10295.20703125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10310.9208984375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10201.9560546875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11086.5634765625
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10140.7939453125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10771.7646484375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9791.6845703125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11610.3828125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8962.6650390625
+            }
+          ],
+          "cache_setup_s": 5.938062009001442,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.699728262698045e-06
+            },
+            "seconds": 5.666917442998965,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65067,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 733014,
+          "prediction": "1. the (occurs 12005) 2. and (occurs 11423) 3. to (occurs 10641) 4. of (occurs 10451) 5. a (occurs 9431) 6. in (occurs 8441) 7. that (occurs 7441) 8. is (occurs 6721) 9. for (occurs 6441) 10. with (occurs 5841)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.74435951399937,
+      "elapsed_s": 13.9010291569939
+    },
+    {
+      "task": "cwe",
+      "source_row": 289,
+      "index": 289,
+      "answers": [
+        "login",
+        "intuition",
+        "due",
+        "promote",
+        "troop",
+        "tote",
+        "melodic",
+        "howitzer",
+        "initiate",
+        "sparerib"
+      ],
+      "prompt_sha256": "9d6313762ff6a68ef2a74dfffdeb6cb4e6263f9701ecbd0f1fbbb3041db00498",
+      "input_tokens": 65283,
+      "prefill_token_id": 16,
+      "input_token_sha256": "9ccb0743f16b6b85a9e151d25fa34daf1fedb57c647686c1ca35f3827b51870b",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            1627,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            2946,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            2721,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            2096,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            8190,
+            3174,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            7261,
+            6365,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            7261,
+            3971,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5037,
+            6365,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            5037,
+            3971,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            7743,
+            2721,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12638.1669921875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10340.7392578125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11184.7666015625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10698.7724609375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 8238.5302734375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10118.51171875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10384.8876953125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 8705.3701171875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10091.9814453125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9953.08203125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 8576.1806640625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10242.435546875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10328.982421875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8926.7685546875
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 9810.5703125
+            }
+          ],
+          "cache_setup_s": 5.789994266000576,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.214506472839275e-06
+            },
+            "seconds": 5.564566043001832,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65183,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 733528,
+          "prediction": "1. the (occurs 12026 times) 2. and (occurs 11959 times) 3. to (occurs 11495 times) 4. a (occurs 11444 times) 5. of (occurs 11341 times) 6. in (occurs 11293 times) 7. that (occurs 11251 times) 8. is (occurs 11193 times) 9. with (occurs 11151 times) 10. for (occurs 10995 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.778498741994554,
+      "elapsed_s": 13.694155484001385
+    },
+    {
+      "task": "cwe",
+      "source_row": 322,
+      "index": 322,
+      "answers": [
+        "entity",
+        "flood",
+        "reindeer",
+        "silica",
+        "time",
+        "communist",
+        "rediscovery",
+        "gas",
+        "gravy",
+        "tomato"
+      ],
+      "prompt_sha256": "1c288ab15ef3810fa8b5bf96c5217bcb6e0c31976e46b15d50617403bfb240d5",
+      "input_tokens": 65355,
+      "prefill_token_id": 16,
+      "input_token_sha256": "5f9afb648bd0ced9d84da9e3e88348883827a9192dd1300fd2c0ae1742a497cd",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            15,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            15,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            15,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            21251,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            19899,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            19423,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            21112,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            17814,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            14033,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            5067,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007,
+            271,
+            791,
+            1160,
+            315
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12242.52734375
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10191.408203125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 12068.5625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10473.7021484375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 10593.263671875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10743.4658203125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10392.0791015625
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10960.0986328125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11840.822265625
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 11318.26171875
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10271.859375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11901.57421875
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9351.7998046875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 10666.251953125
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10075.5146484375
+            }
+          ],
+          "cache_setup_s": 5.6848318060001475,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.416912128770491e-06
+            },
+            "seconds": 5.4592563039987,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65255,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 734161,
+          "prediction": "1. the (occurs 1200 times) 2. and (occurs 1140 times) 3. a (occurs 1040 times) 4. of (occurs 940 times) 5. to (occurs 840 times) 6. in (occurs 780 times) 7. that (occurs 740 times) 8. is (occurs 680 times) 9. for (occurs 640 times) 10. with (occurs 600 times)",
+          "score": 0.1
+        }
+      },
+      "prefill_s": 4.759307685999374,
+      "elapsed_s": 13.909295691002626
+    },
+    {
+      "task": "cwe",
+      "source_row": 355,
+      "index": 355,
+      "answers": [
+        "ink",
+        "texture",
+        "fluffy",
+        "orient",
+        "grandchild",
+        "tame",
+        "probation",
+        "divide",
+        "dish",
+        "spectrum"
+      ],
+      "prompt_sha256": "de92b817f6ea715740dd6a3e4d21681b80ff863f7fb0450a90399281f74a30d4",
+      "input_tokens": 65142,
+      "prefill_token_id": 16,
+      "input_token_sha256": "263ec9b7250f852cd799f9ead43ce25a772b6c952cf009c981ec9f247482a5f3",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            1721,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            1682,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6550,
+            3971,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            2491,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            26576,
+            16,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            24250,
+            20,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            24438,
+            16,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            22768,
+            16,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            21975,
+            24,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            22801,
+            16,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12485.79296875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10297.537109375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11999.005859375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10642.2724609375
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 9336.37890625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10999.2392578125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10410.9013671875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10795.23046875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10640.8095703125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10275.25390625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11948.84375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11181.162109375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10177.9755859375
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 12020.345703125
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10775.8125
+            }
+          ],
+          "cache_setup_s": 5.726725514003192,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.163254056446021e-06
+            },
+            "seconds": 5.495906105999893,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65042,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 734335,
+          "prediction": "1. the (occurs 12001 times) 2. and (occurs 11429 times) 3. a (occurs 10551 times) 4. of (occurs 10449 times) 5. to (occurs 9431 times) 6. in (occurs 8385 times) 7. that (occurs 7341 times) 8. is (occurs 6721 times) 9. for (occurs 6449 times) 10. with (occurs 6231 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.793418062996352,
+      "elapsed_s": 13.66111548900517
+    },
+    {
+      "task": "cwe",
+      "source_row": 374,
+      "index": 374,
+      "answers": [
+        "scandalous",
+        "allow",
+        "screw-up",
+        "moai",
+        "experience",
+        "shield",
+        "intellect",
+        "honorable",
+        "appreciate",
+        "cynic"
+      ],
+      "prompt_sha256": "25646936a880e5b1033fc79da727e4fc92f9fa79ddb861fe65cb24d218fc180d",
+      "input_tokens": 65295,
+      "prefill_token_id": 16,
+      "input_token_sha256": "d5cf515c75ba93af0ac55e4c70f9b6d4d478c77fbf07b89285c3588f7daa0fee",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            4647,
+            2192,
+            320,
+            14310,
+            1759,
+            220,
+            1958,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            3217,
+            320,
+            14310,
+            1759,
+            220,
+            1644,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            17108,
+            320,
+            14310,
+            1759,
+            220,
+            843,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            20858,
+            320,
+            14310,
+            1759,
+            220,
+            843,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            2187,
+            320,
+            14310,
+            1759,
+            220,
+            2148,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            3094,
+            12,
+            942,
+            320,
+            14310,
+            1759,
+            220,
+            966,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            3094,
+            2269,
+            1894,
+            320,
+            14310,
+            1759,
+            220,
+            1682,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            38950,
+            320,
+            14310,
+            1759,
+            220,
+            1591,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            39284,
+            320,
+            14310,
+            1759,
+            220,
+            1591,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            3094,
+            7561,
+            3935,
+            320,
+            14310,
+            1759,
+            220,
+            1544,
+            3115,
+            8,
+            128009,
+            128006,
+            78191,
+            128007
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12336.7783203125
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 11809.365234375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11932.0615234375
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11033.8837890625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 12172.0048828125
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11799.91796875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 11979.35546875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9975.3173828125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11207.9912109375
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10522.970703125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 9738.77734375
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11612.06640625
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11571.392578125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9857.388671875
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10773.2041015625
+            }
+          ],
+          "cache_setup_s": 5.672639081996749,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.718213287764229e-06
+            },
+            "seconds": 5.447952124995936,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65195,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 735008,
+          "prediction": "1. moai (occurs 34 times) 2. experience (occurs 33 times) 3. intellect (occurs 32 times) 4. shield (occurs 32 times) 5. allow (occurs 31 times) 6. step-son (occurs 30 times) 7. step-father (occurs 29 times) 8. grandfather (occurs 28 times) 9. grandmother (occurs 28 times) 10. step-aunt (occurs 27 times)",
+          "score": 0.5
+        }
+      },
+      "prefill_s": 4.725230558993644,
+      "elapsed_s": 13.732198493999022
+    },
+    {
+      "task": "cwe",
+      "source_row": 407,
+      "index": 407,
+      "answers": [
+        "bunkhouse",
+        "caterpillar",
+        "salsa",
+        "font",
+        "penguin",
+        "ordination",
+        "crust",
+        "softball",
+        "grand",
+        "fluttering"
+      ],
+      "prompt_sha256": "cdaad0d715a8d380ef511e1dde048e6585b9b9031a21907332e2bdafef810acb",
+      "input_tokens": 65164,
+      "prefill_token_id": 16,
+      "input_token_sha256": "8d18c3d47e84b33fcddb87d2a28e033e4bcd91e237ac3561febbd40eba19db57",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6365,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            2614,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            1227,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            5538,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            2946,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12807.3212890625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10643.953125
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10613.1650390625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11776.2431640625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11330.1435546875
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10338.1591796875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10598.548828125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10083.712890625
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10568.673828125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10323.099609375
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10956.6201171875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9797.8212890625
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10650.8720703125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9397.388671875
+            }
+          ],
+          "cache_setup_s": 5.839651661997777,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.270098426990444e-06
+            },
+            "seconds": 5.607216967000568,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65064,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 735461,
+          "prediction": "1. the (occurs 120 times) 2. and (occurs 114 times) 3. a (occurs 93 times) 4. of (occurs 84 times) 5. to (occurs 78 times) 6. in (occurs 74 times) 7. that (occurs 68 times) 8. is (occurs 64 times) 9. for (occurs 62 times) 10. with (occurs 59 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.715367652999703,
+      "elapsed_s": 13.953225591998489
+    },
+    {
+      "task": "cwe",
+      "source_row": 425,
+      "index": 425,
+      "answers": [
+        "bonding",
+        "bias",
+        "carpenter",
+        "dill",
+        "accelerate",
+        "lambkin",
+        "greet",
+        "tranquil",
+        "centre",
+        "inscription"
+      ],
+      "prompt_sha256": "4401a71433ca096c2922ba1a3ccd6b9fd0ad94c3df5a7a7d1dec81a83b6d34bd",
+      "input_tokens": 65213,
+      "prefill_token_id": 16,
+      "input_token_sha256": "56acbddfffe4d9b25f85dd55a8e1f74a316cee3fd2a416522acb86e3013950de",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            9565,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            4513,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4161,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6281,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            6083,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            6086,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12566.6181640625
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 11473.4462890625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10385.2705078125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11752.9931640625
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11006.2734375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10145.6513671875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10496.4462890625
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 10022.439453125
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10649.2724609375
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10117.5390625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 11059.6416015625
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10313.12109375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 11412.3486328125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 9534.50390625
+            }
+          ],
+          "cache_setup_s": 5.630017086004955,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.710772256861674e-06
+            },
+            "seconds": 5.402306177995342,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65113,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 735770,
+          "prediction": "1. the (occurs 134 times) 2. and (occurs 123 times) 3. a (occurs 114 times) 4. of (occurs 104 times) 5. to (occurs 96 times) 6. in (occurs 94 times) 7. that (occurs 92 times) 8. is (occurs 86 times) 9. for (occurs 84 times) 10. with (occurs 82 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.765924334998999,
+      "elapsed_s": 13.788143511003
+    },
+    {
+      "task": "cwe",
+      "source_row": 450,
+      "index": 450,
+      "answers": [
+        "insectarium",
+        "annual",
+        "software",
+        "pretty",
+        "agriculture",
+        "graffiti",
+        "mineshaft",
+        "seafood",
+        "trailpatrol",
+        "safety"
+      ],
+      "prompt_sha256": "13478442e338b9afc7ce1fe47ab8589db5056af75f9796ecaaf1ea9f97d9c1f0",
+      "input_tokens": 65226,
+      "prefill_token_id": 16,
+      "input_token_sha256": "e2b9608ebcef90618effb6cf9bd7ebdbed00e5e3beb92d6a912d5a3e2db7b2d3",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            1682,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            1954,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            9079,
+            2946,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            8899,
+            6069,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            8899,
+            1774,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            8546,
+            6365,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            8546,
+            4331,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            8027,
+            6365,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            8027,
+            4331,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            7322,
+            6365,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12294.341796875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9760.5712890625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11720.29296875
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 12162.48828125
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 8448.775390625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10438.9091796875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 9828.984375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 8520.232421875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10147.255859375
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9546.6669921875
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 8292.921875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10260.408203125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9761.3720703125
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8798.298828125
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 9935.8759765625
+            }
+          ],
+          "cache_setup_s": 5.849210018001031,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.755272923124721e-06
+            },
+            "seconds": 5.620099990002927,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65126,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 736430,
+          "prediction": "1. the (occurs 12029 times) 2. and (occurs 11990 times) 3. a (occurs 11959 times) 4. of (occurs 11883 times) 5. to (occurs 11845 times) 6. in (occurs 11793 times) 7. that (occurs 11753 times) 8. is (occurs 11693 times) 9. for (occurs 11653 times) 10. with (occurs 11593 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.748305727000115,
+      "elapsed_s": 13.784792667996953
+    },
+    {
+      "task": "cwe",
+      "source_row": 451,
+      "index": 451,
+      "answers": [
+        "station",
+        "packet",
+        "wooden",
+        "neglect",
+        "plaintiff",
+        "clavicle",
+        "pain",
+        "pony",
+        "swallow",
+        "acoustics"
+      ],
+      "prompt_sha256": "3ac63cda15659be788ad6f4fcd924fb82efe5a72280331ac120a59108133052e",
+      "input_tokens": 65358,
+      "prefill_token_id": 16,
+      "input_token_sha256": "c690c2e3238124977a24abe4deb6c37ed0b98db056efb1e72e00bb9503ed35e8",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4513,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6365,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            4218,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            5833,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            2495,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5728,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            5332,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            3076,
+            3115,
+            8,
+            128009,
+            128006,
+            78191
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12258.41796875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10741.1015625
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 10476.640625
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 12223.6669921875
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 11002.048828125
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 10129.935546875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10523.2451171875
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9758.3427734375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10374.0361328125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 10197.2392578125
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10903.73046875
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 9487.3427734375
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 10725.2900390625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8962.8154296875
+            }
+          ],
+          "cache_setup_s": 5.6547664669997175,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 5.371556653699372e-06
+            },
+            "seconds": 5.425076358005754,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65258,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 736588,
+          "prediction": "1. the (occurs 123 times) 2. and (occurs 114 times) 3. a (occurs 104 times) 4. of (occurs 93 times) 5. to (occurs 86 times) 6. in (occurs 84 times) 7. that (occurs 78 times) 8. is (occurs 74 times) 9. for (occurs 72 times) 10. with (occurs 69 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.764142721003736,
+      "elapsed_s": 13.421452766000584
+    },
+    {
+      "task": "cwe",
+      "source_row": 474,
+      "index": 474,
+      "answers": [
+        "sherbet",
+        "puppy",
+        "eyelash",
+        "casserole",
+        "news",
+        "hound",
+        "astonishing",
+        "dollop",
+        "steer",
+        "passage"
+      ],
+      "prompt_sha256": "26cfc223580e552d2cd6d7fada448d8050aa76828d326b1759aaf02abc3b3894",
+      "input_tokens": 65333,
+      "prefill_token_id": 16,
+      "input_token_sha256": "6f763e58ff62d542a5123100945647b02e147d85f26b41608dab6998eda77ce3",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            1682,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            1627,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            8190,
+            2721,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            8190,
+            2096,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            7261,
+            6365,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            7261,
+            3971,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            5037,
+            6365,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            5037,
+            2096,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            5120,
+            6365,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            449,
+            320,
+            14310,
+            1759,
+            220,
+            7743,
+            6365,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12830.513671875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 9848.474609375
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11772.89453125
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 10879.904296875
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 8259.8505859375
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11156.5654296875
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 10179.7314453125
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 8521.7607421875
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 10728.453125
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9685.5400390625
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 8294.5283203125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 10586.8369140625
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9723.9853515625
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 8537.2744140625
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10263.0615234375
+            }
+          ],
+          "cache_setup_s": 5.709781161996943,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.013599431753391e-06
+            },
+            "seconds": 5.482536089999485,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 65233,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 737174,
+          "prediction": "1. the (occurs 12029 times) 2. and (occurs 11426 times) 3. a (occurs 11395 times) 4. of (occurs 11344 times) 5. to (occurs 11293 times) 6. in (occurs 11251 times) 7. that (occurs 11193 times) 8. is (occurs 11144 times) 9. for (occurs 11093 times) 10. with (occurs 10993 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.7332229770036065,
+      "elapsed_s": 13.561758586998621
+    },
+    {
+      "task": "cwe",
+      "source_row": 487,
+      "index": 487,
+      "answers": [
+        "clothes",
+        "sty",
+        "expansion",
+        "wit",
+        "size",
+        "emission",
+        "abortive",
+        "pagoda",
+        "problem",
+        "anticipate"
+      ],
+      "prompt_sha256": "c134326b71fa36dca54caaa5852877a07d6a5c8b2eee2986ac377f7a5bdf0289",
+      "input_tokens": 65005,
+      "prefill_token_id": 16,
+      "input_token_sha256": "503b782ec2cc89b5986ad043137ff30da7a2a51586269c6a5e187bc6a66a9ea4",
+      "decoders": {
+        "gpu-squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            279,
+            320,
+            14310,
+            1759,
+            220,
+            4364,
+            410,
+            3115,
+            8,
+            220,
+            17,
+            13,
+            323,
+            320,
+            14310,
+            1759,
+            220,
+            8011,
+            1484,
+            3115,
+            8,
+            220,
+            18,
+            13,
+            311,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            3264,
+            3115,
+            8,
+            220,
+            19,
+            13,
+            315,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            2721,
+            3115,
+            8,
+            220,
+            20,
+            13,
+            264,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            6365,
+            3115,
+            8,
+            220,
+            21,
+            13,
+            304,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            4218,
+            3115,
+            8,
+            220,
+            22,
+            13,
+            430,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            4767,
+            3115,
+            8,
+            220,
+            23,
+            13,
+            374,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            5728,
+            3115,
+            8,
+            220,
+            24,
+            13,
+            369,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            5958,
+            3115,
+            8,
+            220,
+            605,
+            13,
+            433,
+            320,
+            14310,
+            1759,
+            220,
+            6849,
+            5332,
+            3115,
+            8,
+            128009
+          ],
+          "squeezed_selection_samples": [
+            {
+              "output_index": 1,
+              "mean_prefix_tokens": 12954.0966796875
+            },
+            {
+              "output_index": 8,
+              "mean_prefix_tokens": 10256.810546875
+            },
+            {
+              "output_index": 16,
+              "mean_prefix_tokens": 11885.94921875
+            },
+            {
+              "output_index": 24,
+              "mean_prefix_tokens": 11955.263671875
+            },
+            {
+              "output_index": 32,
+              "mean_prefix_tokens": 9814.3056640625
+            },
+            {
+              "output_index": 40,
+              "mean_prefix_tokens": 11344.3828125
+            },
+            {
+              "output_index": 48,
+              "mean_prefix_tokens": 9605.1708984375
+            },
+            {
+              "output_index": 56,
+              "mean_prefix_tokens": 9561.24609375
+            },
+            {
+              "output_index": 64,
+              "mean_prefix_tokens": 11010.138671875
+            },
+            {
+              "output_index": 72,
+              "mean_prefix_tokens": 9605.2919921875
+            },
+            {
+              "output_index": 80,
+              "mean_prefix_tokens": 10305.4267578125
+            },
+            {
+              "output_index": 88,
+              "mean_prefix_tokens": 11126.8173828125
+            },
+            {
+              "output_index": 96,
+              "mean_prefix_tokens": 9747.1669921875
+            },
+            {
+              "output_index": 104,
+              "mean_prefix_tokens": 11156.857421875
+            },
+            {
+              "output_index": 112,
+              "mean_prefix_tokens": 10460.4912109375
+            }
+          ],
+          "cache_setup_s": 5.708237322003697,
+          "reused_initial_clusters": false,
+          "squeezed_index": {
+            "clusters": 4096,
+            "threshold": {
+              "0.8": 6.330245014396496e-06
+            },
+            "seconds": 5.4502211090002675,
+            "calibration_tokens": 100,
+            "observation_window": 100,
+            "indexed_tokens": 64905,
+            "fit_backend": "batched Lloyd, 10 iterations, random initialization"
+          },
+          "worker_pid": 737817,
+          "prediction": "1. the (occurs 12000 times) 2. and (occurs 11499 times) 3. to (occurs 10498 times) 4. of (occurs 10495 times) 5. a (occurs 10493 times) 6. in (occurs 10486 times) 7. that (occurs 10476 times) 8. is (occurs 10474 times) 9. for (occurs 10473 times) 10. it (occurs 10472 times)",
+          "score": 0.0
+        }
+      },
+      "prefill_s": 4.700610152998706,
+      "elapsed_s": 13.74885072899633
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc",
+  "multipole_worker": "prewarmed",
+  "squeezed_fixed_centroids_per_kv_head": 4096,
+  "squeezed_fit_seed": 1,
+  "stop_at_eos": true
+}

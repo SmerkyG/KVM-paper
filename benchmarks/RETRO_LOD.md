@@ -22,13 +22,28 @@ routing kernels at the attention boundary. LoD's prefill construction and
 periodic decode cache updates are timed; initial cache allocation is outside
 timed prefill, as it is for the author's comparison paths.
 
+The [final threshold timings](../results/h100-baselines/llama-final-checks/REPORT.md)
+compare two-tier and adaptive three-tier LoD with dense and sparse RetroInfer
+at 32K and 64K. Prefill includes cache construction, and decode includes
+periodic cache updates. The [32K quality panel](../results/h100-baselines/adaptive-threshold-prefill/RULER_32K.md)
+and [64K quality panel](../results/h100-baselines/ruler-64k-panel/RULER_64K.md)
+use the same threshold settings.
+
+The [batch-one context sweep](../results/h100-baselines/llama-context-scaling/REPORT.md)
+uses the same decode window for all curves from 16K to 128,000 tokens,
+including Multipole and Squeezed on the shared index.
+
+The [64K batch-four comparison](../results/h100-baselines/llama-final-checks/REPORT.md#64k-batch-4)
+uses the same 1,024-step decode window and reports throughput and peak memory
+on one H100.
+
 ## Multipole paper-component comparison
 
 The current graph-captured Qwen-shaped comparison, including local and sink
 variants and isolated update accounting, is in [MULTIPOLE.md](MULTIPOLE.md).
-The [Llama shared-centroid comparison](../results/h100-baselines/llama-shared-index/REPORT.md)
-uses one optimized LoD prefill for dense, two-tier LoD, Multipole, and Squeezed
-p90. Multipole and Squeezed share the initial 2,900-centroid index.
+The [Llama speed–quality comparison](../results/h100-baselines/llama-context-scaling/REPORT.md#decode-latency-and-ruler-quality)
+uses dense prefill for Multipole and Squeezed. Their fitted decoder index has
+2,900 centroids per KV head. Both LoD modes use their own threshold prefill.
 
 ## ClusterKV on Llama-3.1-8B-Instruct
 

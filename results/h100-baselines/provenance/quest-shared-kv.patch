@@ -1,0 +1,116 @@
+--- a/kernels/include/decode/decode_page.cuh
++++ b/kernels/include/decode/decode_page.cuh
+@@ -78,6 +78,8 @@
+  */
+ template <PageStorage page_storage, QKVLayout layout, typename DType, typename IdType>
+ struct paged_kv_t {
++	// Logical heads may share one physical KV head.
++	uint32_t storage_group = 1;
+ 	uint32_t num_heads;
+ 	uint32_t page_size;
+ 	uint32_t head_dim;
+@@ -197,10 +199,11 @@
+ 																 size_t head_idx,
+ 																 size_t entry_idx,
+ 																 size_t feat_idx) const {
++		head_idx /= storage_group;
+ 		return layout == QKVLayout::kHND
+-				   ? ((page_idx * 2 * num_heads + head_idx) * page_size + entry_idx) * head_dim +
++				   ? ((page_idx * 2 * (num_heads / storage_group) + head_idx) * page_size + entry_idx) * head_dim +
+ 						 feat_idx
+-				   : ((page_idx * 2 * page_size + entry_idx) * num_heads + head_idx) * head_dim +
++				   : ((page_idx * 2 * page_size + entry_idx) * (num_heads / storage_group) + head_idx) * head_dim +
+ 						 feat_idx;
+ 	}
+ 
+@@ -213,8 +216,9 @@
+ 	__host__ __device__ __forceinline__ size_t get_k_elem_offset_in_page(size_t head_idx,
+ 																		 size_t entry_idx,
+ 																		 size_t feat_idx) const {
++		head_idx /= storage_group;
+ 		return layout == QKVLayout::kHND ? (head_idx * page_size + entry_idx) * head_dim + feat_idx
+-										 : (entry_idx * num_heads + head_idx) * head_dim + feat_idx;
++										 : (entry_idx * (num_heads / storage_group) + head_idx) * head_dim + feat_idx;
+ 	}
+ 
+ 	/*!
+@@ -229,11 +233,12 @@
+ 																 size_t head_idx,
+ 																 size_t entry_idx,
+ 																 size_t feat_idx) const {
++		head_idx /= storage_group;
+ 		return layout == QKVLayout::kHND
+-				   ? (((page_idx * 2 + 1) * num_heads + head_idx) * page_size + entry_idx) *
++				   ? (((page_idx * 2 + 1) * (num_heads / storage_group) + head_idx) * page_size + entry_idx) *
+ 							 head_dim +
+ 						 feat_idx
+-				   : (((page_idx * 2 + 1) * page_size + entry_idx) * num_heads + head_idx) *
++				   : (((page_idx * 2 + 1) * page_size + entry_idx) * (num_heads / storage_group) + head_idx) *
+ 							 head_dim +
+ 						 feat_idx;
+ 	}
+@@ -247,13 +252,14 @@
+ 	__host__ __device__ __forceinline__ size_t get_v_elem_offset_in_page(size_t head_idx,
+ 																		 size_t entry_idx,
+ 																		 size_t feat_idx) const {
++		head_idx /= storage_group;
+ 		return layout == QKVLayout::kHND
+-				   ? ((num_heads + head_idx) * page_size + entry_idx) * head_dim + feat_idx
+-				   : ((page_size + entry_idx) * num_heads + head_idx) * head_dim + feat_idx;
++				   ? (((num_heads / storage_group) + head_idx) * page_size + entry_idx) * head_dim + feat_idx
++				   : ((page_size + entry_idx) * (num_heads / storage_group) + head_idx) * head_dim + feat_idx;
+ 	}
+ 
+ 	__host__ __device__ __forceinline__ uint32_t kv_offset_delta() const {
+-		return num_heads * page_size * head_dim;
++		return (num_heads / storage_group) * page_size * head_dim;
+ 	}
+ 
+ 	__device__ __forceinline__ DType*
+--- a/quest/ops/csrc/estimate.cu
++++ b/quest/ops/csrc/estimate.cu
+@@ -36,13 +36,13 @@
+ 	if(kv_layout == QKVLayout::kHND) {
+ 		page_size = metadata_data.size(3);
+ 		#ifdef BSK_TORCH_CHECK
+-		CHECK_EQ(metadata_data.size(2), num_heads);
++		TORCH_CHECK(num_heads % metadata_data.size(2) == 0);
+ 		CHECK_EQ(metadata_data.size(4), head_dim);
+ 		#endif
+ 	} else {
+ 		page_size = metadata_data.size(2);
+ 		#ifdef BSK_TORCH_CHECK
+-		CHECK_EQ(metadata_data.size(3), num_heads);
++		TORCH_CHECK(num_heads % metadata_data.size(3) == 0);
+ 		CHECK_EQ(metadata_data.size(4), head_dim);
+ 		#endif
+ 	}
+@@ -64,6 +64,7 @@
+ 				static_cast<c_type*>(metadata_data.data_ptr()),
+ 				static_cast<int32_t*>(metadata_indices.data_ptr()),
+ 				static_cast<int32_t*>(metadata_indptr.data_ptr()));
++			paged_kv.storage_group = num_heads / metadata_data.size(kv_layout == QKVLayout::kHND ? 2 : 3);
+ 			cudaError_t status =
+ 				MaxPossibleSampleWithPagedKVCache<PageStorage::kIndices,
+ 												  KV_LAYOUT,
+--- a/quest/ops/csrc/approx_attn.cu
++++ b/quest/ops/csrc/approx_attn.cu
+@@ -113,7 +113,7 @@
+ 	bool success = DISPATCH_PYTORCH_DTYPE_TO_CTYPE(q.scalar_type(), c_type, [&] {
+ 		SWITCH_LAYOUT(kv_layout_, KV_LAYOUT, {
+ 			paged_kv_t<PageStorage::kIndices, KV_LAYOUT, c_type, int32_t> paged_kv(
+-				num_kv_heads,
++				num_qo_heads,
+ 				page_size,
+ 				head_dim,
+ 				batch_size,
+@@ -123,6 +123,9 @@
+ 				static_cast<c_type*>(paged_kv_data.data_ptr()),
+ 				static_cast<int32_t*>(paged_kv_indices.data_ptr()),
+ 				static_cast<int32_t*>(paged_kv_indptr.data_ptr()));
++
++			TORCH_CHECK(num_kv_heads > 0 && num_qo_heads % num_kv_heads == 0);
++			paged_kv.storage_group = num_qo_heads / num_kv_heads;
+ 
+ 			cudaError_t status =
+ 				BatchDecodeWithPagedKVCacheWrapper<PageStorage::kIndices,

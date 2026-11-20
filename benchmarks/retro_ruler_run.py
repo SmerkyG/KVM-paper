@@ -1,9 +1,10 @@
-"""Run a frozen RULER cohort with dense, RetroInfer, or LoD attention."""
+"""Run a frozen RULER cohort with dense, sparse, or LoD attention."""
 import argparse
 import collections
 import gc
 import hashlib
 import json
+import math
 import os
 import re
 import struct
@@ -111,10 +112,13 @@ def main():
     parser.add_argument('--input', type=Path, required=True)
     parser.add_argument('--reference-cohort', type=Path, help='Require shared tasks to match this earlier cohort exactly')
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--mode', choices=('dense', 'retroinfer', 'two-tier', 'three-tier-bf16', 'three-tier-int4','multipole','squeezed-multipole','clusterkv'), required=True)
+    parser.add_argument('--mode', choices=('dense', 'retroinfer', 'two-tier', 'three-tier-bf16', 'three-tier-int4','multipole','squeezed-multipole','clusterkv','quest'), required=True)
     parser.add_argument('--dtype', choices=('bfloat16', 'float16'), default='bfloat16')
     parser.add_argument('--clusterkv-centroids', type=int, default=400)
     parser.add_argument('--clusterkv-budget', type=int, default=1024)
+    parser.add_argument('--retro-centroids', type=int, help='Override the RetroInfer prefill index width')
+    parser.add_argument('--quest-budget', type=int, default=2048,
+                        help='QUEST exact token budget, including its current page')
     parser.add_argument('--eager', action='store_true', help='Run eager decode for FP16 dense or ClusterKV')
     parser.add_argument('--multipole-budget',type=int,default=512,help='Exact remote token budget in the authors Multipole harness')
     parser.add_argument('--tasks', nargs='+', choices=tuple(LIMITS), help='Run only these tasks')
@@ -125,6 +129,7 @@ def main():
     parser.add_argument('--source-rows',nargs='+',type=int,
                         help='Diagnostic subset of frozen source rows; does not change cohort/reference validation')
     parser.add_argument('--check-graph', action='store_true', help='Check first graph step against eager on each task')
+    parser.add_argument('--stop-at-eos', action='store_true', help='Stop after observing the first EOS or EOT token')
     parser.add_argument('--audit-threshold-routing', action='store_true', help='Collect final-step per-layer threshold work and proxy coverage')
     parser.add_argument('--lod-dense-prefill', action='store_true',
                         help='Diagnostic: build the LoD cache but use dense prefill outputs')
@@ -138,18 +143,23 @@ def main():
     parser.add_argument('--qwen-yarn', action='store_true', help='Enable YaRN for Qwen3')
     parser.add_argument('--qwen-yarn-factor', type=float, choices=(2.0, 4.0), default=4.0)
     args = parser.parse_args()
+    if args.retro_centroids is not None and (args.mode != 'retroinfer' or args.retro_centroids < 1):
+        parser.error('--retro-centroids requires RetroInfer and a positive width')
     if args.qwen_yarn and args.model_name != 'Qwen/Qwen3-8B':
         parser.error('--qwen-yarn requires Qwen/Qwen3-8B')
     author_mode=args.mode in ('multipole','squeezed-multipole')
     clusterkv = args.mode == 'clusterkv'
+    quest = args.mode == 'quest'
+    if quest and (args.dtype != 'float16' or args.quest_budget < 32 or args.quest_budget % 16):
+        parser.error('QUEST requires FP16 and a budget of at least two whole 16-token pages')
     eager = clusterkv or args.eager
     if eager and (args.mode not in ('clusterkv', 'dense') or args.dtype != 'float16' or args.check_graph):
         parser.error('eager quality supports FP16 ClusterKV or dense without graph checks')
     if args.resume_from and not eager:
         parser.error('--resume-from requires eager FP16 quality')
     if args.dtype != 'bfloat16' and (args.model_name != 'meta-llama/Llama-3.1-8B-Instruct'
-            or args.mode not in ('clusterkv', 'dense')):
-        parser.error('FP16 quality supports Llama dense and ClusterKV')
+            or args.mode not in ('clusterkv', 'dense', 'quest')):
+        parser.error('FP16 quality supports Llama dense, ClusterKV and QUEST')
     dtype = getattr(torch, args.dtype)
     threshold_multiplier = os.environ.get('LOD_H100_THRESHOLD_MULTIPLIER')
     if args.audit_threshold_routing and threshold_multiplier is None:
@@ -171,12 +181,12 @@ def main():
         parser.error('prefill/decode diagnostics apply only to LoD')
     if args.lod_dense_prefill and args.lod_dense_decode:
         parser.error('choose one LoD diagnostic')
-    if args.validate_prefill_against and not (args.lod_dense_prefill or args.lod_dense_decode or author_mode):
-        parser.error('--validate-prefill-against requires a LoD diagnostic')
+    if args.validate_prefill_against and not (args.lod_dense_prefill or args.lod_dense_decode or author_mode or quest):
+        parser.error('--validate-prefill-against requires a supported decode or prefill diagnostic')
     reference_prefill = {}
     if args.validate_prefill_against:
         reference_data = json.loads(args.validate_prefill_against.read_text())
-        expected_reference_mode = 'dense' if args.lod_dense_prefill or author_mode else args.mode
+        expected_reference_mode = 'dense' if args.lod_dense_prefill or author_mode or quest else args.mode
         if reference_data['stage'] != 'complete' or reference_data['mode'] != expected_reference_mode:
             raise ValueError('prefill reference must be a complete matching run')
         reference_prefill = {(r['task'], r['source_row']): r for r in reference_data['records']}
@@ -218,6 +228,12 @@ def main():
     torch.set_grad_enabled(False)
     tokenizer = load_tokenizer(args.model_name)
     is_qwen3 = args.model_name == 'Qwen/Qwen3-8B'
+    stops = set()
+    if args.stop_at_eos:
+        stop_text = ('<|im_end|>', '<|endoftext|>') if is_qwen3 else ('<|eot_id|>', '<|end_of_text|>')
+        stops = set(tokenizer.convert_tokens_to_ids(list(stop_text)))
+        if None in stops or len(stops) != len(stop_text):
+            raise RuntimeError('Tokenizer does not define the expected EOS/EOT tokens')
     if is_qwen3:
         from benchmarks.retro_qwen3_adapter import RetroQwen3Model
         rope = {'rope_type':'yarn','factor':args.qwen_yarn_factor,
@@ -232,6 +248,9 @@ def main():
     if clusterkv:
         from benchmarks.retro_clusterkv_adapter import attach_clusterkv
         attach_clusterkv(model, clusters=args.clusterkv_centroids, budget=args.clusterkv_budget)
+    elif quest:
+        from benchmarks.retro_quest_author_adapter import attach_author_quest
+        attach_author_quest(model, args.quest_budget, shared_kv=True)
     elif author_mode:
         from benchmarks.retro_multipole_adapter import attach_multipole
         attach_multipole(model,budget=args.multipole_budget,replacement=args.mode=='multipole',
@@ -274,7 +293,8 @@ def main():
               'cohort_sha256': hashlib.sha256(raw).hexdigest(), 'dataset': cohort['dataset'],
               'reference_cohort_sha256': reference_hash,
               'dataset_revision': cohort['revision'], 'seed': cohort['seed'],
-              'expected': dict(counts), 'generation': 'greedy, fixed task limits, ignore eos',
+              'expected': dict(counts), 'generation': ('greedy, task limits, stop at eos/eot' if stops
+                                                       else 'greedy, fixed task limits, ignore eos'),
               'task_token_limits': LIMITS, 'graph_decode': not eager,
               'model_revision': getattr(model.config, '_commit_hash', None),
               'tokenizer_special_tokens': ('tokenizer default; Qwen chat template applied explicitly'
@@ -283,7 +303,7 @@ def main():
               'prompt_format': args.prompt_format,
               'prefill_attention': ('dense with author cluster construction' if author_mode or clusterkv else
                                    'dense with LoD cache construction' if args.lod_dense_prefill else
-                                    'dense' if args.mode in ('dense', 'retroinfer') else 'LoD sparse'),
+                                    'dense' if args.mode in ('dense', 'retroinfer', 'quest') else 'LoD sparse'),
               'prefill_threshold': ({'rule': os.environ['LOD_H100_PREFILL_RULE'],
                                      'mass_multiplier': float(os.environ.get('LOD_H100_PREFILL_MULTIPLIER', '16')),
                                      'entry_bound': int(os.environ.get('LOD_H100_PREFILL_ENTRY_BOUND', '16')),
@@ -360,10 +380,15 @@ def main():
                   'stable_compaction_order':os.environ.get('MULTIPOLE_STABLE_PACK')=='1',
                   'implementation':'authors connected Multipole generation adapter; Squeezed subset disables replacement'} if author_mode else None),
               'records': []}
+    if args.retro_centroids is not None:
+        result['retroinfer_settings']['prefill_centroids_override'] = args.retro_centroids
     if clusterkv:
         result['clusterkv_settings'] = dict(prefill_centroids=args.clusterkv_centroids, budget=args.clusterkv_budget,
                                             dense_layers=2, sink=16, window=320, clusters_per_update=8,
                                             kmeans_iterations=20, offload=False, seed=1234)
+    if quest:
+        result['quest_settings'] = dict(budget=args.quest_budget, page_size=16,
+                                        dense_layers=2, shared_kv=True)
     if args.resume_from:
         previous = json.loads(args.resume_from.read_text())
         expected = {(sample['task'], sample['source_row'], sample['prompt_sha256']) for sample in samples}
@@ -385,7 +410,8 @@ def main():
         if input_length + tokens > model.max_length:
             raise ValueError(f'input exceeds model max length: {task}/{sample["index"]}: {input_length}')
         token_bytes = struct.pack(f'<{input_length}I', *inputs[0].tolist())
-        model.attention_type = ('RetroClusterKV' if clusterkv else 'RetroMultipole' if author_mode else
+        model.attention_type = ('RetroClusterKV' if clusterkv else 'RetroQuest' if quest else
+                                'RetroMultipole' if author_mode else
                                 'Full_Flash_Attn' if args.mode == 'dense' or args.lod_dense_decode else
                                 'RetroInfer' if args.mode == 'retroinfer' else 'LoD')
         model.batch_size = 1
@@ -397,6 +423,12 @@ def main():
             config_name = 'meta-llama/Llama-3.1-8B-Instruct' if is_qwen3 else args.model_name
             config = generate_config(config_name, input_length, 'RetroInfer', 0.018, 0.232,
                                      0.0, use_cuda_graph=True, gpu_only=True)
+            if args.retro_centroids is not None:
+                retro = config['RetroInfer']
+                alignment = math.lcm(8, retro['n_segment'])
+                lower = max(alignment, args.retro_centroids // alignment * alignment)
+                upper = lower + alignment
+                retro['n_centroids'] = min((lower, upper), key=lambda n: abs(n - args.retro_centroids))
         else:
             config = {} if is_qwen3 else generate_config(args.model_name, input_length, 'Full_Flash_Attn')
         if clusterkv:
@@ -428,7 +460,7 @@ def main():
                     token, check = graph.checked_step(token)
                 else:
                     token, check = model.kv_cache.checked_graph_step(model, token)
-                if check['graph_argmax'] != check['eager_argmax'] or check['max_abs'] != 0.0:
+                if check['graph_argmax'] != check['eager_argmax'] or (not quest and check['max_abs'] != 0.0):
                     raise RuntimeError(f'graph/eager mismatch on {task}/{sample["index"]}: {check}')
                 checked.add(task)
             elif eager:
@@ -438,6 +470,9 @@ def main():
             else:
                 token = model.kv_cache.graph_step(token)
             generated.append(token.clone())
+            if stops and len(generated) % 8 == 0:
+                if any(token_id in stops for token_id in torch.cat(generated[-8:], dim=-1)[0].tolist()):
+                    break
         output_ids = torch.cat(generated, dim=-1).tolist()[0]
         prediction = tokenizer.decode(output_ids, skip_special_tokens=True)
         record = {'task': task, 'index': sample['index'], 'source_row': sample['source_row'],
@@ -451,6 +486,9 @@ def main():
             record['retroinfer_state'] = {name: getattr(cache, name) for name in
                                          ('n_centroids', 'nprobe', 'es_cluster_num', 'static_pattern_total', 'THRESHOLD')}
             record['retroinfer_state']['index_updates_during_decode'] = graph.index_update_count
+            if args.retro_centroids is not None:
+                record['retroinfer_state']['prefill_centroids'] = config['RetroInfer']['n_centroids']
+                record['retroinfer_state']['prefill_segments'] = config['RetroInfer']['n_segment']
         if args.audit_threshold_routing:
             record['threshold_route_audit'] = threshold_route_audit(model.kv_cache)
         if os.environ.get('LOD_H100_PAGE_THRESHOLD'):

@@ -1,0 +1,207 @@
+{
+  "stage": "complete",
+  "scope": "Tune the threshold producer on real in-memory 64K prefill inputs.\n\nDiagnostic only: stops model execution after checking and timing equivalent\nproducer shapes. No Q/K/V snapshot is saved and no model speed is inferred.\n",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "scores_shape": [
+      32,
+      4096,
+      2896
+    ]
+  },
+  "records": [
+    {
+      "m": 64,
+      "n": 64,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 1.7259807586669922,
+      "samples_ms": [
+        1.7271968841552734,
+        1.7259807586669922,
+        1.722172737121582
+      ]
+    },
+    {
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.3216320037841798,
+      "samples_ms": [
+        1.3165311813354492,
+        1.3216320037841798,
+        1.3228416442871094
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.1096960067749024,
+      "samples_ms": [
+        1.11212158203125,
+        1.1096960067749024,
+        1.107814407348633
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.1374975204467774,
+      "samples_ms": [
+        2.1374975204467774,
+        2.139423942565918,
+        2.120639991760254
+      ]
+    },
+    {
+      "m": 128,
+      "n": 64,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 1.5784799575805664,
+      "samples_ms": [
+        1.578752040863037,
+        1.5784799575805664,
+        1.57359037399292
+      ]
+    },
+    {
+      "m": 128,
+      "n": 64,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 2.139958381652832,
+      "samples_ms": [
+        2.139958381652832,
+        2.1399839401245115,
+        2.127782440185547
+      ]
+    },
+    {
+      "m": 128,
+      "n": 128,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.5530879974365235,
+      "samples_ms": [
+        1.5503616333007812,
+        1.5538080215454102,
+        1.5530879974365235
+      ]
+    },
+    {
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.3296863555908203,
+      "samples_ms": [
+        1.3296863555908203,
+        1.3299615859985352,
+        1.3279328346252441
+      ]
+    },
+    {
+      "m": 64,
+      "n": 256,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        1.9073486328125e-06,
+        0.0
+      ],
+      "median_ms": 1.9093055725097656,
+      "samples_ms": [
+        1.9222496032714844,
+        1.9093055725097656,
+        1.9052703857421875
+      ]
+    },
+    {
+      "m": 64,
+      "n": 256,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.365993595123291,
+      "samples_ms": [
+        1.3629119873046875,
+        1.3678336143493652,
+        1.365993595123291
+      ]
+    },
+    {
+      "m": 64,
+      "n": 64,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.6850528717041016,
+      "samples_ms": [
+        1.6895200729370117,
+        1.6850528717041016,
+        1.6846208572387695
+      ]
+    }
+  ],
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+}

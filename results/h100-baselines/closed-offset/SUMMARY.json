@@ -1,0 +1,863 @@
+{
+  "inputs": {
+    "results/h100-baselines/ruler-32k-panel/llama-tokenizer.json": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+    "results/h100-baselines/selectpack-64k/threshold-select64-combine-cwe32-safe-v1-prefix-ruler.json": "8f779d9f00bf5e348371363688d8531d89410dd4700756384020a967272c516e",
+    "results/h100-baselines/selectpack-64k/threshold-select64-combine-cwe32-direct-v1-prefix-closed-tuned-ruler.json": "f15494e6f0748b23cd2751a39872b1e35030dc25a3d3798326ae9479c0230c08",
+    "results/h100-baselines/selectpack-64k/threshold-select64-prefix-safe-v1-prefix-ruler.json": "959cfbfe1e835ce77e92cf22f9c3896badff7c5540ef6cf395ff4b439d00fc6c",
+    "results/h100-baselines/ruler-32k-panel/ruler-32k-dense-full.json": "c32dea4bc803e050bedeb6dc58ee22c2af2331a2a3885263fa2f1b2de7c1d8ee",
+    "results/h100-baselines/ruler-32k-panel/ruler-32k-dense-missing8.json": "063fb0a8bfda944770fa95ec2365155cc070df9319bd05c857d078cec002d9ad",
+    "results/h100-baselines/closed-offset/provenance/1794327164886638686-threshold-offset-scaled-bf16-v1-prefix-closed-tuned-ruler/run.json": "e89f73da8deb16b6cac6df6ff991f8edc289d71aa68ffe9d0365a070381c5674",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-bf16-v1-prefix-closed-tuned-ruler.json": "8398eb5a4c75e5b361a518434d068dbc187b75b39c6ee967779b3f43289995d1",
+    "results/h100-baselines/closed-offset/provenance/1794327315536406095-threshold-offset-scaled-bf16-cwe32-v1-prefix-closed-tuned-ruler/run.json": "8e8bbe13c0e7c17432e36b510d50ff4d48ee037ab0663854d617ec957c3eb627",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-bf16-cwe32-v1-prefix-closed-tuned-ruler.json": "fcc00b3de67c0a38ef5f96b430a4c9682c3ae85c24d351e31547e184a2919e6f",
+    "results/h100-baselines/closed-offset/provenance/1794327315342597926-threshold-offset-scaled-bf16-panel-v1-prefix-closed-tuned-ruler/run.json": "e99a1f014328ee3dab7ff0d886b3c51d8dccf2e0bc2341b621c7e18d955b5b50",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-bf16-panel-v1-prefix-closed-tuned-ruler.json": "fe60be527686dd2808d0459689219c92835238ed0b14b88e8e7a194439dc1616",
+    "results/h100-baselines/closed-offset/provenance/1794327165124619303-threshold-offset-scaled-fp16-v1-prefix-closed-tuned-ruler/run.json": "63686fa93bf83e8b23af835cd2243fa8813b79f6c46d990577dd87429032ad24",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-v1-prefix-closed-tuned-ruler.json": "31a4cd176c96b523b964ca4bb47d0f09eeb69a52ab3fb395afe19c9144dcf845",
+    "results/h100-baselines/closed-offset/provenance/1794327315635713732-threshold-offset-scaled-fp16-cwe32-v1-prefix-closed-tuned-ruler/run.json": "0b247b9faf4332c2d5127332dd62914a7410ec35d46cf707da6f0c20c036cba4",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-cwe32-v1-prefix-closed-tuned-ruler.json": "80054599f2608c4fff0a1c6d46f1407928f10a98eac3f13b1e385c0716306977",
+    "results/h100-baselines/closed-offset/provenance/1794327315435949258-threshold-offset-scaled-fp16-panel-v1-prefix-closed-tuned-ruler/run.json": "a529ec523752277b2ca800518773f64cd2cfc764dd65a332af286b65b818bd46",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-panel-v1-prefix-closed-tuned-ruler.json": "d0c9616214953ef2a9ae26085e1b459e4d439a47c9e4513f608a820d01b422b9",
+    "results/h100-baselines/closed-offset/provenance/1794327165461218891-threshold-offset-centered-fp16-v1-prefix-closed-tuned-ruler/run.json": "5c2e631ad8730112f148eacbd62a2fac3667ba10e229f38d3d1d85a1a28b9e0b",
+    "results/h100-baselines/closed-offset/threshold-offset-centered-fp16-v1-prefix-closed-tuned-ruler.json": "cdefa87542be04932eba5b2febe8ca688e6366f8ddeb5086cb5337e319879a59",
+    "results/h100-baselines/closed-offset/provenance/1794327265486361197-threshold-offset-offset-bf16-v1-prefix-closed-tuned-ruler/run.json": "53c0e297380fb306965d128e94c4713532bedab5b218f902a06e23b68ecab2ad",
+    "results/h100-baselines/closed-offset/threshold-offset-offset-bf16-v1-prefix-closed-tuned-ruler.json": "d674111370e9084cc8bbf5f638ce9eacc5efb7588024f3d76753bde3633cc6d9",
+    "results/h100-baselines/closed-offset/provenance/1794327265727504741-threshold-offset-offset-fp16-v1-prefix-closed-tuned-ruler/run.json": "33743c0b9757a382f1558198c2e77830a49000499f7e536e2d550cdae976003f",
+    "results/h100-baselines/closed-offset/threshold-offset-offset-fp16-v1-prefix-closed-tuned-ruler.json": "1ca641f7640bca3935ae6cfe1f18aa3912a85148d9410470fab6dcb90972ec4a",
+    "results/h100-baselines/closed-offset/provenance/1794327381964276860-threshold-offset-controls-v1-prefix-65536-models/run.json": "274f073a5de74304776c775d71183088edb2ca3334d94386f02e12cdd90c6305",
+    "results/h100-baselines/closed-offset/threshold-offset-controls-v1-prefix-65536-models.json": "4575d33afbf32920d6ee17f6bb6a05723621c7c27e2d4de70313fdc338829aa5",
+    "results/h100-baselines/closed-offset/provenance/1794327382021778898-threshold-offset-controls-v1-prefix-closed-tuned-65536-models/run.json": "334c966f43ca2f3714f0e4ae904b763cb23c7366bce417d08d18b17c985774ae",
+    "results/h100-baselines/closed-offset/threshold-offset-controls-v1-prefix-closed-tuned-65536-models.json": "7d502c6ee2ffcd4b407dfd7a0a4a11f68a631b7fe9e8cdeda9641a2385be7833",
+    "results/h100-baselines/closed-offset/provenance/1794327382079393871-threshold-offset-controls-v1-dense-65536-models/run.json": "e2475d924c8d2469579cdd80272089c800e64006e86035b64f47e24ff0cd7ed4",
+    "results/h100-baselines/closed-offset/threshold-offset-controls-v1-dense-65536-models.json": "cc5e9097305ade97658cdac9dae5db7959ae4fcc84b97c04d8cfb0d2ae7366e7",
+    "results/h100-baselines/closed-offset/provenance/1794327314933576532-threshold-offset-scaled-bf16-v1-prefix-closed-tuned-65536-models/run.json": "2e5ad54541abbd3dee2c9f2f281f9a40898e9c0a61525196d0ee257273df1756",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-bf16-v1-prefix-closed-tuned-65536-models.json": "d48e3874668626cbb672486308ca78c2a1faa48b31dd002b966b3dfddbbf0592",
+    "results/h100-baselines/closed-offset/provenance/1794327315134436206-threshold-offset-scaled-fp16-v1-prefix-closed-tuned-65536-models/run.json": "b5885f75afe727814d8f51c4ae1ea5c2f6c7b3b97a9b15c042b7b22d13db3d5f",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-v1-prefix-closed-tuned-65536-models.json": "b86fae79a9f16972196db661a1db2bbb87d31ad72b30325b43e2d9ad859ff97f",
+    "results/h100-baselines/closed-offset/provenance/1794327712295172296-threshold-offset-offset-bf16-v1-prefix-closed-tuned-65536-models/run.json": "39b1378328a5f0fe8ddefee848badb0422b7693956d81df3476cad122df4d37f",
+    "results/h100-baselines/closed-offset/threshold-offset-offset-bf16-v1-prefix-closed-tuned-65536-models.json": "d58d93029c7c3586ec1dc2ebd752392dd52afe0cc96c015747289726ef5cc53c",
+    "results/h100-baselines/closed-offset/provenance/1794327315035633915-threshold-offset-scaled-bf16-v1-prefix-closed-tuned-65536-verify/run.json": "c71c7a47937ed21fd5c3241da59a4948b1e70ddb44c18a853b312b4c9e12c759",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-bf16-v1-prefix-closed-tuned-65536-verify.json": "dcda9248e2455c6cc3883cbad0c402d5f16bd212a3730301a80df5ea651e9e53",
+    "results/h100-baselines/closed-offset/provenance/1794327315236527428-threshold-offset-scaled-fp16-v1-prefix-closed-tuned-65536-verify/run.json": "97d8cc1ad7ce3669843a09baa30b0642d0545860540db4469f1afb45b740b11d",
+    "results/h100-baselines/closed-offset/threshold-offset-scaled-fp16-v1-prefix-closed-tuned-65536-verify.json": "9b1a9d493a48d3f7fa8e4417409c53083ba50b9f13b14e7d334197301e421402",
+    "results/h100-baselines/closed-offset/provenance/1794327712389988631-threshold-offset-offset-bf16-v1-prefix-closed-tuned-65536-verify/run.json": "5857196d3e72e08a6b12dd37d2c596cd09692dbf222bbaa657afa9ced8401bb6",
+    "results/h100-baselines/closed-offset/threshold-offset-offset-bf16-v1-prefix-closed-tuned-65536-verify.json": "19dcb8cebdd9cfd1dc85300b4f1720ba65cab1deda629ae61f7894bbcb654eab",
+    "results/h100-baselines/closed-offset/provenance/1794327265818543045-threshold-offset-numerics-v2-coarse-numerics-65536/run.json": "a04da5bd7343cd971b7779a2f703499861c83b04f348b20b360b2beb10c3c7e9",
+    "results/h100-baselines/closed-offset/threshold-offset-numerics-v2-coarse-numerics-65536.json": "62047b5389acbb8a3d0b19ac74b865873df7e32d8965ecbc4fc0e8e09a4e6540",
+    "results/h100-baselines/closed-offset/provenance/1794328102615659411-threshold-offset-scaling-fp16-v1-prefix-closed-tuned-32768-models/run.json": "e4f9623d72a88eb59db76164c78732a6aecdefb111e11e43efd4e07077f80a20",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-fp16-v1-prefix-closed-tuned-32768-models.json": "b6416e293e66808306b21a9b565e600f622739a3df201abf9ebac2f32169062a",
+    "results/h100-baselines/closed-offset/provenance/1794328102920968063-threshold-offset-scaling-controls-v1-auto-32768-models/run.json": "aaa1d54d100531c8e607479b87d530f35b689c0434fcbf754e263de6e3e4f87b",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-auto-32768-models.json": "5ad945fe0d27c085c7a78cadeeec7199705aeaa89bab636af40c9480433d6fd0",
+    "results/h100-baselines/closed-offset/provenance/1794328102980973862-threshold-offset-scaling-controls-v1-prefix-closed-tuned-32768-models/run.json": "704673276c84c3fb3dd95bb12eb0bea3a869f5840034f804aa2843950f731e0e",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-prefix-closed-tuned-32768-models.json": "67ae6f4f61b61cd569c7e7f3ee055834bb55e3c2901eac63b5d9d8688d652bc5",
+    "results/h100-baselines/closed-offset/provenance/1794328103038808074-threshold-offset-scaling-controls-v1-dense-32768-models/run.json": "107152a248d980eca8f6548f041c4cb61d8bc928458b17e4ef03cf36ed81e966",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-dense-32768-models.json": "f2e47ae8660fc412ba917a4102f00fb2632b39224d7f2e025169c727a0b0810c",
+    "results/h100-baselines/closed-offset/provenance/1794328103098235298-threshold-offset-scaling-controls-v1-top8-32768-models/run.json": "2ac19fb3e83dc4b06562ea64eb5742a84519dd8012654165b6041bae12d3a754",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-top8-32768-models.json": "1cf0d0d6e03380a820011f3b55d44334471998fc25981745c784ab9a91aed52c",
+    "results/h100-baselines/closed-offset/provenance/1794328102769084689-threshold-offset-scaling-fp16-v1-prefix-closed-tuned-32768-verify/run.json": "984455aabc332e44a9e025c030005388c2182b82d9f3f8d43dcc69db0cee26ed",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-fp16-v1-prefix-closed-tuned-32768-verify.json": "8a98d3ac909b09cdd65fac126dd45567f61ddcf591b98f1cf6edb2edf3d55e55",
+    "results/h100-baselines/closed-offset/provenance/1794328102676062869-threshold-offset-scaling-fp16-v1-prefix-closed-tuned-128000-models/run.json": "b9b728fb030ffff7080b1e1511ea9ba3a43a7756bb399ce596712ff6a7d1c5c8",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-fp16-v1-prefix-closed-tuned-128000-models.json": "9d6977f61836362bed6e07a8b07033db6b7d9a5b4af3c5b14a7635562c41a815",
+    "results/h100-baselines/closed-offset/provenance/1794328103234215388-threshold-offset-scaling-controls-v1-auto-128000-models/run.json": "3c88daacf677090ac9d11d7e11e1f45a4e5703a182b3e7e47acea1b444d1991e",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-auto-128000-models.json": "c7d788c744041a89d66f5ee50ac3b1d785d265bdf708c50502ff63016fcb514d",
+    "results/h100-baselines/closed-offset/provenance/1794328103294373097-threshold-offset-scaling-controls-v1-prefix-closed-tuned-128000-models/run.json": "d4fcbd958ebaea7cf71d44a78d3277443f0406f49f56cd0045e47e6a0f1c1bd2",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-prefix-closed-tuned-128000-models.json": "8b31cc693c3d9a453c96332b0b21b1488b3f816be40bb01c8bf3a58844789bd0",
+    "results/h100-baselines/closed-offset/provenance/1794328103352922497-threshold-offset-scaling-controls-v1-dense-128000-models/run.json": "0caf9ec55a4601f5e6e840f8cec57588a398e994a601c23726ee3ac799dec5f8",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-dense-128000-models.json": "ce200592c1875f6175730fc9cd0eaee50eb61c9d201b12bd16d79fd2c56d3353",
+    "results/h100-baselines/closed-offset/provenance/1794328103411404379-threshold-offset-scaling-controls-v1-top8-128000-models/run.json": "c1d9bcf0a44fc1141b9162638eeaa7d15b60bb889ba41af2c7980be13f7b93f6",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-controls-v1-top8-128000-models.json": "7b6579e19c1e4b56162bcc185fc1b766556c4dff11b1626feb33740f87ea542a",
+    "results/h100-baselines/closed-offset/provenance/1794328102828314646-threshold-offset-scaling-fp16-v1-prefix-closed-tuned-128000-verify/run.json": "6e337ccaaa9079b4d38738dd538307f2999eaa96cf8d7a72e4ea5dfcc221e535",
+    "results/h100-baselines/closed-offset/threshold-offset-scaling-fp16-v1-prefix-closed-tuned-128000-verify.json": "baf1be1a646a71cf7ef60237999fe6b99f7ab35e11172a627ef22b5c1dccc367"
+  },
+  "models": {
+    "conservative": {
+      "median_s": 5.225265847002447,
+      "samples_s": [
+        5.226669846997538,
+        5.2144110330045805,
+        5.225265847002447
+      ],
+      "peak_allocated_bytes": 43155273728
+    },
+    "direct": {
+      "median_s": 4.995587656994758,
+      "samples_s": [
+        4.9868770710018,
+        5.000410061002185,
+        4.995587656994758
+      ],
+      "peak_allocated_bytes": 44085212160
+    },
+    "dense": {
+      "median_s": 4.7523551819977,
+      "samples_s": [
+        4.768545989005361,
+        4.752249908997328,
+        4.7523551819977
+      ],
+      "peak_allocated_bytes": 27134822912
+    },
+    "scaled-bf16": {
+      "median_s": 4.996228209005494,
+      "samples_s": [
+        4.996228209005494,
+        4.99467573199945,
+        5.016292239000904
+      ],
+      "peak_allocated_bytes": 44085736448
+    },
+    "scaled-fp16": {
+      "median_s": 5.019094534996839,
+      "samples_s": [
+        5.019094534996839,
+        5.009615987997677,
+        5.022393671999453
+      ],
+      "peak_allocated_bytes": 44085736448
+    },
+    "offset-bf16": {
+      "median_s": 5.048478434000572,
+      "samples_s": [
+        5.044661924999673,
+        5.053523702001257,
+        5.048478434000572
+      ],
+      "peak_allocated_bytes": 44085212160
+    }
+  },
+  "quality": {
+    "conservative": {
+      "n": 32,
+      "percent": 30.0,
+      "same_scores": 32,
+      "same_tokens": 32,
+      "changes": []
+    },
+    "direct": {
+      "n": 32,
+      "percent": 27.187499999999996,
+      "same_scores": 23,
+      "same_tokens": 11,
+      "changes": [
+        {
+          "task": "cwe",
+          "source_row": 14,
+          "before": 0.9,
+          "after": 0.7
+        },
+        {
+          "task": "cwe",
+          "source_row": 66,
+          "before": 0.6,
+          "after": 0.3
+        },
+        {
+          "task": "cwe",
+          "source_row": 76,
+          "before": 1.0,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 218,
+          "before": 0.7,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 229,
+          "before": 0.7,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 257,
+          "before": 0.8,
+          "after": 0.7
+        },
+        {
+          "task": "cwe",
+          "source_row": 355,
+          "before": 0.5,
+          "after": 0.6
+        },
+        {
+          "task": "cwe",
+          "source_row": 425,
+          "before": 0.6,
+          "after": 0.0
+        },
+        {
+          "task": "cwe",
+          "source_row": 450,
+          "before": 0.6,
+          "after": 0.8
+        }
+      ]
+    },
+    "dense": {
+      "n": 32,
+      "percent": 37.5,
+      "same_scores": 15,
+      "same_tokens": 1,
+      "changes": [
+        {
+          "task": "cwe",
+          "source_row": 36,
+          "before": 0.6,
+          "after": 0.9
+        },
+        {
+          "task": "cwe",
+          "source_row": 58,
+          "before": 0.7,
+          "after": 0.0
+        },
+        {
+          "task": "cwe",
+          "source_row": 66,
+          "before": 0.6,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 76,
+          "before": 1.0,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 96,
+          "before": 0.8,
+          "after": 0.9
+        },
+        {
+          "task": "cwe",
+          "source_row": 100,
+          "before": 0.4,
+          "after": 0.6
+        },
+        {
+          "task": "cwe",
+          "source_row": 162,
+          "before": 0.0,
+          "after": 0.9
+        },
+        {
+          "task": "cwe",
+          "source_row": 218,
+          "before": 0.7,
+          "after": 0.4
+        },
+        {
+          "task": "cwe",
+          "source_row": 220,
+          "before": 0.0,
+          "after": 0.9
+        },
+        {
+          "task": "cwe",
+          "source_row": 229,
+          "before": 0.7,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 246,
+          "before": 0.0,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 256,
+          "before": 0.1,
+          "after": 0.5
+        },
+        {
+          "task": "cwe",
+          "source_row": 257,
+          "before": 0.8,
+          "after": 0.7
+        },
+        {
+          "task": "cwe",
+          "source_row": 289,
+          "before": 0.0,
+          "after": 0.7
+        },
+        {
+          "task": "cwe",
+          "source_row": 355,
+          "before": 0.5,
+          "after": 0.0
+        },
+        {
+          "task": "cwe",
+          "source_row": 425,
+          "before": 0.6,
+          "after": 0.0
+        },
+        {
+          "task": "cwe",
+          "source_row": 450,
+          "before": 0.6,
+          "after": 0.8
+        }
+      ]
+    },
+    "scaled-bf16": {
+      "n": 32,
+      "percent": 27.500000000000004,
+      "same_scores": 27,
+      "same_tokens": 8,
+      "changes": [
+        {
+          "task": "cwe",
+          "source_row": 66,
+          "before": 0.6,
+          "after": 0.3
+        },
+        {
+          "task": "cwe",
+          "source_row": 257,
+          "before": 0.8,
+          "after": 0.7
+        },
+        {
+          "task": "cwe",
+          "source_row": 355,
+          "before": 0.5,
+          "after": 0.6
+        },
+        {
+          "task": "cwe",
+          "source_row": 425,
+          "before": 0.6,
+          "after": 0.0
+        },
+        {
+          "task": "cwe",
+          "source_row": 450,
+          "before": 0.6,
+          "after": 0.7
+        }
+      ]
+    },
+    "scaled-bf16-retrieval-qa": {
+      "n": 6,
+      "percent": 100.0,
+      "same_scores": 6,
+      "same_tokens": 6,
+      "changes": []
+    },
+    "scaled-fp16": {
+      "n": 32,
+      "percent": 32.8125,
+      "same_scores": 24,
+      "same_tokens": 12,
+      "changes": [
+        {
+          "task": "cwe",
+          "source_row": 96,
+          "before": 0.8,
+          "after": 0.7
+        },
+        {
+          "task": "cwe",
+          "source_row": 107,
+          "before": 0.0,
+          "after": 0.9
+        },
+        {
+          "task": "cwe",
+          "source_row": 229,
+          "before": 0.7,
+          "after": 0.8
+        },
+        {
+          "task": "cwe",
+          "source_row": 257,
+          "before": 0.8,
+          "after": 0.6
+        },
+        {
+          "task": "cwe",
+          "source_row": 289,
+          "before": 0.0,
+          "after": 0.5
+        },
+        {
+          "task": "cwe",
+          "source_row": 355,
+          "before": 0.5,
+          "after": 0.6
+        },
+        {
+          "task": "cwe",
+          "source_row": 425,
+          "before": 0.6,
+          "after": 0.0
+        },
+        {
+          "task": "cwe",
+          "source_row": 450,
+          "before": 0.6,
+          "after": 0.8
+        }
+      ]
+    },
+    "scaled-fp16-retrieval-qa": {
+      "n": 6,
+      "percent": 100.0,
+      "same_scores": 6,
+      "same_tokens": 6,
+      "changes": []
+    }
+  },
+  "pilots": {
+    "scaled-bf16": {
+      "n": 2,
+      "percent": 45.0,
+      "same_scores": 2,
+      "same_tokens": 2,
+      "changes": []
+    },
+    "scaled-fp16": {
+      "n": 2,
+      "percent": 45.0,
+      "same_scores": 2,
+      "same_tokens": 0,
+      "changes": []
+    },
+    "centered-fp16": {
+      "n": 2,
+      "percent": 35.0,
+      "same_scores": 1,
+      "same_tokens": 0,
+      "changes": [
+        {
+          "task": "cwe",
+          "source_row": 14,
+          "before": 0.9,
+          "after": 0.7
+        }
+      ]
+    },
+    "offset-bf16": {
+      "n": 2,
+      "percent": 45.0,
+      "same_scores": 2,
+      "same_tokens": 2,
+      "changes": []
+    },
+    "offset-fp16": {
+      "n": 2,
+      "percent": 35.0,
+      "same_scores": 1,
+      "same_tokens": 0,
+      "changes": [
+        {
+          "task": "cwe",
+          "source_row": 14,
+          "before": 0.9,
+          "after": 0.7
+        }
+      ]
+    }
+  },
+  "numerics": {
+    "stage": "complete",
+    "scope": "Compare coarse arithmetic on identical live Q/K/V; diagnostic, not timing.\n\nNo states are saved to disk. FP32 PyTorch projects the same closed frontier,\nseparately from the original BF16 online full-coarse/subtraction arithmetic.\n",
+    "records": [
+      {
+        "call": 0,
+        "regions": 2048,
+        "queries": 32,
+        "score_max_abs": 0.0,
+        "original_subtraction_max_abs": 6.527453660964966e-05,
+        "original_subtraction_rmse": 1.4154647942632437e-06,
+        "minimum_closed_mass": 0.26973116397857666,
+        "fallback_queries": 0,
+        "direct-bf16": {
+          "max_abs": 8.17328691482544e-05,
+          "rmse": 1.3509043128578924e-06,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 8.660554885864258e-05
+        },
+        "direct-split-bf16": {
+          "max_abs": 8.717179298400879e-07,
+          "rmse": 2.1615432999055884e-08,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 6.526708602905273e-05
+        },
+        "online64-split-bf16": {
+          "max_abs": 6.545335054397583e-05,
+          "rmse": 1.414853272763139e-06,
+          "max_lse_error": 1.9073486328125e-06,
+          "vs_original_max_abs": 1.4230608940124512e-06
+        },
+        "direct-scaled-bf16": {
+          "max_abs": 3.5434961318969727e-05,
+          "rmse": 1.2296512750253896e-06,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 7.802248001098633e-05
+        },
+        "direct-scaled-fp16": {
+          "max_abs": 6.318092346191406e-06,
+          "rmse": 1.513900684813052e-07,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 6.535649299621582e-05
+        },
+        "direct-scaled-fp16-centered": {
+          "max_abs": 7.056538015604019e-05,
+          "rmse": 2.2494123186334036e-06,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 8.767843246459961e-05
+        },
+        "direct-offset-bf16": {
+          "max_abs": 0.00010024011135101318,
+          "rmse": 1.4757159760847571e-06,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 7.604807615280151e-05
+        },
+        "direct-offset-fp16": {
+          "max_abs": 5.230307579040527e-06,
+          "rmse": 1.658992943021076e-07,
+          "max_lse_error": 9.5367431640625e-07,
+          "vs_original_max_abs": 6.515532732009888e-05
+        },
+        "fp16_max_underflow_mass_fraction": 1.5370450512364187e-07,
+        "mean_values_max_abs": 0.400390625
+      },
+      {
+        "call": 16,
+        "regions": 2896,
+        "queries": 32,
+        "score_max_abs": 0.0,
+        "original_subtraction_max_abs": 0.0017629563808441162,
+        "original_subtraction_rmse": 1.8402963178232312e-05,
+        "minimum_closed_mass": 0.001174628734588623,
+        "fallback_queries": 0,
+        "direct-bf16": {
+          "max_abs": 0.00024391710758209229,
+          "rmse": 5.54759844817454e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0017104744911193848
+        },
+        "direct-split-bf16": {
+          "max_abs": 3.427267074584961e-06,
+          "rmse": 6.98232156537415e-08,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.001761406660079956
+        },
+        "online64-split-bf16": {
+          "max_abs": 0.0003565959632396698,
+          "rmse": 8.357827937288675e-06,
+          "max_lse_error": 0.00018072128295898438,
+          "vs_original_max_abs": 0.0017817914485931396
+        },
+        "direct-scaled-bf16": {
+          "max_abs": 0.00014966726303100586,
+          "rmse": 4.4756611714547034e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0018746256828308105
+        },
+        "direct-scaled-fp16": {
+          "max_abs": 1.4692544937133789e-05,
+          "rmse": 5.803020712846774e-07,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0017631947994232178
+        },
+        "direct-scaled-fp16-centered": {
+          "max_abs": 2.8120353817939758e-05,
+          "rmse": 2.2297267605608795e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0017632842063903809
+        },
+        "direct-offset-bf16": {
+          "max_abs": 0.00013153254985809326,
+          "rmse": 5.487505404744297e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0016710460186004639
+        },
+        "direct-offset-fp16": {
+          "max_abs": 2.0116567611694336e-05,
+          "rmse": 6.740702929164399e-07,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0017583072185516357
+        },
+        "fp16_max_underflow_mass_fraction": 2.2063764504309802e-07,
+        "mean_values_max_abs": 1.7109375
+      },
+      {
+        "call": 48,
+        "regions": 2048,
+        "queries": 32,
+        "score_max_abs": 0.0,
+        "original_subtraction_max_abs": 0.0007654428482055664,
+        "original_subtraction_rmse": 1.9528732082108036e-05,
+        "minimum_closed_mass": 0.13578182458877563,
+        "fallback_queries": 0,
+        "direct-bf16": {
+          "max_abs": 0.0003649592399597168,
+          "rmse": 1.608279490028508e-05,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0008306503295898438
+        },
+        "direct-split-bf16": {
+          "max_abs": 7.867813110351562e-06,
+          "rmse": 2.7239212840868277e-07,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0007672905921936035
+        },
+        "online64-split-bf16": {
+          "max_abs": 0.0007661581039428711,
+          "rmse": 1.9520017303875647e-05,
+          "max_lse_error": 7.152557373046875e-07,
+          "vs_original_max_abs": 7.230043411254883e-05
+        },
+        "direct-scaled-bf16": {
+          "max_abs": 0.00025087594985961914,
+          "rmse": 1.4053381164558232e-05,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0008156299591064453
+        },
+        "direct-scaled-fp16": {
+          "max_abs": 3.927946090698242e-05,
+          "rmse": 1.8302092712474405e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0007769465446472168
+        },
+        "direct-scaled-fp16-centered": {
+          "max_abs": 5.386769771575928e-05,
+          "rmse": 7.581355475849705e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0007697343826293945
+        },
+        "direct-offset-bf16": {
+          "max_abs": 0.0003338456153869629,
+          "rmse": 1.5110048479982652e-05,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.000769197940826416
+        },
+        "direct-offset-fp16": {
+          "max_abs": 3.24249267578125e-05,
+          "rmse": 1.885433221104904e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0007764697074890137
+        },
+        "fp16_max_underflow_mass_fraction": 1.5798093944141556e-09,
+        "mean_values_max_abs": 1.7890625
+      },
+      {
+        "call": 80,
+        "regions": 3547,
+        "queries": 32,
+        "score_max_abs": 0.0,
+        "original_subtraction_max_abs": 0.002220451831817627,
+        "original_subtraction_rmse": 6.187213148223236e-05,
+        "minimum_closed_mass": 0.07580137252807617,
+        "fallback_queries": 0,
+        "direct-bf16": {
+          "max_abs": 0.00035119056701660156,
+          "rmse": 1.7319951439276338e-05,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0020753517746925354
+        },
+        "direct-split-bf16": {
+          "max_abs": 4.112720489501953e-06,
+          "rmse": 1.6571192418268765e-07,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0022203028202056885
+        },
+        "online64-split-bf16": {
+          "max_abs": 0.0022196322679519653,
+          "rmse": 6.186465179780498e-05,
+          "max_lse_error": 3.5762786865234375e-06,
+          "vs_original_max_abs": 9.655952453613281e-06
+        },
+        "direct-scaled-bf16": {
+          "max_abs": 0.00032252073287963867,
+          "rmse": 1.5818313841009513e-05,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.002215065062046051
+        },
+        "direct-scaled-fp16": {
+          "max_abs": 4.00543212890625e-05,
+          "rmse": 1.985170229090727e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0022163689136505127
+        },
+        "direct-scaled-fp16-centered": {
+          "max_abs": 7.959827780723572e-05,
+          "rmse": 8.275155778392218e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.002202749252319336
+        },
+        "direct-offset-bf16": {
+          "max_abs": 0.0006453394889831543,
+          "rmse": 2.362943450862076e-05,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.0021908506751060486
+        },
+        "direct-offset-fp16": {
+          "max_abs": 8.481740951538086e-05,
+          "rmse": 3.0368942134373356e-06,
+          "max_lse_error": 4.76837158203125e-07,
+          "vs_original_max_abs": 0.002225153148174286
+        },
+        "fp16_max_underflow_mass_fraction": 1.9602762790782435e-07,
+        "mean_values_max_abs": 3.25
+      }
+    ],
+    "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+  },
+  "verification": {
+    "scaled-bf16": {
+      "frontiers": 96,
+      "selection_outside_tolerance": 0,
+      "max_abs_reference_error": 0.0078125,
+      "graph_same_cache_max_abs": 0
+    },
+    "scaled-fp16": {
+      "frontiers": 96,
+      "selection_outside_tolerance": 0,
+      "max_abs_reference_error": 0.0078125,
+      "graph_same_cache_max_abs": 0
+    },
+    "offset-bf16": {
+      "frontiers": 96,
+      "selection_outside_tolerance": 0,
+      "max_abs_reference_error": 0.015625,
+      "graph_same_cache_max_abs": 0
+    }
+  },
+  "scaling": {
+    "32768": {
+      "scaled-fp16": {
+        "median_s": 1.8239712200011127,
+        "samples_s": [
+          1.8210671580018243,
+          1.8260140899947146,
+          1.8239712200011127
+        ],
+        "peak_allocated_bytes": 35900018688
+      },
+      "conservative": {
+        "median_s": 1.8991390540031716,
+        "samples_s": [
+          1.9100468769975123,
+          1.8984333009939292,
+          1.8991390540031716
+        ],
+        "peak_allocated_bytes": 35362557952
+      },
+      "direct": {
+        "median_s": 1.8198780540042208,
+        "samples_s": [
+          1.8193054479997954,
+          1.8240053170011379,
+          1.8198780540042208
+        ],
+        "peak_allocated_bytes": 35899494400
+      },
+      "dense": {
+        "median_s": 1.5603543799952604,
+        "samples_s": [
+          1.5586076230028993,
+          1.5628676029955386,
+          1.5603543799952604
+        ],
+        "peak_allocated_bytes": 22017247744
+      },
+      "top8": {
+        "median_s": 1.6520616060006432,
+        "samples_s": [
+          1.6486076619985397,
+          1.654259456001455,
+          1.6520616060006432
+        ],
+        "peak_allocated_bytes": 25770068992
+      }
+    },
+    "128000": {
+      "scaled-fp16": {
+        "median_s": 12.257837037999707,
+        "samples_s": [
+          12.270482460000494,
+          12.257837037999707,
+          12.251291259999562
+        ],
+        "peak_allocated_bytes": 71340576768
+      },
+      "conservative": {
+        "median_s": 13.22629775400128,
+        "samples_s": [
+          13.232998496998334,
+          13.22629775400128,
+          13.208162346003519
+        ],
+        "peak_allocated_bytes": 70341152768
+      },
+      "direct": {
+        "median_s": 12.218862661000458,
+        "samples_s": [
+          12.199115682997217,
+          12.222465869002917,
+          12.218862661000458
+        ],
+        "peak_allocated_bytes": 71340052480
+      },
+      "dense": {
+        "median_s": 15.702863223996246,
+        "samples_s": [
+          15.702863223996246,
+          15.700984884002537,
+          15.714403971993306
+        ],
+        "peak_allocated_bytes": 36890200576
+      },
+      "top8": {
+        "median_s": 9.539948831996298,
+        "samples_s": [
+          9.530579051999666,
+          9.5434017929947,
+          9.539948831996298
+        ],
+        "peak_allocated_bytes": 44350085120
+      }
+    }
+  },
+  "scaling_verification": {
+    "32768": {
+      "frontiers": 32,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_abs_reference_error": 0.0078125
+    },
+    "128000": {
+      "frontiers": 224,
+      "selection_outside_tolerance": 0,
+      "graph_same_cache_max_abs": 0,
+      "max_abs_reference_error": 0.015625
+    }
+  },
+  "stage": "complete",
+  "pending": [],
+  "failed": [],
+  "cancelled": [
+    "threshold-offset-offset-bf16-cwe32-v1-prefix-closed-tuned-ruler",
+    "threshold-offset-offset-bf16-panel-v1-prefix-closed-tuned-ruler"
+  ],
+  "hardware": [
+    "NVIDIA H100 80GB HBM3, GPU-e990762e-21ba-1072-8311-be210c4e4762, 580.196.07, 81559 MiB"
+  ],
+  "quality_identity": {
+    "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+    "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "tokenizer_revision": null,
+    "model_precision": "bf16",
+    "generation": "greedy, fixed task limits, ignore eos",
+    "prompt_format": "dataset"
+  }
+}

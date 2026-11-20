@@ -1,0 +1,138 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-full",
+  "model": "Qwen/Qwen3-8B",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+  "qwen_yarn": false,
+  "cache_update_optimizations": {
+    "packed_max": true,
+    "fused_rms": false,
+    "fused_rescale": true
+  },
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": null,
+  "prefill_threshold": null,
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json",
+  "manifest_sha256": "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+  "prompt_token_sha256": "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": false,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 1.8747251109889476,
+      "decode_s": 0.010066081988043152,
+      "capture_s": 0.15789381999638863,
+      "cache_init_s": 0.09829862299375236,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        15,
+        12
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16398792192,
+        "after_run_before_collection": 16465901056,
+        "after_run_after_collection": 16465901056,
+        "peak_allocated": 22740883968
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 10.066081988043152,
+      "decode_ms_per_token": 10.066081988043152,
+      "decode_tokens_per_second": 99.3435182812772
+    },
+    {
+      "prefill_s": 1.7081387849902967,
+      "decode_s": 0.00957332199322991,
+      "capture_s": 0.1390820169908693,
+      "cache_init_s": 0.0855398849962512,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        15,
+        12
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16465901056,
+        "after_run_before_collection": 16465901056,
+        "after_run_after_collection": 16465901056,
+        "peak_allocated": 22774438400
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 9.57332199322991,
+      "decode_ms_per_token": 9.57332199322991,
+      "decode_tokens_per_second": 104.4569482471375
+    },
+    {
+      "prefill_s": 1.7172634299931815,
+      "decode_s": 0.010066479997476563,
+      "capture_s": 0.12767532900033984,
+      "cache_init_s": 0.15563727199332789,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        15,
+        12
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16465901056,
+        "after_run_before_collection": 16465901056,
+        "after_run_after_collection": 16465901056,
+        "peak_allocated": 22774438400
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.066479997476563,
+      "decode_ms_per_token": 10.066479997476563,
+      "decode_tokens_per_second": 99.33959042790302
+    },
+    {
+      "prefill_s": 1.7137841350049712,
+      "decode_s": 0.010064461006550118,
+      "capture_s": 0.13538758500362746,
+      "cache_init_s": 0.07255807000910863,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        15,
+        12
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16465901056,
+        "after_run_before_collection": 16465901056,
+        "after_run_after_collection": 16465901056,
+        "peak_allocated": 22774438400
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.064461006550118,
+      "decode_ms_per_token": 10.064461006550118,
+      "decode_tokens_per_second": 99.3595185424419
+    }
+  ],
+  "median_decode_ms_per_batch_step": 10.064461006550118,
+  "median_decode_tokens_per_second": 99.3595185424419,
+  "median_decode_ms_per_token": 10.064461006550118,
+  "median_prefill_s": 1.7137841350049712
+}

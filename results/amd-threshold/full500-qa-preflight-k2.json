@@ -1,0 +1,75 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 32.0,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 1,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_hotpot",
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 0,
+      "prompt_hash": "2888d4806d3d11e02192a88ac88e03f703d35117d950bc021e6a194e6e5fa3f0",
+      "doc_hash": "429a439438832072f5d4c12665c1dfa29984555af2fec76f354e62ec2718ea9e",
+      "target_hash": "a314fedb4bce7ea032789fdb1234b665b68965c7f7cc29f2bf4fbf94eeeb9b34",
+      "input_tokens": 62840,
+      "input_token_sha256": "040bd5f0e30bc0d987b9b2d21c68b903510f842bca6a4c29cf5b1b1b1da2946d",
+      "targets": [
+        "yes"
+      ],
+      "prediction": " Yes",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.945
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 0,
+      "prompt_hash": "f093f05f7148477e40875353a80122edd04b76d5801e15abfae6b7f547add478",
+      "doc_hash": "bd2a940b6600f5bd8d9c88f6a3f10289c8c3213f4297ad9dd2da5a908dcc7f04",
+      "target_hash": "14a987bb511bb5410195b170eb819841c4d43d031c4f2c78836b4ec2b862607d",
+      "input_tokens": 62961,
+      "input_token_sha256": "faad3d56ca5fa92b72e554ee0fcbf3486c21ca86524ace06877557f8c81b1cf2",
+      "targets": [
+        "France",
+        "France",
+        "France",
+        "France"
+      ],
+      "prediction": " France",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.793
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_hotpot": 100.0,
+    "ruler_qa_squad": 100.0
+  }
+}

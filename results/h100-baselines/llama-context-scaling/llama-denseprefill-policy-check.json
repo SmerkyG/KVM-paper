@@ -1,0 +1,93 @@
+{
+  "stage": "complete",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 131072,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 32768,
+  "methods": [
+    "lod",
+    "dense"
+  ],
+  "prefill": "method-specific",
+  "prefill_by_method": {
+    "lod": "LoD threshold",
+    "dense": "dense causal"
+  },
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": null,
+  "warmup_steps": null,
+  "dense_kv_source": "verify",
+  "captures_host_kv": true,
+  "cohort_sha256": "f7ff96d79181b4424bdbd7085c3bbca4877b05ad09b635633cfd82603db538c6",
+  "records": [
+    {
+      "task": "niah_multikey_2",
+      "source_row": 43,
+      "index": 43,
+      "answers": [
+        "6326370"
+      ],
+      "prompt_sha256": "461f420a25e91a6bf612c633ab0f9fd83126ce9b7883042e6e44330730d3e1b6",
+      "input_tokens": 32612,
+      "prefill_token_id": 220,
+      "input_token_sha256": "c5efddb46fc7c2b50e7814c0d07ecbf4d97779ac1fe7e7e8e109d8ea31aeb343",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 20775,
+            "eager_argmax": 20775
+          },
+          "output_token_ids": [
+            220,
+            20775,
+            21788,
+            15,
+            13,
+            128009,
+            128006,
+            78191
+          ],
+          "prediction": " 6326370.",
+          "score": 1.0
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 220,
+            "eager_argmax": 220,
+            "graph_argmax_by_request": [
+              220
+            ],
+            "eager_argmax_by_request": [
+              220
+            ]
+          },
+          "output_token_ids": [
+            25,
+            220,
+            20775,
+            21788,
+            15,
+            13,
+            128009,
+            128006
+          ],
+          "prediction": ": 6326370.",
+          "score": 1.0
+        }
+      },
+      "prefill_s": 3.6423074009981065,
+      "dense_prefill_token_id": 25,
+      "elapsed_s": 11.106976934999693
+    }
+  ],
+  "stop_at_eos": true,
+  "cohort_shards": 32,
+  "cohort_shard": 5
+}

@@ -1,0 +1,82 @@
+{
+  "stage": "complete",
+  "model": "qwen",
+  "serial": true,
+  "jobs": [
+    {
+      "variant": "legacy",
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.prolong",
+        "--checkpoint",
+        "Qwen/Qwen3.8-27B-FP8",
+        "--mode",
+        "two-tier",
+        "--measure",
+        "speed",
+        "--lengths",
+        "65536",
+        "--batch-size",
+        "1",
+        "--decode-tokens",
+        "1025",
+        "--repeats",
+        "2",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast/speed-final-v1/amd-fast-speed-final-v1-qwen-legacy.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast/speed-final-v1/amd-fast-speed-final-v1-qwen-legacy.json",
+      "settings": {
+        "LOD_AMD_THRESHOLD_MULTIPLIER": "16"
+      },
+      "exit_code": 0
+    },
+    {
+      "variant": "fast",
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.prolong",
+        "--checkpoint",
+        "Qwen/Qwen3.8-27B-FP8",
+        "--mode",
+        "two-tier",
+        "--measure",
+        "speed",
+        "--lengths",
+        "65536",
+        "--batch-size",
+        "1",
+        "--decode-tokens",
+        "1025",
+        "--repeats",
+        "2",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast/speed-final-v1/amd-fast-speed-final-v1-qwen-fast.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast/speed-final-v1/amd-fast-speed-final-v1-qwen-fast.json",
+      "settings": {
+        "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "indexed",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "32",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "2"
+      },
+      "exit_code": 0
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "stage": "complete",
+  "scope": "Benchmark unchanged threshold packing on live model-produced prefill scores.\n\nRuns through cluster-run. Stops the model intentionally after collecting the\ndiagnostic; it is not a model latency or quality result. No Q/K/V snapshot is\nsaved. Every candidate sees the same query, scores, lengths and normalizer.\n",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "scores_shape": [
+      32,
+      4096,
+      5016
+    ],
+    "multiplier": 16.0,
+    "mean_regions": 42.166717529296875,
+    "maximum_regions": 103,
+    "mean_entries": 3978.40185546875,
+    "reference_bits_sha256": "3199a89a5dc0aef0c7488fe46acbe21adfba6eab745117a6607b8341495349e7"
+  },
+  "records": [
+    {
+      "backend": "full-row",
+      "median_ms": 5.215241622924805,
+      "samples_ms": [
+        5.211670303344727,
+        5.215407943725586,
+        5.215241622924805
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 8,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 4.021247863769531,
+      "samples_ms": [
+        4.015372848510742,
+        4.021247863769531,
+        4.021667098999023
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 16,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 3.438217544555664,
+      "samples_ms": [
+        3.4306655883789063,
+        3.441580963134766,
+        3.438217544555664
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 4.100374221801758,
+      "samples_ms": [
+        4.09527359008789,
+        4.102451324462891,
+        4.100374221801758
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 4.333244705200196,
+      "samples_ms": [
+        4.327401733398437,
+        4.334384155273438,
+        4.333244705200196
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 16,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 3.9142494201660156,
+      "samples_ms": [
+        3.907823944091797,
+        3.9142494201660156,
+        3.916678237915039
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 3.589593505859375,
+      "samples_ms": [
+        3.584096145629883,
+        3.590256118774414,
+        3.589593505859375
+      ]
+    }
+  ],
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+}

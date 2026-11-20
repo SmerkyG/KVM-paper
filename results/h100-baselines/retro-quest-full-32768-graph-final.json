@@ -1,0 +1,58 @@
+{
+  "method": "retro-quest",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": true,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": false,
+  "dtype": "bfloat16",
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 1025,
+  "quest_budget_ratio": 1.0,
+  "records": [
+    {
+      "prefill_s": 1.7829280630012363,
+      "decode_s": 19.39359949399841,
+      "capture_s": 1.2493220579999615,
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_token": 18.93906200585782
+    },
+    {
+      "prefill_s": 1.6621801780001988,
+      "decode_s": 19.400188419998813,
+      "capture_s": 0.16345106699918688,
+      "iteration": 1,
+      "warmup": true,
+      "decode_ms_per_token": 18.94549650390509
+    },
+    {
+      "prefill_s": 1.668836699998792,
+      "decode_s": 19.398027629000353,
+      "capture_s": 0.16603483300059452,
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_token": 18.943386356445657
+    },
+    {
+      "prefill_s": 1.66821757300022,
+      "decode_s": 19.579290679001133,
+      "capture_s": 0.11596196299979056,
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_token": 19.120401053712044
+    },
+    {
+      "prefill_s": 1.6573749050003244,
+      "decode_s": 19.579321758999868,
+      "capture_s": 0.13405152299856127,
+      "iteration": 4,
+      "warmup": false,
+      "decode_ms_per_token": 19.120431405273308
+    }
+  ],
+  "median_decode_ms_per_token": 19.120401053712044,
+  "median_prefill_s": 1.66821757300022
+}

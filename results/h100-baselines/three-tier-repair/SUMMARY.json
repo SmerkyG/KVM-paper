@@ -1,0 +1,395 @@
+{
+  "stage": "complete",
+  "quality": {
+    "Dense": {
+      "tasks": {
+        "niah_multikey_3": 100.0,
+        "niah_multivalue": 96.875,
+        "vt": 100.0,
+        "fwe": 90.625,
+        "qa_1": 81.25,
+        "niah_single_1": 100.0,
+        "niah_single_2": 100.0,
+        "niah_single_3": 100.0,
+        "niah_multikey_1": 100.0,
+        "niah_multikey_2": 100.0,
+        "niah_multiquery": 99.21875,
+        "cwe": 37.5,
+        "qa_2": 50.0
+      },
+      "macro_average": 88.88221153846153,
+      "files": [
+        "ruler-32k-dense-full.json",
+        "ruler-32k-dense-missing8.json"
+      ]
+    },
+    "RetroInfer": {
+      "tasks": {
+        "niah_multikey_1": 100.0,
+        "niah_multikey_2": 100.0,
+        "niah_multikey_3": 100.0,
+        "vt": 100.0,
+        "fwe": 86.45833333333334,
+        "cwe": 36.25,
+        "qa_1": 81.25,
+        "qa_2": 50.0,
+        "niah_single_1": 100.0,
+        "niah_single_2": 100.0,
+        "niah_single_3": 100.0,
+        "niah_multivalue": 98.4375,
+        "niah_multiquery": 98.4375
+      },
+      "macro_average": 88.52564102564102,
+      "files": [
+        "ruler-llama-retroinfer-32k-selected.json",
+        "ruler-llama-retroinfer-32k-missing5.json"
+      ]
+    },
+    "Two-tier c16": {
+      "tasks": {
+        "niah_multikey_3": 100.0,
+        "niah_multiquery": 97.65625,
+        "niah_single_1": 100.0,
+        "niah_single_2": 100.0,
+        "niah_single_3": 100.0,
+        "niah_multikey_1": 100.0,
+        "niah_multikey_2": 100.0,
+        "niah_multivalue": 99.21875,
+        "vt": 100.0,
+        "fwe": 88.54166666666666,
+        "cwe": 29.375,
+        "qa_1": 68.75,
+        "qa_2": 46.875
+      },
+      "macro_average": 86.9551282051282,
+      "files": [
+        "three-tier-repair-v1-two-tier-control.json",
+        "three-tier-repair-mq32-v1-two-tier-control.json",
+        "three-tier-repair-twotier-full11-v2-two-tier-control.json"
+      ]
+    },
+    "Three-tier four pages": {
+      "tasks": {
+        "niah_multikey_3": 100.0,
+        "niah_single_1": 100.0,
+        "niah_single_2": 100.0,
+        "niah_single_3": 100.0,
+        "niah_multikey_1": 100.0,
+        "niah_multikey_2": 100.0,
+        "niah_multivalue": 99.21875,
+        "niah_multiquery": 95.3125,
+        "vt": 100.0,
+        "fwe": 89.58333333333334,
+        "cwe": 27.500000000000004,
+        "qa_1": 68.75,
+        "qa_2": 46.875
+      },
+      "macro_average": 86.71073717948718,
+      "files": [
+        "three-tier-repair-v4-pages4-quality.json",
+        "three-tier-repair-remaining12-v1-pages4-quality.json"
+      ]
+    },
+    "Three-tier page threshold, region c16": {
+      "tasks": {
+        "niah_multikey_3": 100.0,
+        "niah_multiquery": 95.3125,
+        "niah_single_1": 100.0,
+        "niah_single_2": 100.0,
+        "niah_single_3": 100.0,
+        "niah_multikey_1": 100.0,
+        "niah_multikey_2": 100.0,
+        "niah_multivalue": 99.21875,
+        "vt": 100.0,
+        "fwe": 88.54166666666666,
+        "cwe": 28.749999999999996,
+        "qa_1": 68.75,
+        "qa_2": 46.875
+      },
+      "macro_average": 86.72676282051282,
+      "files": [
+        "three-tier-repair-normpage-v1-pagec0p5-quality.json",
+        "three-tier-repair-normpage-full11-v3-pagec0p5-quality.json"
+      ]
+    },
+    "Three-tier page threshold, region c8": {
+      "tasks": {
+        "niah_multikey_3": 100.0,
+        "niah_multiquery": 97.65625,
+        "niah_single_1": 100.0,
+        "niah_single_2": 100.0,
+        "niah_single_3": 100.0,
+        "niah_multikey_1": 100.0,
+        "niah_multikey_2": 100.0,
+        "niah_multivalue": 99.21875,
+        "vt": 100.0,
+        "fwe": 88.54166666666666,
+        "cwe": 31.25,
+        "qa_1": 68.75,
+        "qa_2": 46.875
+      },
+      "macro_average": 87.09935897435898,
+      "files": [
+        "three-tier-repair-joint8-v1-pagec0p5-quality.json",
+        "three-tier-repair-joint8-full11-v1-pagec0p5-quality.json"
+      ]
+    }
+  },
+  "model": {
+    "Two pages c16": {
+      "32K": {
+        "ms_per_token": 7.714404930175611,
+        "prefill_s": 1.74041432750073,
+        "file": "three-tier-repair-v5-pages2-32k-model.json"
+      },
+      "64K": {
+        "ms_per_token": 7.942502989746636,
+        "prefill_s": 4.4630770174990175,
+        "file": "three-tier-repair-v5-pages2-64k-model.json"
+      }
+    },
+    "Four pages c16": {
+      "32K": {
+        "ms_per_token": 10.001284672362942,
+        "prefill_s": 1.7353157000006831,
+        "file": "three-tier-repair-v5-pages4-32k-model.json"
+      },
+      "64K": {
+        "ms_per_token": 10.579397399414603,
+        "prefill_s": 4.4456191014996875,
+        "file": "three-tier-repair-v5-pages4-64k-model.json"
+      }
+    },
+    "Page threshold c16": {
+      "32K": {
+        "ms_per_token": 8.498048633300392,
+        "prefill_s": 1.740463238999837,
+        "file": "three-tier-repair-normpage-model-v1-pagec0p5-32k-model.json"
+      },
+      "64K": {
+        "ms_per_token": 9.17195170556706,
+        "prefill_s": 4.455196746000183,
+        "file": "three-tier-repair-normpage-model-v1-pagec0p5-64k-model.json"
+      }
+    },
+    "Page threshold c8": {
+      "32K": {
+        "ms_per_token": 8.969418857910583,
+        "prefill_s": 1.7350071539985947,
+        "file": "three-tier-repair-joint8-model-v1-pagec0p5-32k-model.json"
+      },
+      "64K": {
+        "ms_per_token": 9.985955649413292,
+        "prefill_s": 4.516372996999962,
+        "file": "three-tier-repair-joint8-model-v1-pagec0p5-64k-model.json"
+      }
+    }
+  },
+  "input_sha256": {
+    "ruler-32k-dense-full.json": "c32dea4bc803e050bedeb6dc58ee22c2af2331a2a3885263fa2f1b2de7c1d8ee",
+    "ruler-32k-dense-missing8.json": "063fb0a8bfda944770fa95ec2365155cc070df9319bd05c857d078cec002d9ad",
+    "ruler-llama-retroinfer-32k-selected.json": "234b9100601b70a58c1c387b803608e48ed4a24b1cc1fd57d501a17bdfdbedf7",
+    "ruler-llama-retroinfer-32k-missing5.json": "69074c8439251fc1b9ddcee76124efd12f0e4c573740297f2b27c79846c5babd",
+    "three-tier-repair-v1-two-tier-control.json": "f21c76e57f26f11410d4148ea7b94a6c039f6e2ca63d90c51895d2b8bfa96cda",
+    "three-tier-repair-mq32-v1-two-tier-control.json": "928d812aaa7507a4922c28ccd2ebcdbb293375cacbd3a1384b7734899e179c68",
+    "three-tier-repair-twotier-full11-v2-two-tier-control.json": "779abde44d026bd06597000d59de0bf12e038638911b45c23b4e18229204df3d",
+    "three-tier-repair-v4-pages4-quality.json": "bf740462dcb6a6a950a85c9907477829b54e0cab595180120cc6fe1340123e66",
+    "three-tier-repair-remaining12-v1-pages4-quality.json": "5b74c5f8350c9d1aa63b1cb4a2e71ef026f8d558acbc22ea96c8798b03eecad9",
+    "three-tier-repair-normpage-v1-pagec0p5-quality.json": "1a8aa322decfdc5d27abea31fedb9b1bf948ee9eb410177a0463cd93a4ec6b5e",
+    "three-tier-repair-normpage-full11-v3-pagec0p5-quality.json": "354884073b55002938137c9d4611401d98b4d69b7f2b4d7f6e2a582242365992",
+    "three-tier-repair-joint8-v1-pagec0p5-quality.json": "e3ceb903c09dd2b17c4edcb399b60a27227c57dcdea2b1d9680b016249967aff",
+    "three-tier-repair-joint8-full11-v1-pagec0p5-quality.json": "d4d31500ae03302f0222f332c1fb89d87495359be24519b2c1550a2cef3d6172",
+    "three-tier-repair-v5-pages2-32k-model.json": "02a802d789a4c3f51cc308a7d8be8535e2932f9b3c4f16930ece3af05519bf4d",
+    "three-tier-repair-v5-pages2-64k-model.json": "b2e2d348959fda0271b1e77fc25a1c7a8e69df827318657e8775946b1792d232",
+    "three-tier-repair-v5-pages4-32k-model.json": "10ecbae4db6f4f203f0e648bfe7677aab1fcf62fea9df42ff220cea36ed4305e",
+    "three-tier-repair-v5-pages4-64k-model.json": "02ee614a879a35571a2019c3a0d6a4d7b650636b97e624fdfb81577c551445a5",
+    "three-tier-repair-normpage-model-v1-pagec0p5-32k-model.json": "f9b278be74b1491145ff8401c4f8b3564a9b1662276be98a3eb03e2d14484fef",
+    "three-tier-repair-normpage-model-v1-pagec0p5-64k-model.json": "deeb7ff5e9bd41b852b87ea8c69a31c94402af814a7686f61fa06314ae42f814",
+    "three-tier-repair-joint8-model-v1-pagec0p5-32k-model.json": "5b70cf5da31dbba6ed8ad92ae93f47be90590e3ce41104b7ea4f4bfeced6744e",
+    "three-tier-repair-joint8-model-v1-pagec0p5-64k-model.json": "90fe4abbcfda7476fa87a4d8fad299726107f5ea1cf5233f056b69a008ca83a9"
+  },
+  "quality_scope": "32K BF16 Llama-3.1-8B-Instruct; B=1; 32 examples/task; first EOS/EOT",
+  "hardware": "NVIDIA H100 80GB HBM3, GPU-e990762e-21ba-1072-8311-be210c4e4762, 580.196.07, 81559 MiB",
+  "excluded_runs": [
+    {
+      "id": "1794272365160727737-three-tier-repair-v1-pages4-check",
+      "name": "three-tier-repair-v1-pages4-check",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272365218784047-three-tier-repair-v1-pages4-quality",
+      "name": "three-tier-repair-v1-pages4-quality",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272365276479509-three-tier-repair-v1-pages8-check",
+      "name": "three-tier-repair-v1-pages8-check",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272365333608497-three-tier-repair-v1-pages8-quality",
+      "name": "three-tier-repair-v1-pages8-quality",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272551591642016-three-tier-repair-v2-pages4-check",
+      "name": "three-tier-repair-v2-pages4-check",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272551646910725-three-tier-repair-v2-pages4-quality",
+      "name": "three-tier-repair-v2-pages4-quality",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272551701835434-three-tier-repair-v2-pages8-check",
+      "name": "three-tier-repair-v2-pages8-check",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272551757371992-three-tier-repair-v2-pages8-quality",
+      "name": "three-tier-repair-v2-pages8-quality",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272660852433809-three-tier-repair-v3-pages4-check",
+      "name": "three-tier-repair-v3-pages4-check",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272660910273341-three-tier-repair-v3-pages4-quality",
+      "name": "three-tier-repair-v3-pages4-quality",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272660969066409-three-tier-repair-v3-pages8-check",
+      "name": "three-tier-repair-v3-pages8-check",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272661026978281-three-tier-repair-v3-pages8-quality",
+      "name": "three-tier-repair-v3-pages8-quality",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272726745576045-three-tier-repair-v4-pages8-check",
+      "name": "three-tier-repair-v4-pages8-check",
+      "state": "finished",
+      "exit_code": 143
+    },
+    {
+      "id": "1794272726803297844-three-tier-repair-v4-pages8-quality",
+      "name": "three-tier-repair-v4-pages8-quality",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794272954942018870-three-tier-repair-v4-pages2-32k-model",
+      "name": "three-tier-repair-v4-pages2-32k-model",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272954998782192-three-tier-repair-v4-pages2-64k-model",
+      "name": "three-tier-repair-v4-pages2-64k-model",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272955057274593-three-tier-repair-v4-pages4-32k-model",
+      "name": "three-tier-repair-v4-pages4-32k-model",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794272955112802856-three-tier-repair-v4-pages4-64k-model",
+      "name": "three-tier-repair-v4-pages4-64k-model",
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794273521006722921-three-tier-repair-pages-v1-page-probe-32k",
+      "name": "three-tier-repair-pages-v1-page-probe-32k",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794273521064713326-three-tier-repair-pages-v1-page-probe-64k",
+      "name": "three-tier-repair-pages-v1-page-probe-64k",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794273704129976421-three-tier-repair-pages-v2-pagec0p25-quality",
+      "name": "three-tier-repair-pages-v2-pagec0p25-quality",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794273704186835594-three-tier-repair-pages-v2-pagec0p5-quality",
+      "name": "three-tier-repair-pages-v2-pagec0p5-quality",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794273704243307346-three-tier-repair-pages-v2-pagec1-quality",
+      "name": "three-tier-repair-pages-v2-pagec1-quality",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794275912018934606-three-tier-repair-page-model-v1-pagec0p5-32k-model-check",
+      "name": "three-tier-repair-page-model-v1-pagec0p5-32k-model-check",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794275912077614248-three-tier-repair-page-model-v1-pagec0p5-32k-model",
+      "name": "three-tier-repair-page-model-v1-pagec0p5-32k-model",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794275912133037767-three-tier-repair-page-model-v1-pagec0p5-64k-model-check",
+      "name": "three-tier-repair-page-model-v1-pagec0p5-64k-model-check",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794275912189591219-three-tier-repair-page-model-v1-pagec0p5-64k-model",
+      "name": "three-tier-repair-page-model-v1-pagec0p5-64k-model",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794276334035784891-three-tier-repair-normpage-full11-v1-pagec0p5-quality",
+      "name": "three-tier-repair-normpage-full11-v1-pagec0p5-quality",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794276382109366854-three-tier-repair-normpage-full11-v2-pagec0p5-quality",
+      "name": "three-tier-repair-normpage-full11-v2-pagec0p5-quality",
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794276531302639103-three-tier-repair-twotier-full11-v1-two-tier-control",
+      "name": "three-tier-repair-twotier-full11-v1-two-tier-control",
+      "state": "finished",
+      "exit_code": -15
+    }
+  ]
+}

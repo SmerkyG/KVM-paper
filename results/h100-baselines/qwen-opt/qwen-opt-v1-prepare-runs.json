@@ -1,0 +1,41 @@
+{
+  "jobs": [
+    {
+      "id": "1794348105337032296-qwen-opt-v1-manifest-0-prepare",
+      "name": "qwen-opt-v1-manifest-0-prepare",
+      "variant": "manifest",
+      "length": 0,
+      "command": [
+        "env",
+        "CUDA_HOME=/usr/local/cuda-12.4",
+        "LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64",
+        "HF_HUB_OFFLINE=1",
+        "PYTHONPATH=/home/ubuntu/comparison/RetroInfer:.",
+        "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
+        "RETRO_PREFILL_MLP_CHUNK=8192",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "transformers==4.51.3",
+        "--with",
+        "triton==3.7.1",
+        "python",
+        "-m",
+        "benchmarks.h100_checked_run",
+        "--",
+        "python",
+        "-m",
+        "benchmarks.h100_qwen_opt_prepare",
+        "--dataset",
+        "/home/ubuntu/.cache/huggingface/hub/datasets--Seerkfang--prolong-64k-512-new/snapshots/97295b7d7fe48dc0aa6ba373af3a8b9d945e505b/train_00000.parquet",
+        "--output",
+        "/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json"
+      ],
+      "output": "/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json"
+    }
+  ]
+}

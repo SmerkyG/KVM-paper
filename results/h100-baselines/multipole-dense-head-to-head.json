@@ -1,0 +1,182 @@
+{
+  "measurement_scope": "synthetic single attention layer; not full-model inference",
+  "scope_annotation_added_after_measurement": true,
+  "results": [
+    {
+      "length": 32768,
+      "batch": 1,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 0.07163199782371521,
+          "graph_ms": 0.0660959966480732
+        },
+        "author_512": {
+          "do_bench_ms": 0.11923199892044067,
+          "graph_ms": 0.11667200177907944,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 1.68109436344821e-05
+        },
+        "author_2048": {
+          "do_bench_ms": 0.07599999755620956,
+          "graph_ms": 0.07099199667572975,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 1.7328700778307393e-05
+        }
+      }
+    },
+    {
+      "length": 32768,
+      "batch": 4,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 0.1964000016450882,
+          "graph_ms": 0.1918719932436943
+        },
+        "author_512": {
+          "do_bench_ms": 0.2837440073490143,
+          "graph_ms": 0.2818880081176758,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 1.688825614110101e-05
+        },
+        "author_2048": {
+          "do_bench_ms": 0.2208320051431656,
+          "graph_ms": 0.2173440009355545,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 1.674998929956928e-05
+        }
+      }
+    },
+    {
+      "length": 32768,
+      "batch": 8,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 0.3692159950733185,
+          "graph_ms": 0.36371201276779175
+        },
+        "author_512": {
+          "do_bench_ms": 0.4917919933795929,
+          "graph_ms": 0.4878399968147278,
+          "max_abs_error": 0.000244140625,
+          "mean_abs_error": 1.692051228019409e-05
+        },
+        "author_2048": {
+          "do_bench_ms": 0.4122239947319031,
+          "graph_ms": 0.40568000078201294,
+          "max_abs_error": 0.000244140625,
+          "mean_abs_error": 1.6800777302705683e-05
+        }
+      }
+    },
+    {
+      "length": 32768,
+      "batch": 16,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 0.7219840288162231,
+          "graph_ms": 0.7152639925479889
+        },
+        "author_512": {
+          "do_bench_ms": 0.9039520025253296,
+          "graph_ms": 0.897055983543396,
+          "max_abs_error": 0.000244140625,
+          "mean_abs_error": 1.7039574231603183e-05
+        },
+        "author_2048": {
+          "do_bench_ms": 0.7851999998092651,
+          "graph_ms": 0.7811680138111115,
+          "max_abs_error": 0.000244140625,
+          "mean_abs_error": 1.727859489619732e-05
+        }
+      }
+    },
+    {
+      "length": 131072,
+      "batch": 1,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 0.20192000269889832,
+          "graph_ms": 0.19651199877262115
+        },
+        "author_512": {
+          "do_bench_ms": 0.44383999705314636,
+          "graph_ms": 0.44497600197792053,
+          "max_abs_error": 6.103515625e-05,
+          "mean_abs_error": 8.217179129133001e-06
+        },
+        "author_2048": {
+          "do_bench_ms": 0.2602880001068115,
+          "graph_ms": 0.2587839961051941,
+          "max_abs_error": 6.103515625e-05,
+          "mean_abs_error": 8.344910384039395e-06
+        }
+      }
+    },
+    {
+      "length": 131072,
+      "batch": 4,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 0.717024028301239,
+          "graph_ms": 0.7095039784908295
+        },
+        "author_512": {
+          "do_bench_ms": 1.0698879957199097,
+          "graph_ms": 1.0611520409584045,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 8.664505003252998e-06
+        },
+        "author_2048": {
+          "do_bench_ms": 0.8347520232200623,
+          "graph_ms": 0.8329119980335236,
+          "max_abs_error": 6.103515625e-05,
+          "mean_abs_error": 8.648647053632885e-06
+        }
+      }
+    },
+    {
+      "length": 131072,
+      "batch": 8,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 1.4193919897079468,
+          "graph_ms": 1.4090879559516907
+        },
+        "author_512": {
+          "do_bench_ms": 1.8675040006637573,
+          "graph_ms": 1.866703987121582,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 8.545704986318015e-06
+        },
+        "author_2048": {
+          "do_bench_ms": 1.5856959819793701,
+          "graph_ms": 1.5820159912109375,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 8.473322850477416e-06
+        }
+      }
+    },
+    {
+      "length": 131072,
+      "batch": 16,
+      "timings": {
+        "flashattention": {
+          "do_bench_ms": 2.8270559310913086,
+          "graph_ms": 2.8123680353164673
+        },
+        "author_512": {
+          "do_bench_ms": 3.518847942352295,
+          "graph_ms": 3.5183041095733643,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 8.58116072777193e-06
+        },
+        "author_2048": {
+          "do_bench_ms": 3.052351951599121,
+          "graph_ms": 3.0203360319137573,
+          "max_abs_error": 0.0001220703125,
+          "mean_abs_error": 8.576706932217348e-06
+        }
+      }
+    }
+  ]
+}

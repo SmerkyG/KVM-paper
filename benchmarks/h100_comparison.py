@@ -84,6 +84,14 @@ def main():
                         help="Capture the author-framework dense or RetroInfer model step")
     parser.add_argument('--finish-lod-prefill-cache', action='store_true',
                         help='Include deferred LoD catch-up in prefill and record its separate cost')
+    parser.add_argument('--record-lod-centroid-slots', action='store_true',
+                        help='Record per-layer live centroid slots at both decode timing boundaries')
+    parser.add_argument('--audit-lod-exact-attention', action='store_true',
+                        help='Count exact tokens every 64 decode steps in a diagnostic run')
+    parser.add_argument('--retro-centroids', type=int, help='Override the RetroInfer prefill index width')
+    parser.add_argument('--retro-pages-per-cluster', type=int, help='Override RetroInfer deferred-build geometry')
+    parser.add_argument('--measure-deferred-retro-build', action='store_true',
+                        help='Measure the first deferred RetroInfer index build during warmup')
     parser.add_argument("--replay-prompt-tokens", action="store_true",
                         help="Teacher-force a shared sequence from the prompt for correctness checks")
     parser.add_argument("--logits-file", type=Path,
@@ -96,6 +104,17 @@ def main():
         parser.error('--qwen-yarn requires Qwen/Qwen3-8B')
     if not 0 <= args.decode_warmup_steps < args.tokens - 1:
         parser.error('--decode-warmup-steps must be nonnegative and less than tokens minus one')
+    if args.record_lod_centroid_slots and (not args.lod_graph or args.decode_warmup_steps == 0):
+        parser.error('--record-lod-centroid-slots requires LoD graph timing with decode warmup')
+    if args.audit_lod_exact_attention and (not args.lod_graph
+            or os.environ.get('LOD_H100_THRESHOLD_IMPLEMENTATION') != 'materialized'):
+        parser.error('--audit-lod-exact-attention requires two-tier materialized LoD decode')
+    if args.retro_centroids is not None or args.retro_pages_per_cluster is not None:
+        if args.method != 'retro' or any(n is not None and n < 1
+                                        for n in (args.retro_centroids, args.retro_pages_per_cluster)):
+            parser.error('positive index overrides apply only to RetroInfer')
+    if args.measure_deferred_retro_build and (args.method != 'retro' or not args.native_graph):
+        parser.error('--measure-deferred-retro-build requires native RetroInfer graph timing')
     if args.method == 'quest' and args.decode_warmup_steps:
         parser.error('--decode-warmup-steps requires a RetroInfer-runtime method')
     if args.expect_retro_index_updates is not None and args.method != 'retro':
@@ -322,6 +341,10 @@ def main():
         config = {} if is_qwen3 and attention!='RetroInfer' else generate_config('meta-llama/Llama-3.1-8B-Instruct'if is_qwen3 else args.model_name, len(ids),
                                  "Full_Flash_Attn" if attention in ("LoD", "RetroQuest", "RetroSqueezed", "RetroMultipole", "RetroClusterKV") else attention, 0.018, 0.232,
                                  0.0, use_cuda_graph=True, gpu_only=True)
+        if args.retro_centroids is not None:
+            config['RetroInfer']['n_centroids'] = args.retro_centroids
+        if args.retro_pages_per_cluster is not None:
+            config['RetroInfer']['pages_per_cluster'] = args.retro_pages_per_cluster
 
         def run_once():
             if attention in ("RetroMultipole", "RetroClusterKV"):
@@ -368,6 +391,27 @@ def main():
                                        if os.environ.get('LOD_H100_DENSE_PREFILL_GPU_EVENTS') == '1' else None)
             capture = 0.0
             native_graph = None
+            retro_eager_warmup_steps = None
+            awaiting_retro_index = (args.native_graph and attention == 'RetroInfer'
+                                    and not model.kv_cache.index_built)
+            deferred_build_s = None
+            if args.measure_deferred_retro_build:
+                if not awaiting_retro_index:
+                    raise ValueError('prompt does not use a deferred initial index')
+                update_index = model.kv_cache._update_kv_cache
+
+                def measure_initial_build():
+                    nonlocal deferred_build_s
+                    if deferred_build_s is not None:
+                        return update_index()
+                    torch.cuda.synchronize()
+                    before = time.perf_counter()
+                    result = update_index()
+                    torch.cuda.synchronize()
+                    deferred_build_s = time.perf_counter() - before
+                    return result
+
+                model.kv_cache._update_kv_cache = measure_initial_build
             if clusterkv_device:
                 start = time.perf_counter()
                 model.kv_cache.init_device_decode(model, token, capture=args.clusterkv_graph)
@@ -375,10 +419,11 @@ def main():
                 capture = time.perf_counter() - start
             elif args.native_graph:
                 from benchmarks.retro_native_graph import NativeDecodeGraph
-                start = time.perf_counter()
-                native_graph = NativeDecodeGraph(model, token, attention)
-                torch.cuda.synchronize()
-                capture = time.perf_counter() - start
+                if not awaiting_retro_index:
+                    start = time.perf_counter()
+                    native_graph = NativeDecodeGraph(model, token, attention)
+                    torch.cuda.synchronize()
+                    capture = time.perf_counter() - start
             elif attention == "RetroInfer":
                 start = time.perf_counter()
                 model.kv_cache.capture_cuda_graph()
@@ -396,6 +441,13 @@ def main():
             decode_warmup_s = 0.0
             updates_before_timing = 0
             eager_retro_updates = 0
+            exact_audit = []
+
+            def centroid_slots():
+                rows = [[int(pool.metadata[request]['state_len']) for request in range(args.batch_size)]
+                        for pool in model.kv_cache.pools]
+                return [row[0] for row in rows] if args.batch_size == 1 else rows
+
             check_steps = {0, 1, 14, 15, 16, 17, 30, 31, 32, 33,
                            254, 255, 256, 257, 510, 511, 512, 513,
                            766, 767, 768, 769, 1022, 1023, 1024, 1025,
@@ -405,9 +457,26 @@ def main():
                 check_steps.update(i for end in range(window, args.tokens, window)
                                    for i in (end - 2, end - 1, end))
             for step in range(args.tokens - 1):
+                if awaiting_retro_index:
+                    if model.kv_cache.index_built:
+                        # At short prefixes RetroInfer builds its first index
+                        # during decode. Capture the indexed path during warmup.
+                        torch.cuda.synchronize()
+                        capture_start = time.perf_counter()
+                        native_graph = NativeDecodeGraph(model, token, attention)
+                        torch.cuda.synchronize()
+                        capture = time.perf_counter() - capture_start
+                        start += capture
+                        native_graph.index_update_count = eager_retro_updates
+                        retro_eager_warmup_steps = step
+                        awaiting_retro_index = False
+                    elif step == args.decode_warmup_steps:
+                        raise RuntimeError('RetroInfer GPU index was not built in the decode warmup')
                 if step == args.decode_warmup_steps and step:
                     torch.cuda.synchronize()
                     decode_warmup_s = time.perf_counter() - start
+                    if args.record_lod_centroid_slots:
+                        centroid_slots_start = centroid_slots()
                     start = time.perf_counter()
                     if native_graph is not None:
                         updates_before_timing = native_graph.index_update_count
@@ -448,6 +517,18 @@ def main():
                     saved_logits[step] = logits.detach().clone()
                 if token_ids is not None:
                     token_ids.append(token.clone() if (args.lod_graph or args.quest_graph or args.squeezed_graph or args.multipole_graph or args.clusterkv_graph or native_graph is not None) else token)
+                if args.audit_lod_exact_attention and step >= args.decode_warmup_steps and step % 64 == 63:
+                    counts = []
+                    for pool in model.kv_cache.pools[2:]:
+                        scratch = pool._threshold_scratch
+                        lengths = pool.state['page_cache']['slot_lengths']
+                        heads = lengths.size(1)
+                        chosen = scratch['allowed'].view(args.batch_size, heads, -1, lengths.size(-1))
+                        remotes = (chosen * lengths.unsqueeze(2)).sum(dim=-1)
+                        locals_ = scratch['saved'].clamp_max(pool.decode_local_limit) + 1
+                        local_and_sink = locals_ + pool.state['sink_k'].size(2)
+                        counts.append(remotes + local_and_sink.view(-1, 1, 1))
+                    exact_audit.append({'step': step, 'tokens_per_query_head': torch.stack(counts).flatten().tolist()})
             torch.cuda.synchronize()
             decode = time.perf_counter() - start
             if os.environ.get("MULTIPOLE_NSYS") == "1":
@@ -515,9 +596,22 @@ def main():
             if os.environ.get('LOD_H100_PREFILL_SCALING_AUDIT')=='1':
                 from benchmarks.h100_prefill_work_audit import collect
                 scaling_audit=collect(model.kv_cache)
+            if args.record_lod_centroid_slots:
+                centroid_slots_end = centroid_slots()
+            if attention == 'RetroInfer':
+                retro_centroids_end = int(model.kv_cache.n_centroids)
             del model.kv_cache
             gc.collect()
             result = {"prefill_s": prefill, "decode_s": decode, "capture_s": capture}
+            if args.audit_lod_exact_attention:
+                result['lod_exact_attention_audit'] = exact_audit
+            if args.measure_deferred_retro_build:
+                if deferred_build_s is None:
+                    raise RuntimeError('RetroInfer did not build an index during warmup')
+                result['deferred_retro_build_s'] = deferred_build_s
+            if args.record_lod_centroid_slots:
+                result['lod_centroid_slots_per_layer'] = {'timed_start': centroid_slots_start,
+                                                           'timed_end': centroid_slots_end}
             if args.finish_lod_prefill_cache:
                 result['prefill_cache_completion_s'] = prefill_cache_completion_s
                 result['prefill_before_cache_completion_s'] = prefill - prefill_cache_completion_s
@@ -548,6 +642,9 @@ def main():
                 updates = native_graph.index_update_count if native_graph is not None else eager_retro_updates
                 result['retro_index_updates'] = updates
                 result['retro_index_updates_timed'] = updates - updates_before_timing
+                result['retro_centroids_end'] = retro_centroids_end
+                if retro_eager_warmup_steps is not None:
+                    result['retro_eager_warmup_steps'] = retro_eager_warmup_steps
                 if (args.expect_retro_index_updates is not None and
                         result['retro_index_updates_timed'] != args.expect_retro_index_updates):
                     raise RuntimeError(f"Expected {args.expect_retro_index_updates} timed index updates, got {result['retro_index_updates_timed']}")

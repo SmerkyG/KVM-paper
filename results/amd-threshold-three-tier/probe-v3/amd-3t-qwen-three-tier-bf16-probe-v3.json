@@ -1,0 +1,159 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "ea369ee6710119e23a5428f1cf20f1c02ff633fc36243ba1abecfab55545242b",
+      "source_file_count": 238
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=37316263-3631-3965-6433-306139306332, pci_bus_id=5, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "scope": "fixed real query/cache attention plus same local-length rollback; excludes model and cache catch-up",
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 2,
+      "microseconds": 80.37246018648148,
+      "repetitions_us": [
+        80.44323325157166,
+        80.37246018648148,
+        80.34230023622513
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 36.875,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4,
+      "page_workers": 64,
+      "page_warps": 2,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 2352.20849609375,
+      "mean_selected_region_union_entries_per_kv": 5042.0,
+      "mean_exact_remote_entry_bound": 1180.0
+    },
+    {
+      "layer": 0,
+      "implementation": "native-top8",
+      "microseconds": 103.85178029537201,
+      "repetitions_us": [
+        103.85429114103317,
+        103.85178029537201,
+        103.83335500955582
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 2,
+      "microseconds": 79.55232262611389,
+      "repetitions_us": [
+        79.53730970621109,
+        79.60591465234756,
+        79.55232262611389
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 45.083335876464844,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4,
+      "page_workers": 64,
+      "page_warps": 2,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 2159.83349609375,
+      "mean_selected_region_union_entries_per_kv": 3994.0,
+      "mean_exact_remote_entry_bound": 1442.666748046875
+    },
+    {
+      "layer": 8,
+      "implementation": "native-top8",
+      "microseconds": 87.88323402404785,
+      "repetitions_us": [
+        87.87323534488678,
+        87.88323402404785,
+        87.91619539260864
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 2,
+      "microseconds": 77.60642468929291,
+      "repetitions_us": [
+        77.60642468929291,
+        77.60439068078995,
+        77.63001322746277
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 32.833335876464844,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4,
+      "page_workers": 64,
+      "page_warps": 2,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 3090.375,
+      "mean_selected_region_union_entries_per_kv": 7665.5,
+      "mean_exact_remote_entry_bound": 1050.666748046875
+    },
+    {
+      "layer": 15,
+      "implementation": "native-top8",
+      "microseconds": 104.69301789999008,
+      "repetitions_us": [
+        104.6966090798378,
+        104.69301789999008,
+        104.65208441019058
+      ]
+    }
+  ],
+  "model": "qwen",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "three-tier-bf16",
+  "context": 65536,
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "model": "Qwen/Qwen3-8B",
+    "layer": 18,
+    "length": 32768,
+    "batch": 1,
+    "prompt_sha256": "b175a2ad7261b3b1ece1f10c36b77343cb59336013863b029a4cbb8fe525d7db",
+    "dataset_parquet": "/home/ubuntu/.cache/huggingface/hub/datasets--Seerkfang--prolong-64k-512-new/snapshots/97295b7d7fe48dc0aa6ba373af3a8b9d945e505b/train_00000.parquet",
+    "dataset_domains": [
+      "thestackv1_concat_by_repo-long/65536-65536"
+    ],
+    "query_position": 32768,
+    "teacher_forced_next_token": true,
+    "yarn": false,
+    "rope_scaling": null,
+    "chunk_size": 4096,
+    "prefill_attention": "flash_attention_2",
+    "transformers": "4.51.3",
+    "sampled_live_cache_key_max_abs": 0.0,
+    "sampled_live_cache_value_max_abs": 0.0
+  },
+  "kind": "lod",
+  "measurement_scope": "one layer, fixed model-produced Q/K/V; graph-only",
+  "records": [
+    {
+      "mode": "two-tier",
+      "scope": "remote",
+      "local_sink_perturbation": {
+        "recent_v": 0.0,
+        "sink_v": 0.0
+      },
+      "median_ms": 0.04863891113515706,
+      "samples": [
+        {
+          "wall_ms": 0.04865153906408182,
+          "gpu_ms": 0.04859062656760216
+        },
+        {
+          "wall_ms": 0.0486262832062323,
+          "gpu_ms": 0.048582062125205994
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 14867103744
+    },
+    {
+      "mode": "two-tier",
+      "scope": "local",
+      "local_sink_perturbation": {
+        "recent_v": 9.7431640625,
+        "sink_v": 4.44775390625
+      },
+      "median_ms": 0.05044382617036547,
+      "samples": [
+        {
+          "wall_ms": 0.050473435546649625,
+          "gpu_ms": 0.050411876291036606
+        },
+        {
+          "wall_ms": 0.05041421679408131,
+          "gpu_ms": 0.05035831406712532
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 14867103744
+    },
+    {
+      "mode": "three-tier-bf16",
+      "scope": "remote",
+      "local_sink_perturbation": {
+        "recent_v": 0.0,
+        "sink_v": 0.0
+      },
+      "median_ms": 0.042132423827112575,
+      "samples": [
+        {
+          "wall_ms": 0.04215279296815311,
+          "gpu_ms": 0.04209575057029724
+        },
+        {
+          "wall_ms": 0.04211205468607204,
+          "gpu_ms": 0.04207250103354454
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 14946795520
+    },
+    {
+      "mode": "three-tier-bf16",
+      "scope": "local",
+      "local_sink_perturbation": {
+        "recent_v": 9.7431640625,
+        "sink_v": 4.941314697265625
+      },
+      "median_ms": 0.045535283202724486,
+      "samples": [
+        {
+          "wall_ms": 0.04554285937530267,
+          "gpu_ms": 0.04548275098204613
+        },
+        {
+          "wall_ms": 0.0455277070301463,
+          "gpu_ms": 0.04548593610525131
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 14948892672
+    },
+    {
+      "mode": "three-tier-int4",
+      "scope": "remote",
+      "local_sink_perturbation": {
+        "recent_v": 0.0,
+        "sink_v": 0.0
+      },
+      "median_ms": 0.04123450195336886,
+      "samples": [
+        {
+          "wall_ms": 0.041236046875781085,
+          "gpu_ms": 0.041177187114953995
+        },
+        {
+          "wall_ms": 0.04123295703095664,
+          "gpu_ms": 0.041187185794115067
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 14753857536
+    },
+    {
+      "mode": "three-tier-int4",
+      "scope": "local",
+      "local_sink_perturbation": {
+        "recent_v": 9.73046875,
+        "sink_v": 4.9442138671875
+      },
+      "median_ms": 0.04290994433553408,
+      "samples": [
+        {
+          "wall_ms": 0.042918201170749626,
+          "gpu_ms": 0.04286106303334236
+        },
+        {
+          "wall_ms": 0.04290168750031853,
+          "gpu_ms": 0.042862437665462494
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 14753857536
+    }
+  ]
+}

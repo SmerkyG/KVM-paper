@@ -1,0 +1,35 @@
+{
+  "stage": "submitted",
+  "jobs": [
+    {
+      "name": "threshold-next-author-v2-author-frontier-check",
+      "id": "1794283949512061162-threshold-next-author-v2-author-frontier-check",
+      "output": "/home/ubuntu/comparison/results/threshold-next-author-v2-author-frontier-check.json",
+      "command": [
+        "env",
+        "CUDA_HOME=/usr/local/cuda-12.4",
+        "LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64",
+        "HF_HUB_OFFLINE=1",
+        "PYTHONPATH=/home/ubuntu/comparison/MultipoleAttention:/home/ubuntu/comparison/RetroInfer:.",
+        "LOD_TRACK_UPDATES=1",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "transformers==4.51.3",
+        "python",
+        "-m",
+        "benchmarks.h100_checked_run",
+        "--",
+        "python",
+        "-m",
+        "benchmarks.h100_multipole_quality_check",
+        "--output",
+        "/home/ubuntu/comparison/results/threshold-next-author-v2-author-frontier-check.json"
+      ]
+    }
+  ]
+}

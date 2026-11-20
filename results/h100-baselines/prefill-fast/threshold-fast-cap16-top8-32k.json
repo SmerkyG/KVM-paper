@@ -1,0 +1,132 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": null,
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 2.412792873001308,
+      "decode_s": 0.008368761002202518,
+      "capture_s": 0.19598045499878936,
+      "cache_init_s": 0.24640026500856038,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 8.368761002202518,
+      "decode_ms_per_token": 8.368761002202518,
+      "decode_tokens_per_second": 119.492001233733
+    },
+    {
+      "prefill_s": 1.6586137199919904,
+      "decode_s": 0.008408264999161474,
+      "capture_s": 0.1535880290030036,
+      "cache_init_s": 0.009770791002665646,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.408264999161474,
+      "decode_ms_per_token": 8.408264999161474,
+      "decode_tokens_per_second": 118.9305998442873
+    },
+    {
+      "prefill_s": 1.6604979690018808,
+      "decode_s": 0.00837195799977053,
+      "capture_s": 0.15512788700289093,
+      "cache_init_s": 0.010158121003769338,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.37195799977053,
+      "decode_ms_per_token": 8.37195799977053,
+      "decode_tokens_per_second": 119.44637085224382
+    },
+    {
+      "prefill_s": 1.6664885729987873,
+      "decode_s": 0.008565700001781806,
+      "capture_s": 0.14878759100975003,
+      "cache_init_s": 0.009885244013275951,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.565700001781806,
+      "decode_ms_per_token": 8.565700001781806,
+      "decode_tokens_per_second": 116.74469101089036
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.408264999161474,
+  "median_decode_tokens_per_second": 118.9305998442873,
+  "median_decode_ms_per_token": 8.408264999161474,
+  "median_prefill_s": 1.6604979690018808
+}

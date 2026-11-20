@@ -1,0 +1,91 @@
+{
+  "benchmark": "h100-vllm-http-smoke",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 58,
+      "source_sha256": "d96336562428e2f1501b5e35f5cb2c2fe4bc7eff63b913ecd48bbad46205f034"
+    }
+  },
+  "command": [
+    "/home/ubuntu/lod-h100/.venv/bin/python",
+    "-m",
+    "vllm.entrypoints.openai.api_server",
+    "--model",
+    "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "--served-model-name",
+    "lod-llama",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "54189",
+    "--attention-config",
+    "{\"backend\":\"CUSTOM\"}",
+    "--dtype",
+    "bfloat16",
+    "--kv-cache-dtype",
+    "bfloat16",
+    "--max-model-len",
+    "32768",
+    "--max-num-seqs",
+    "1",
+    "--max-num-batched-tokens",
+    "16385",
+    "--long-prefill-token-threshold",
+    "16384",
+    "--scheduler-cls",
+    "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "--no-enable-prefix-caching",
+    "--gpu-memory-utilization",
+    "0.8"
+  ],
+  "mode": "three-tier-int4",
+  "responses": [
+    {
+      "correct": true,
+      "expected": "paris",
+      "text": "Paris.",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 47,
+        "prompt_tokens_details": null,
+        "total_tokens": 50
+      }
+    },
+    {
+      "correct": true,
+      "expected": "42",
+      "text": "42",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 49,
+        "prompt_tokens_details": null,
+        "total_tokens": 51
+      }
+    },
+    {
+      "correct": true,
+      "expected": "735926",
+      "text": "735926",
+      "usage": {
+        "completion_tokens": 3,
+        "prompt_tokens": 19557,
+        "prompt_tokens_details": null,
+        "total_tokens": 19560
+      }
+    }
+  ],
+  "stage": "complete",
+  "startup_seconds": 25.521096096000292
+}

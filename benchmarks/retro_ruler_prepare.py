@@ -22,13 +22,20 @@ def main():
     p.add_argument('--seed', type=int, default=42)
     p.add_argument('--all-tasks', action='store_true', help='Freeze all 13 RULER tasks')
     p.add_argument('--tasks', nargs='+', choices=ALL_TASKS, help='Freeze a selected set of tasks')
-    p.add_argument('--context-label', choices=('32k','64k'), default='32k')
+    p.add_argument('--context-label', choices=('16k','32k','64k'), default='32k')
+    p.add_argument('--exclude-cohort', type=Path, help='Exclude the rows and prompt hashes of a frozen cohort')
     p.add_argument('--output', type=Path, required=True)
     a = p.parse_args()
     if a.samples < 1:
         p.error('samples must be positive')
     if a.all_tasks and a.tasks:
         p.error('choose --all-tasks or --tasks')
+    prior = None
+    if a.exclude_cohort:
+        prior_raw = a.exclude_cohort.read_bytes()
+        prior = json.loads(prior_raw)
+        if (prior['dataset'], prior['revision'], prior['context_label']) != (DATASET, REVISION, a.context_label):
+            p.error('excluded cohort uses a different dataset, revision or context length')
     samples = []
     files = {}
     for task in ALL_TASKS if a.all_tasks else (a.tasks or TASKS):
@@ -36,9 +43,19 @@ def main():
         source = Path(hf_hub_download(DATASET, filename, repo_type='dataset', revision=REVISION))
         files[task] = {'path': filename, 'sha256': hashlib.sha256(source.read_bytes()).hexdigest()}
         table = pq.read_table(source, columns=['index', 'input', 'answers', 'length'])
-        if a.samples > table.num_rows:
-            raise ValueError(f'{task} contains only {table.num_rows} examples')
-        chosen = sorted(random.Random(f'{a.seed}:{task}').sample(range(table.num_rows), a.samples))
+        candidates = range(table.num_rows)
+        if prior is not None:
+            excluded = [row for row in prior['samples'] if row['task'] == task]
+            if excluded and files[task] != prior['source_files'][task]:
+                raise ValueError(f'{task} source file differs from the excluded cohort')
+            excluded_rows = {row['source_row'] for row in excluded}
+            excluded_hashes = {row['prompt_sha256'] for row in excluded}
+            candidates = [i for i, prompt in enumerate(table['input'].to_pylist())
+                          if i not in excluded_rows
+                          and hashlib.sha256(prompt.encode()).hexdigest() not in excluded_hashes]
+        if a.samples > len(candidates):
+            raise ValueError(f'{task} contains only {len(candidates)} eligible examples')
+        chosen = sorted(random.Random(f'{a.seed}:{task}').sample(candidates, a.samples))
         for pos in chosen:
             row = table.slice(pos, 1).to_pylist()[0]
             prompt = row['input']
@@ -48,10 +65,12 @@ def main():
             samples.append({'task': task, 'source_row': pos, 'index': row['index'],
                             'prompt': prompt, 'answers': answers, 'dataset_length': row['length'],
                             'prompt_sha256': hashlib.sha256(prompt.encode()).hexdigest()})
-        print(f'{task}: froze {len(chosen)} of {table.num_rows} examples', flush=True)
+        print(f'{task}: froze {len(chosen)} of {len(candidates)} eligible examples', flush=True)
     result = {'dataset': DATASET, 'revision': REVISION, 'context_label': a.context_label,
               'sampling': 'seeded uniformly without replacement, independently per task',
               'seed': a.seed, 'samples_per_task': a.samples, 'source_files': files, 'samples': samples}
+    if prior is not None:
+        result['excluded_cohort_sha256'] = hashlib.sha256(prior_raw).hexdigest()
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_text(json.dumps(result, ensure_ascii=False) + '\n')
     print(f'Wrote {len(samples)} frozen samples to {a.output}', flush=True)

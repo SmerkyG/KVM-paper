@@ -1,0 +1,886 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_hotpot"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 100,
+      "prompt_hash": "d27a152f16685bec72eff954449ad19ec91f47f9f326208742dcf5356afc0a50",
+      "doc_hash": "2015762403c06d146b17b973d8344b6208fdca5adfe9cfe971870cdd6a9cd550",
+      "target_hash": "a83d427d7441d01f10bcfa23b2f0194532e3e9832bc7e63d89be6733759da64d",
+      "input_tokens": 63010,
+      "input_token_sha256": "b17b41b5e4080ccf794b967f4baa754779d72d8c6a74dfd94efc89b51a2589e3",
+      "targets": [
+        "Coahuila, Mexico"
+      ],
+      "prediction": " Florida and Oklahoma",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.001
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 101,
+      "prompt_hash": "b46d662276582833813fc6654eab222699adf6a08d77a1ae8d53b179640f1f3f",
+      "doc_hash": "2a655d58ec4f50d7b88e97d4913f6e99d0527f3cd3235eedff9e09a152b89ac3",
+      "target_hash": "d92a48d2c2dec27bb9c583722093bd266c216cbd9e446e922d6fc758a91e2651",
+      "input_tokens": 64239,
+      "input_token_sha256": "d1139eb86df00c56e03ad8dbfbfb8e14aea666536f56bdf2d4c1f0f83de75479",
+      "targets": [
+        "Larnelle Harris"
+      ],
+      "prediction": " Larnelle Harris",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.046
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 102,
+      "prompt_hash": "94fe3e09b1345ba01f197d532aa003d9725e3bdbba68ea45df14c1848ebef9b2",
+      "doc_hash": "41b654e5e7a464cf5d68076fe2a03e8693348be4927293ce9fa537305c1ebf01",
+      "target_hash": "5978614d1e7ad640786f985df33971f764165cd361438c50f60ef546e9e83ff4",
+      "input_tokens": 64321,
+      "input_token_sha256": "df88f0cb5c93bd6fa26f0480d15ab154ece3df40692eced3a6b44d89eac5519f",
+      "targets": [
+        "2003"
+      ],
+      "prediction": " 1999",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.121
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 103,
+      "prompt_hash": "20d4d42e549922ec8e7e61c19eb190e1d0fed9752ffafe498b8ede2ac108fb98",
+      "doc_hash": "a630661b0d946dde841a1ced8985b2f3cc0e36e15e8fed8935097ae16933747a",
+      "target_hash": "851ecfb1b737047d5cae461668364c041377403eb416c7ab7f3042437b8a6a64",
+      "input_tokens": 64994,
+      "input_token_sha256": "6755fd6906844903d196d298898b6a069ca5c6f093f34894f207b96a12ed1687",
+      "targets": [
+        "North Avenue at Techwood Drive"
+      ],
+      "prediction": " Atlanta, Georgia",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.144
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 104,
+      "prompt_hash": "49558dc97580c5c8d1b2c10f6ae5029a0c5037b76af41212466c5914dab41501",
+      "doc_hash": "faba47dbbf5ed3683836093fb84ccf857986d33cfeac17f65b1b49846b9ef29e",
+      "target_hash": "1d1ce8ef075ba12e6ac83ac55122119490ee03d8f1aa784f1d5c2a4db2eb720b",
+      "input_tokens": 63272,
+      "input_token_sha256": "9f9171bd5158e5d266bfbfb00340bcc966ee6885a5fdd6e185353b64980e11ef",
+      "targets": [
+        "Leo Varadkar"
+      ],
+      "prediction": " Leo Varadkar",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.916
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 105,
+      "prompt_hash": "db9549c9649a01ff0a3d1fc3daf0973cdff569ad9bce63ce7c288922e538284e",
+      "doc_hash": "7254c092f4a408d6951d4a5932110cab5b9b8cc027a814d8f7c290c044fedf8c",
+      "target_hash": "11c6cdd21fadef7a0922f9f88b2131e28783ac5ddf084ceb79c58e035b6a71c5",
+      "input_tokens": 63281,
+      "input_token_sha256": "5428bbdc102b6356d0f3a114ee90106be5c2a99c1a7a40af7f4fb711df6b15bd",
+      "targets": [
+        "George Raft"
+      ],
+      "prediction": " George Raft",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.896
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 106,
+      "prompt_hash": "02996303b135989746a458a1b09930757689eafc13b5a762719e32023aedc83d",
+      "doc_hash": "aeaba9abb83d8045f4a61cdaa788b6c099f9f2083fbe33d5330d5f07a71e62c0",
+      "target_hash": "63293b4409c55817afc2b8f2f56ddfe62c52ff7e17b48e34de703f299f26c135",
+      "input_tokens": 64681,
+      "input_token_sha256": "e100877536d18dc8d1f6494a44a1497ee213f1d451441b10c4e592023f73288e",
+      "targets": [
+        "1887"
+      ],
+      "prediction": " 1887",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.134
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 107,
+      "prompt_hash": "892f3e8cd082d7384db2ab2f85b2df8e5bb84db0fbcc259d4f2f1b59e311e052",
+      "doc_hash": "e48b64ff6c0b666dec116213bf077f39e76921371f8bcdd18ac5c929501313f3",
+      "target_hash": "061dcc94f6c2448136a946223c7136beec4d116fe63e1910be9331acdd1c8498",
+      "input_tokens": 64398,
+      "input_token_sha256": "e851f1955c3d32c0c8287e4deccd96d270016c7de30e7607a99274e4492d9db8",
+      "targets": [
+        "business"
+      ],
+      "prediction": " Investing",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.974
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 108,
+      "prompt_hash": "82590d611d41de2980fc31045e4e778b1eb80ca71a650f9e47becef24af8c705",
+      "doc_hash": "97d8f140674672cb5fc5a311a97d449441cac2a10f78a0b97a99a210888b76be",
+      "target_hash": "ead2891691ac758502ddeec9c9bb3340cb6f5917ffd453dadfe7d93f60e9ff81",
+      "input_tokens": 63842,
+      "input_token_sha256": "f1c4b345a01525889061d93ab6e17fa86534d48e68f707df3a4cb6937e0e4c17",
+      "targets": [
+        "7 October 1978"
+      ],
+      "prediction": " 7 October 1978",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.131
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 109,
+      "prompt_hash": "d7debcbfa0cb6f54443217c263b8550a64c428d1f5622b4f5b821d158419e816",
+      "doc_hash": "f41f6a04642af73f0e1a5a749d292335d1187e2cbc8958011b65132e94e25f8a",
+      "target_hash": "87251cd5b213898d68e23613f64714ab60607ab755586dfd9dc01c48c420ad99",
+      "input_tokens": 64617,
+      "input_token_sha256": "62461918c823b6012100772df091e94d16ec840dd43301f843a5ae3ca9d68ac6",
+      "targets": [
+        "B-17 Flying Fortress bomber"
+      ],
+      "prediction": " B-17 Flying Fortress",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.148
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 110,
+      "prompt_hash": "87d6c0c76b8766747be53cd8891d2352625ea5cb957047aa69889acf484633a7",
+      "doc_hash": "37e417a2eb421bdca367b9aa2a7bc621713c8ee6d505e66fdbaa338fd76ef8ad",
+      "target_hash": "de0e46636af95790dc843e1bf901c9531cf979cb0d55890721a9e85d0590725d",
+      "input_tokens": 63521,
+      "input_token_sha256": "ec9ea72e101585be714733d25d30528876e309ec78d4829bf661b32ab8f9a611",
+      "targets": [
+        "Blake Shelton"
+      ],
+      "prediction": " Blake Shelton",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.924
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 111,
+      "prompt_hash": "867571956d90059467047d87602cc8540f8dbaa12332c9a36fadab4bf3f2913d",
+      "doc_hash": "826e451163709ff88f01aebd32e70446e0f38520b9eee57afdcd5cf70c83af66",
+      "target_hash": "e7db98469b6d59eaa8022ef42251a58c06f4820fca94f309e1675050da325caa",
+      "input_tokens": 63590,
+      "input_token_sha256": "9c209b9cffd4e4500f9b7632009ceee2206ceefc0a93873f5c640c07ce57cb7d",
+      "targets": [
+        "three centuries"
+      ],
+      "prediction": " three centuries",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.89
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 112,
+      "prompt_hash": "b08ffaf55e486a5dab21f49c0402e96eaa8c5e4fc004a93e7d606e34d034d322",
+      "doc_hash": "906bb544a427564cb80d4c34d659c8c5f6b5f85f391aeec151620d791bb7569f",
+      "target_hash": "fc8297c869ca492f0c0924ba913d4e35ef2254c1a338a0c49abb8dff071854bc",
+      "input_tokens": 63249,
+      "input_token_sha256": "beb9a975678b3ea44c455a21f0f2da8ddc5a9a12ea685128575fe4737bad46ec",
+      "targets": [
+        "7 January 1936"
+      ],
+      "prediction": " 7 January 1936",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.188
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 113,
+      "prompt_hash": "288e71fa91bdf437b3797a7fbb3e45faebd9d2f223bae6937db814fc26df225b",
+      "doc_hash": "654b8009c000040cd60f865f52d05ed6e6b52fcdccf90627b434669c6d875ebb",
+      "target_hash": "fea5f02b35b7fd3caa9a9b7658d978e2af1bc5fa12b7b6d58dcf0bcd8a6ded97",
+      "input_tokens": 61657,
+      "input_token_sha256": "0fbe039def745f624ddb6476a657640946a7b3078932433aba02d469ac95ce92",
+      "targets": [
+        "George Archainbaud"
+      ],
+      "prediction": " Ralph Murphy",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.908
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 114,
+      "prompt_hash": "733cd02331e66efbb4878febb85e656fb407e12734c1ee0d12b6a544b79818a3",
+      "doc_hash": "5129dfbe503f78c8eb2cb2e973e90b8265ba23c4a904f946a2e2b6a9fcb1ee65",
+      "target_hash": "a44f8dbe8957fbca76bd64aa37c6dcdc42b0baf775eec0c6af62cdb249d9dae4",
+      "input_tokens": 60188,
+      "input_token_sha256": "8f5b88e39fcbb9b016f0cc0ebd96bd4c756264d3c82c31bbafe0ac2482aa12e4",
+      "targets": [
+        "picric acid"
+      ],
+      "prediction": " Picric acid",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.556
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 115,
+      "prompt_hash": "22789c4bebe18ee596e3376f5b1edf1b42e73c6aa07b4a827c4a6a9c32a3dde0",
+      "doc_hash": "73b907e47da106a68a3c69d540802f49380085f961d78515e2e6e9f1b366c6a9",
+      "target_hash": "8e0f2dff7633752c10db5c3a95321508262ab107977022a02f4659f6f1336f27",
+      "input_tokens": 63995,
+      "input_token_sha256": "c3aed9c5f7d9e5e17c0d12b745fe227c4615bc6e951dd553bd772dce66a8ce67",
+      "targets": [
+        "230"
+      ],
+      "prediction": " more than 230",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.132
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 116,
+      "prompt_hash": "708bfe5f5c470cba48c58e37741070618889b8624a1ed151d3e0d76fe54de8d4",
+      "doc_hash": "b3f3892f4db59290ea2486771588441236ea3f0f20f7c1aaf627f72f04297751",
+      "target_hash": "3b090c375eae3918af8bd8163efef6d0ec3343ee3192926e8bd7e3d38f65a8a8",
+      "input_tokens": 61362,
+      "input_token_sha256": "c793eccdf2cfa2f9424493f8da8bb0036853b79ffd06fd091cd1938ce0f898b8",
+      "targets": [
+        "Marvel"
+      ],
+      "prediction": " Marvel Comics",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.645
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 117,
+      "prompt_hash": "8df3181b8cd19cfdc691c15c352a71d5aef8662444411c6ff517ab5d4d019651",
+      "doc_hash": "6d230e5f8eb934d140fe8ae76b777490260a57a1da8fb52b7d83f114475a20bf",
+      "target_hash": "f0c68854a781eb4985483fd0cc8f6613d266a190e79dad4c2317d5fe88d937fc",
+      "input_tokens": 64195,
+      "input_token_sha256": "eeef05ec3b790fa0ec2c01396c51b7cdce75edf1cd59c8dbe0a2e27247fcc234",
+      "targets": [
+        "United States Senator"
+      ],
+      "prediction": " United States Senator",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.051
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 118,
+      "prompt_hash": "316279864b69506da8d92df0ffe4ef848069ce146bb2894abb83e721a83eb040",
+      "doc_hash": "a744ac43777c19d4d75a77be368c9221b0f1a4d65a2ffb0ecf33df3b1f7006da",
+      "target_hash": "7f78942ee2c50834905aa46e2ea5ef1f89060d2432a47382ad1cd05103f7bea4",
+      "input_tokens": 64198,
+      "input_token_sha256": "6b43e7a2d8ff311629395fc5c3f937dae91c030d2d25a8912a1231aa840a0be4",
+      "targets": [
+        "no"
+      ],
+      "prediction": " No",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.972
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 119,
+      "prompt_hash": "0bb19075f7f2fc2a6d62641304ad4056c55dc117f2401d0cba690d896acaa245",
+      "doc_hash": "7f21e3659884d3618189ba32e2c22dd9927a2eb9d75286a3552d6533d0163665",
+      "target_hash": "a314fedb4bce7ea032789fdb1234b665b68965c7f7cc29f2bf4fbf94eeeb9b34",
+      "input_tokens": 63794,
+      "input_token_sha256": "e2f43f5803241d4489971bdb303d196cf8613587e2d6fd559dc1739fad6f3b62",
+      "targets": [
+        "yes"
+      ],
+      "prediction": " Yes",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.925
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 120,
+      "prompt_hash": "0515ba5d5bec28726424f6d300506b9dfb6b3df317b7e467303d6e5b33eb1cb8",
+      "doc_hash": "5a08a735d0de16f2a32531304515f3c2b1649edb72b4d6562bdc85499c5368dc",
+      "target_hash": "4a3dec2f473853affa94625a88237827481958f3b3f23ca9112c98f92a6c66c3",
+      "input_tokens": 63154,
+      "input_token_sha256": "b3f60e069802e146faf406d76c4cfa5853c0b7bc496c61d63ae5dac5d9733b90",
+      "targets": [
+        "The A41"
+      ],
+      "prediction": " A41",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.885
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 121,
+      "prompt_hash": "50bcc437ca94aac9ffc5630fc7c790e4a8b038ecc3e52251cf1896ad60f78598",
+      "doc_hash": "263dbfaaec3593dfc9610c85dc5dd0261a22b805324fadd9f0eb041676edaa54",
+      "target_hash": "ec092db29b6c3870a0a18acd68411df5cc95d1c34d24f1354e4cea86857980fc",
+      "input_tokens": 63417,
+      "input_token_sha256": "8f15b0a08c06add8b701abf74202ecb42dd3a9d72ccd2847d5130e65cb620510",
+      "targets": [
+        "Princess Jessica"
+      ],
+      "prediction": " Princess Jessica",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.886
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 122,
+      "prompt_hash": "8176034e3f93a9942a7d28a415d1d4d38a6931cb91f3f979a8374e3d23f80086",
+      "doc_hash": "a3cf8e1fd07a7ebfc6a9ecb2956efd8b6d210840fde4e1abf82086bf4bb42205",
+      "target_hash": "b5f1b4fc599bbc9a645396328db3c7a13089ea8794f021eacaf39382a81e39fb",
+      "input_tokens": 61989,
+      "input_token_sha256": "009a71363db3bee2af887301e9c2a3acd4d4a5ab6151accfa02e28f351f6f5bd",
+      "targets": [
+        "The Spiderwick Chronicles"
+      ],
+      "prediction": " The Spiderwick Chronicles",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.762
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 123,
+      "prompt_hash": "ea721a956bcc208216df5da96249d20a9a8a8e6cb7acd8d8f2e13c2bda35b648",
+      "doc_hash": "3b5061bdd74fe1638ba2ca89db917c00cd1eaddcb2f3398c90a5a7e56bda543e",
+      "target_hash": "de3b4c7fbe5f1316ec93aeeeae5e28459a3f56e5189b8c6dfaf722c3fde783e8",
+      "input_tokens": 63818,
+      "input_token_sha256": "31e1f9b4f7212fb70ae505389b479cba8853c7cf35a789c9c15afaf5e702aa2b",
+      "targets": [
+        "KKR & Co"
+      ],
+      "prediction": " Kohlberg Kravis Roberts",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.03
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 124,
+      "prompt_hash": "0448a3a5cd33137c7721f66a557284a3f7d672e14e40538b5ac4500a1cbca2c9",
+      "doc_hash": "86682baa367b28f9cdacebe85f3915dad0edd2148fc912452fe97991f5390319",
+      "target_hash": "6c1b571a850c4f98bfd7058e3d2a29e0b33053155e812eccc153539b6489c280",
+      "input_tokens": 62772,
+      "input_token_sha256": "f77de25c6c9ea4330479c4f3c07df8ec21fb79b2c99fa8601aadb44dd50eda66",
+      "targets": [
+        "The Bye Bye Man"
+      ],
+      "prediction": " The Bye Bye Man",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.864
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 125,
+      "prompt_hash": "f13288b6c33ef5c21780ec5c1cda9c4f4368f87707f14dc54a31769ae2edc92f",
+      "doc_hash": "12eff5dfce6374dceba1b1dfafc8909f496b811104b07a28f51a4461d6668c7f",
+      "target_hash": "ef5dba13f22cd76a8d52a5dd9d233e59014f23c7e80dd424739defcdf8a20c58",
+      "input_tokens": 61868,
+      "input_token_sha256": "b03d9ec84ee5bd82b329899da3873a2277d4776a510da8dc3bc17c22a231a4de",
+      "targets": [
+        "Richmond"
+      ],
+      "prediction": " Richmond River",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.683
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 126,
+      "prompt_hash": "0f965e0327b37e48ddb780bd47229c378fc39d9250508293a874d641cc1af6b7",
+      "doc_hash": "e3c52c68f443b30e9880b6ceaeb1433c0a955853de2fca955d8264b81df84676",
+      "target_hash": "384b60d8bf13a3f1edc7383c5b4278c23d3d0bcb854e2d7a51f9ee298660e976",
+      "input_tokens": 65123,
+      "input_token_sha256": "4dc32ffa7d13ce98616d3ec44da567f3921f3e33cf73cbf5b6ce7a8b4255aca8",
+      "targets": [
+        "Owsley Stanley"
+      ],
+      "prediction": " Owsley Stanley",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.16
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 127,
+      "prompt_hash": "8cdafec7c27710b585e217667b55a008dce67cf929445856575e6b8f56e4e32f",
+      "doc_hash": "3e3c11503070da4feb1c76e34f119cd72cb1c011568d853af63f50d677cbb39b",
+      "target_hash": "fd596ece5a547ee523a9d21a573f7c73c7960ffb10c60b35af8ba45fd913cf94",
+      "input_tokens": 64291,
+      "input_token_sha256": "6107445dadcd1be9fd247c0b336524686d71d0cbaf3430cb89ad3d0a0a1bb8f8",
+      "targets": [
+        "the late 12th Century"
+      ],
+      "prediction": " late 12th Century",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.12
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 128,
+      "prompt_hash": "1a0fcacdb2d5d26717c07ab99f03433d3838dfe9064ab0b5c9c02c28801accf7",
+      "doc_hash": "20714529d9b938b265d2edf8c9069ce6a6f499b3b03001cf50a3338e52616373",
+      "target_hash": "9cd04ba299c4172d48ae05e9f3efa69c384e314ed69690fa54a7cedcc6d3f176",
+      "input_tokens": 62192,
+      "input_token_sha256": "0fec4c68102140a553f93c759aea1b106341e8892ca4c5881a06a92a6ff69e61",
+      "targets": [
+        "San Luis Obispo, California"
+      ],
+      "prediction": " downtown San Luis Obispo",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.813
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 129,
+      "prompt_hash": "793e53adb94d784ae26c20ac73153baf46a0ae80c31b080a1574d760a23a57de",
+      "doc_hash": "0910e3c05890d306ea201cc749bbd0e759fb61f05211a1516b60e6cb446ad0ca",
+      "target_hash": "c77a01b38bde0e23274863ce2459d9833c3cdc9653ae6a1eadad5ce72dd3437b",
+      "input_tokens": 62718,
+      "input_token_sha256": "ebbaf90a6a2446954a5283cd540c1bcf6515d72f8a192d232ecd31a4d5c01735",
+      "targets": [
+        "Mercedes-Benz Superdome"
+      ],
+      "prediction": " The question asks about a game on January 2, 2012, but the provided documents do not contain information about a specific game on that date",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "length",
+      "elapsed_s": 8.638
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 130,
+      "prompt_hash": "b4191b06306f14af2c1089597dd61876c4030eafece0738a12d0a62d7b6afe8a",
+      "doc_hash": "2ed4c73591ee8710e5457fe7f32420d969e2d43c6ef038132603a5530d9b13d8",
+      "target_hash": "5771a849bb7dc90679cf8e5298d2a2dc1213a06a622ae7576898e9303cb13703",
+      "input_tokens": 62681,
+      "input_token_sha256": "3a5916dfe71e9981cfe2f14a9471e703857259bc6d2c09c1e1c1286858846471",
+      "targets": [
+        "LaLee's Kin: The Legacy of Cotton"
+      ],
+      "prediction": " LaLee's Kin: The Legacy of Cotton",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.994
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 131,
+      "prompt_hash": "b04249da6d00e4969946e46d926059c6bf5f199465ad6790e19e6e06182b2ee1",
+      "doc_hash": "8f0ec4f17333911e785cce8ceae22ea1b9f2388a8f7451e96eef7db5200f346d",
+      "target_hash": "2bd49b52674e0b05be7370e10e026f048bf7008c474beffbedfd8f69ca918703",
+      "input_tokens": 61546,
+      "input_token_sha256": "e75b3797bc688aeddb0ce6423979d1a1a22544a5bd140deddaf76c9f82047697",
+      "targets": [
+        "Pirate's Cove"
+      ],
+      "prediction": " Pirate's Cove",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.671
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 132,
+      "prompt_hash": "5422c99c8d1d91e016841e9b34239e8cfc7f09e936ed85e43ed87e9c0df4f67f",
+      "doc_hash": "8d16e79ec444c24e74ee55eedeea80bb262e1be2f8636535732f91e4d34264a6",
+      "target_hash": "a50b6acf4057b3ea9f7d33d4e8cd6a0b5dfdc09af2a648e6dbd3a1b6eb4c1124",
+      "input_tokens": 63604,
+      "input_token_sha256": "53247dd9e31694fa953f2a808208d1755df0e1df0d587625f3afe6ea215f669a",
+      "targets": [
+        "Crystal Dynamics"
+      ],
+      "prediction": " Square Enix",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.921
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 133,
+      "prompt_hash": "ad4097a4c895fd58ce6dc0443510ef5562e67bb0a513b10fd15e5b62a960e847",
+      "doc_hash": "a25f1bbf41674a71f55ba8a140489c38242fea3479fbe2bbca3b23c92c0d432d",
+      "target_hash": "dba3258ab7736747a4c904a8c399504801f717acdbf806b3962e02270efbba57",
+      "input_tokens": 64597,
+      "input_token_sha256": "486526f2de84f471538f57887f1ae86b3032579813f05690eebae2ed21fe387b",
+      "targets": [
+        "\"The Marshall Mathers LP 2\""
+      ],
+      "prediction": " The Marshall Mathers LP 2",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.188
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 134,
+      "prompt_hash": "fa4a9f78ef79e773fe90daa402b76015e423d394e464519f7b23a57d873ec9bc",
+      "doc_hash": "c9a566107ab9ab8bc97747089aed36be9d9eae20d4d48a78e366518f297a1348",
+      "target_hash": "5e13fd292a4ec563ff7f0b16b87f49958ae31b3943ce3cf22ee504eeb26030f2",
+      "input_tokens": 61561,
+      "input_token_sha256": "7536a0a6a1a08d1d24a4f78e306041a23fbf4375caef0ef5e9f02f422c41a945",
+      "targets": [
+        "Suicide Squad"
+      ],
+      "prediction": " Suicide Squad",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.661
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 135,
+      "prompt_hash": "df0c9977e37d679bd17db7ac56e468c0c812523199593ab935d463e74946c50f",
+      "doc_hash": "8902ad4501633877015d112df451fec2b62dd17078f206f87387eba8cf6fce6d",
+      "target_hash": "5c0ed68e3988fdee488f1adbbb512a8a00d3627f6c8e22069597a704639980d0",
+      "input_tokens": 64177,
+      "input_token_sha256": "00e920eb49f7632f6de42e2204f61c343940ec672a013d62d4e3be6e53764888",
+      "targets": [
+        "Jillian Belk"
+      ],
+      "prediction": " Jillian Belk",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.056
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 136,
+      "prompt_hash": "db9d49bdff9aa278f3cf3536c9b947b1e6bf42b3429021ac25645706196be638",
+      "doc_hash": "9c0f30039e954c21f309e5fb20c28673fe1da56642295925b6575b410136a30c",
+      "target_hash": "90b4dca9d36fdc541c9f8e01223d21a7d7a4afc250680cf715c16c1eb8692b71",
+      "input_tokens": 64359,
+      "input_token_sha256": "48abba6c75e7d74569450684a1f637f3bdb5dce4379625d50295b51c63b8ab06",
+      "targets": [
+        "Texas Tech University"
+      ],
+      "prediction": " Texas Tech University",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.095
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 137,
+      "prompt_hash": "6356a59a33d8c8457138e7548a5e2079d6d7f6ed15a18e76020eb8668503031c",
+      "doc_hash": "09cbeea91cd392d56f54905e823fce12bc78f0edd6b0fa358f4f54e78fbeeda1",
+      "target_hash": "5c0021ffc20dc25d13b771c0ec6733e8126a3abb1bf983df2e1ad11947effb13",
+      "input_tokens": 63793,
+      "input_token_sha256": "97fa58e13a129e6e0ca56c223fc2fb9f65eb04640527c5796f0d0d9274c34a53",
+      "targets": [
+        "Lord Combermere"
+      ],
+      "prediction": " Stapleton Cotton, 1st Viscount Combermere",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.277
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 138,
+      "prompt_hash": "962bd0bb8dce865e805b58329a09ca9367a491ba8fafe5fb5254eabef08225e9",
+      "doc_hash": "78522c0a91a75c0d6aa7b10f228964d9d1b576f978ad894c562605d66ffbbfcd",
+      "target_hash": "83aca92437d7118819bb1f0856c95dcfc3127ac9180620b27da79d0704727bc5",
+      "input_tokens": 64571,
+      "input_token_sha256": "ad80f3038009404cab6000c5e69b3290dcf482636fec8b0e084525950392675d",
+      "targets": [
+        "seasonal television specials, particularly its work in stop motion animation"
+      ],
+      "prediction": " seasonal television specials",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.091
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 139,
+      "prompt_hash": "02278b40a33ec3a2f93e0476786fc042c5679b37a97065478c20f88ab84903df",
+      "doc_hash": "8d0ecffca72bba258698f68364331d69aae92ec2d64115afe63ede4a24e04651",
+      "target_hash": "942ffbb00e6e9519f078a09a7536e830dac4445486c8971c4c3d743eeb2c8e7e",
+      "input_tokens": 64012,
+      "input_token_sha256": "dd47ae2ba9e98a05af3c5a29f3771e7445d0d1132c878d959e767edd5ba48634",
+      "targets": [
+        "2014"
+      ],
+      "prediction": " 2007",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.1
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 140,
+      "prompt_hash": "685c7da5f27b13fd62da48b357b5aa50b607936fda44ec3b95cc8422da64ea3e",
+      "doc_hash": "952d98175d97cebc30a199d8fcff1a14570274c9fdd0a90fecaa42fa0244fd71",
+      "target_hash": "40a18285800d6607b34ea5fd2ac69a7c1f6c30913e1f14ef14670ba0f473c007",
+      "input_tokens": 62613,
+      "input_token_sha256": "c89fe3d32b27e1636e98a736daa6b5ff7f8b6d997462d651a8aa5cc3bcd5aca1",
+      "targets": [
+        "Oxford"
+      ],
+      "prediction": " Oxford University",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.811
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 141,
+      "prompt_hash": "254c3cb4d242032944182b73a8f692a3989fbf919f928b007c4626a0a7165374",
+      "doc_hash": "a9c338898d632dd0859bad069fba9e4c6c0b9e6767003fa5eae590fb9eb6ba80",
+      "target_hash": "bd228e91a8554c273fccbbf225281e43e7221db6185a56ba7a771e50722ecdde",
+      "input_tokens": 64322,
+      "input_token_sha256": "aa2d22740ca22928181a43e15e5c0e7dbcabf65facf765021ff7f49707c44667",
+      "targets": [
+        "Roberta Vinci"
+      ],
+      "prediction": " Jorge Lozano",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.089
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 142,
+      "prompt_hash": "f14389247493b3bc1a5bbe8f5061bf74f4c3973451048088d9c6ef492c768a6f",
+      "doc_hash": "67d28ef9c2a0ca4f74da66d557bdfdca3972c12515664f22a02fed913e1ae0d7",
+      "target_hash": "8ebafb0346cdaab846465810b248179d34e3c3fc0f8e2101fb5e9f9d3cf07a96",
+      "input_tokens": 63782,
+      "input_token_sha256": "f019710b309fcef4085c8a93e63d74b0fa6f31d5ca59a2ee3accfd96e4b150de",
+      "targets": [
+        "\"Teach the Controversy\" campaign"
+      ],
+      "prediction": " Teach the Controversy",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.064
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 143,
+      "prompt_hash": "8c926e5f9fd8449ffa23a9e9a81ced1195f6463ecc66d84d07d44ad1093df1e9",
+      "doc_hash": "f8fd763547d82319f66b200cdd3034fce3e88e22dc70fb83cf02c0edbd899dad",
+      "target_hash": "b8fc46e5f949ed3b3eea40d4837165e5ba0779c6bb8a65a1dc1cf9643e343049",
+      "input_tokens": 62865,
+      "input_token_sha256": "0fc2d7200a8df0646284b66870ed8789479d42f7313d8c321a94b6ce92740fcf",
+      "targets": [
+        "Lostprophets disbanded in 2013 after Watkins was charged with sexual offences in late 2012."
+      ],
+      "prediction": " Ian Watkins",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.851
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 144,
+      "prompt_hash": "9852d1bf7bc137c2ecb73245fafb70c476f7532878d91abe08d4ee7689371659",
+      "doc_hash": "c266edab19e21a2e7265eae72a841b9792222a19979f6fe07ebdbe7bdc19708a",
+      "target_hash": "4f703a005242ae0c9ec04620c023d8432087cd301cfa2841ad6de593ee04578a",
+      "input_tokens": 64423,
+      "input_token_sha256": "a5491585a904572f4e89b0ed147287e2b24f45a93aac67977505c23c8cbd0b37",
+      "targets": [
+        "Nebo Zovyot"
+      ],
+      "prediction": " Nebo Zovyot",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.187
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 145,
+      "prompt_hash": "18a46032b94058b97eab92fa05ce0836c7c80a40cb6d792b23a4563236b83a61",
+      "doc_hash": "1b78f39966eec249949a427ea080b89f06c4131caac76adc6a9ba0a85d003883",
+      "target_hash": "2b8dc4908e54443a22c73054442c4822e62b13f18b7fe1bed33e605ec4256800",
+      "input_tokens": 64571,
+      "input_token_sha256": "d0dc13061e9e0a578e1e853843a4823f852d042f9ea7253f78b25ea82871ad69",
+      "targets": [
+        "Erika Jayne"
+      ],
+      "prediction": " Erika Jayne",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.311
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 146,
+      "prompt_hash": "7c11fa5d9c0d40a126316d656b792876453ed1b5cb7a506803bacc24f599c84c",
+      "doc_hash": "a7a0f8a76858a69cc04f5dd92c2293c2c65d72ac0ec0114b46f108a53ecfa39c",
+      "target_hash": "785f41b900e53a7e9a110e70b294735b0cb9d4d9bacc74be5ad8e56c8a243d27",
+      "input_tokens": 63610,
+      "input_token_sha256": "74da7c8089b1e6cfd7796c80b0c07ba9de0cf15d405adbb8d413a889013b17af",
+      "targets": [
+        "2009"
+      ],
+      "prediction": " 2009",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.23
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 147,
+      "prompt_hash": "7dfd73b9982473c27f851c1dff6f9ac4ffacd06ace71db6f235877ba1d69e8e2",
+      "doc_hash": "a4d0e4c44895646b5f65403310b2007d9e47189fdb82dfaa0cf442077126ed6c",
+      "target_hash": "fb624bff78f052ba82dc60979eae4da7087f6affc846c5fb5909ac8bf92b1669",
+      "input_tokens": 62464,
+      "input_token_sha256": "f0e6c5ad6d788754ea3eaa506b5bdb0fd47f8c554b9e8ea03024e3b427176fa3",
+      "targets": [
+        "Kingdom of the Isles"
+      ],
+      "prediction": " Kingdom of the Isles",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.789
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 148,
+      "prompt_hash": "07b0f63a7b96030c38fb11c0a8fad6d19c8b0ec73da2b37ab13a6b4a4e2b3471",
+      "doc_hash": "f484c9eb198bc2f4d43521e4b97e1112793b1220b2a25a2891119ae7f5b401f4",
+      "target_hash": "1656edfec581107e0ad591f64a6c0a50abf71367761f6330cd410765c366acaf",
+      "input_tokens": 63903,
+      "input_token_sha256": "d9bde85c8ba4a1e520f41c74f0fadf561843860dee9999ab050d4ba77f4ad479",
+      "targets": [
+        "The Beatles"
+      ],
+      "prediction": " The Beatles",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.998
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 149,
+      "prompt_hash": "0ea424f118314318541b9c4672a786d57d08288204cde4d4414e15562bb050da",
+      "doc_hash": "9ec76ab6d88c7adbf4d501c10df3dcb75e9fbf08491cd2078fc2fdba1d5c0a1e",
+      "target_hash": "56c723309b718fa9769bf6d5809236d07f953efad717daf814fa8350b729cba6",
+      "input_tokens": 65200,
+      "input_token_sha256": "cbd1918cbbc0175d1e2b690f7887f027367d63397a888bc8d4aeae6aeacaa506",
+      "targets": [
+        "\"We'll Burn That Bridge\""
+      ],
+      "prediction": " \"We'll Burn That Bridge\"",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.32
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_hotpot": 62.0
+  }
+}

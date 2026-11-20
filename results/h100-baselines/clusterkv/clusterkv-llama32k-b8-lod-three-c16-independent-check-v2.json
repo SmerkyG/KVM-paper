@@ -1,0 +1,36 @@
+{
+  "stage": "complete",
+  "records": [
+    {
+      "batch_size": 8,
+      "kv_bits": 0,
+      "graph_replays": 3,
+      "max_abs": 0.0
+    },
+    {
+      "batch_size": 8,
+      "kv_bits": 4,
+      "graph_replays": 3,
+      "max_abs": 0.0
+    }
+  ],
+  "hardware": "_CudaDeviceProperties(name='NVIDIA H100 80GB HBM3', major=9, minor=0, total_memory=81079MB, multi_processor_count=132, uuid=b3722181-849c-94e5-0f28-ab4d273c96ce, L2_cache_size=50MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_sha256": "9f83165ca291656542f74deaf8c720bdbc49ba87271025ff206d5dc90a587434",
+      "source_file_count": 326
+    },
+    "runtime": {
+      "python": "3.10.12",
+      "packages": {
+        "aiter": null,
+        "torch": "2.5.1+cu124",
+        "transformers": "4.51.3",
+        "triton": "3.7.1",
+        "vllm": null
+      }
+    }
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 40960,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 32768,
+  "methods": [
+    "lod",
+    "dense",
+    "subset-512"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 30720,
+  "warmup_steps": 512,
+  "dense_kv_source": "device",
+  "captures_host_kv": false,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 30720,
+      "prefill_token_id": 13311,
+      "input_token_sha256": "96b5ff56d0b2a24956920e4031f82158e91407b83dc6e866611a841ab9c6c46f",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8610,
+            "eager_argmax": 8610
+          },
+          "windows": [
+            {
+              "seconds": 4.002004912000302,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 3.9988310400003684,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.0240661859998,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 7.81641584375059
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8610,
+            "eager_argmax": 8610,
+            "graph_argmax_by_request": [
+              8610
+            ],
+            "eager_argmax_by_request": [
+              8610
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 4.730025274999207,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 4.737864753999929,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 4.74834438400012,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 9.253642097656112
+        },
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8610,
+            "eager_argmax": 8610
+          },
+          "windows": [
+            {
+              "seconds": 10.014031893999345,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.238497589999497,
+                0.27400390000002517,
+                0.24322601199946803,
+                0.24763554699984525
+              ]
+            },
+            {
+              "seconds": 10.00768314600009,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.24560199799998372,
+                0.2457007680004608,
+                0.25126315799934673,
+                0.2527763239995693
+              ]
+            },
+            {
+              "seconds": 10.043491907000316,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.2557082970006377,
+                0.2545442339996953,
+                0.257253449000018,
+                0.2586226390003503
+              ]
+            }
+          ],
+          "median_decode_ms": 19.55865604296747,
+          "last_layer_selected_prefix_counts": [
+            511,
+            507,
+            511,
+            512,
+            500,
+            505,
+            504,
+            504
+          ],
+          "cache_setup_s": 3.1801208870001574,
+          "worker_pid": 3693
+        }
+      },
+      "elapsed_s": 88.24436041399986
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc"
+}

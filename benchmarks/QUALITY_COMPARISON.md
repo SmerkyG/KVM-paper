@@ -1,5 +1,15 @@
 # Limited quality comparisons for H100 attention methods
 
+The latest Llama-3.1-8B-Instruct RULER panels cover the final two-tier and
+adaptive three-tier threshold recipes at [32K](../results/h100-baselines/adaptive-threshold-prefill/RULER_32K.md)
+and [64K](../results/h100-baselines/ruler-64k-panel/RULER_64K.md).
+The [QUEST report](../results/h100-baselines/llama-final-checks/QUEST.md)
+has both lengths with an FP16 dense control and the same 2,048-token budget
+for speed and quality. The [dense-prefill report](../results/h100-baselines/llama-context-scaling/DENSE_PREFILL.md)
+tracks Multipole and Squeezed p90 at 32K and 64K, with a fixed 2,900-centroid
+decoder index. The [64K comparison](../results/h100-baselines/ruler-64k-panel/RULER_64K.md#complete-64k-method-evaluation)
+also includes FP16 ClusterKV on all 416 prompts.
+
 The [ClusterKV comparison](../results/h100-baselines/clusterkv/REPORT.md)
 uses the same frozen 416-prompt Llama-3.1-8B-Instruct cohort at 32K. See its
 per-task first-response scores alongside dense, RetroInfer and two-tier LoD.
@@ -10,7 +20,7 @@ The matched sparse-prefill LoD run scores **86.96%**, GPU-only RetroInfer
 with dense prefill scores **88.53%**, and dense BF16 scores **88.88%**.
 The first generated token matches dense BF16 on all 416 prompts.
 
-Status: **the 32K RULER panel is complete for dense and LoD BF16**, with 32
+The earlier 32K RULER panel covered dense and LoD BF16, with 32
 examples per task across all 13 tasks. See the
 [paired 13-task results](../results/h100-baselines/ruler-32k-panel/ruler-32k-full13-summary.md).
 The INT4 run was stopped to prioritize the full
@@ -428,13 +438,10 @@ standard aggregate.
   as the H100 timing comparison. Run BF16 and INT4 KV separately.
 - Run RetroInfer with the released settings already used in our timing
   comparison; record its growing recent buffer and rebuild policy.
-- QUEST's released kernels in our shared-KV adapter require FP16. Include
-  both FP16 dense (its precision-matched control) and BF16 dense (the control
-  for the other methods). Also report the two dense scores alongside one
-  another. The current graph adapter rejects prompts whose token lengths are
-  not divisible by 16. Support and validate partial pages first, or use a
-  validated author path that accepts them; do not pad, truncate or discard
-  examples merely to pass this check.
+- QUEST's released kernels in our shared-KV adapter require FP16. The
+  [32K and 64K panels](../results/h100-baselines/llama-final-checks/QUEST.md)
+  use an FP16 dense control and the original tokenized prompts, including
+  prompts with a partial last page. The main LoD comparison uses BF16 dense.
 - For a paper-oriented QUEST point use 16-token pages and the paper's 25%
   budget. For a speed-linked point also evaluate the 2,048-token budget used
   in our previous timing table. These are different configurations; time the
@@ -446,8 +453,7 @@ standard aggregate.
   Quality is batch-one; attach timing only where method, model precision,
   budget and context match, and identify any batch-size difference.
 
-The existing three-passkey test is a sanity check, not this panel; old LoD
-quality results from before the state-update correction are not a substitute.
+The three-passkey sanity check preceded the complete shared-KV QUEST panel. The current LoD runs include the state-update correction.
 The older Qwen and K2 RULER results use different models and cannot be pooled
 with these Llama scores.
 

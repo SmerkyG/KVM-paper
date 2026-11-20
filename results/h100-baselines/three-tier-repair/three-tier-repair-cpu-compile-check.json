@@ -1,0 +1,55 @@
+{
+  "stage": "complete",
+  "scope": "CPU compilation targeting sm90; no kernels launched",
+  "source_sha256": "d05946c72ddd1cbfe443c7830fd57acecf526d90c6fac8af018bd5b38e5d933b",
+  "constants": {
+    "H": 8,
+    "G": 4,
+    "D": 128,
+    "S": 67,
+    "P": 512,
+    "L": 8192,
+    "ROOTS": 32,
+    "HASH": 4096,
+    "PROBES": 8,
+    "WORKERS": 64,
+    "SCALE": 0.12751743082459868,
+    "C": 0.5
+  },
+  "signature": {
+    "Q": "*bf16",
+    "SK": "*bf16",
+    "SV": "*bf16",
+    "SC": "*fp32",
+    "LK": "*bf16",
+    "LV": "*bf16",
+    "Indices": "*i32",
+    "PK": "*bf16",
+    "PV": "*bf16",
+    "PC": "*i32",
+    "Table": "*i32",
+    "HashKeys": "*i32",
+    "HashValues": "*i32",
+    "HashUsed": "*i32",
+    "Lengths": "*i32",
+    "Selected": "*i32",
+    "RouteCount": "*i32",
+    "Out": "*fp32",
+    "LSE": "*fp32",
+    "Stats": "*i32"
+  },
+  "records": [
+    {
+      "warps": 2,
+      "hash": "f77cf90fa5ae08b935251a83b80c0ca020d4bcf6a9dbcad0e1aea9fc4ff18812",
+      "registers": null,
+      "shared": 512
+    },
+    {
+      "warps": 4,
+      "hash": "df960f25ebeda4bca71e4b79c00e9fee36f664a64fa9bfa2ae53797be1130af1",
+      "registers": null,
+      "shared": 1024
+    }
+  ]
+}

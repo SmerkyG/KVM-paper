@@ -1,0 +1,37 @@
+{
+  "phase": "check",
+  "source": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-frontier-v1/source",
+  "jobs": [
+    {
+      "id": "24509-amd-fast-check-frontier-v1-frontier",
+      "name": "amd-fast-check-frontier-v1-frontier",
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-frontier-v1/amd-fast-check-frontier-v1-frontier.json",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--name",
+        "amd-fast-check-frontier-v1-frontier",
+        "--num-gpus",
+        "1",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-frontier-v1/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-frontier-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION=frontier",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS=4",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_synthetic_check",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-frontier-v1/amd-fast-check-frontier-v1-frontier.json"
+      ]
+    }
+  ]
+}

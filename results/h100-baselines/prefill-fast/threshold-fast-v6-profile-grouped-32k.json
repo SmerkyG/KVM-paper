@@ -1,0 +1,912 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": {
+    "rule": "entry",
+    "fast_tile_queries": 8192,
+    "fast_leaf_backend": "grouped",
+    "fast_score_reuse": true,
+    "fast_select_m": 16,
+    "fast_saved_correction": true,
+    "fast_route_capacity": 64,
+    "fast_cap_early_exit": true,
+    "mass_multiplier": 16.0,
+    "entry_bound": 16,
+    "max_regions": null,
+    "leaf_backend": "threshold-default",
+    "grouped_fused_counts": false,
+    "work_bound": 16,
+    "tile_queries": 512,
+    "prefill_block_size": 16384,
+    "reuse_mean": false,
+    "no_host_sync": false,
+    "packed": false,
+    "fuse_pack": false,
+    "pair_reuse": false,
+    "implementation": "fast"
+  },
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 3.6322857630002545,
+      "decode_s": 0.008381502993870527,
+      "capture_s": 0.19627241099078674,
+      "cache_init_s": 0.30318949300271925,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      "prefill_leaf_profile": [
+        {
+          "fast_prepare": 0.0016442240476608277,
+          "fast_produce": 0.009411263704299927,
+          "fast_select": 0.003791391968727112,
+          "fast_exact": 0.06496857452392578,
+          "fast_merge": 0.01573135995864868
+        },
+        {
+          "fast_prepare": 1.8815999850630762e-05,
+          "fast_produce": 0.005304800033569336,
+          "fast_select": 0.0029045439958572386,
+          "fast_exact": 0.011989248275756837,
+          "fast_merge": 0.0038727359771728517
+        },
+        {
+          "fast_prepare": 1.990400068461895e-05,
+          "fast_produce": 0.00547164797782898,
+          "fast_select": 0.0030208959579467775,
+          "fast_exact": 0.03176508903503418,
+          "fast_merge": 0.008927680015563965
+        },
+        {
+          "fast_prepare": 2.019199915230274e-05,
+          "fast_produce": 0.005659103870391846,
+          "fast_select": 0.00312988805770874,
+          "fast_exact": 0.03216511917114258,
+          "fast_merge": 0.009002272129058839
+        },
+        {
+          "fast_prepare": 1.91040001809597e-05,
+          "fast_produce": 0.0053565120697021485,
+          "fast_select": 0.0029813120365142823,
+          "fast_exact": 0.030670528411865235,
+          "fast_merge": 0.008542143821716308
+        },
+        {
+          "fast_prepare": 1.961600035429001e-05,
+          "fast_produce": 0.005608448028564453,
+          "fast_select": 0.0030929920673370363,
+          "fast_exact": 0.0321395845413208,
+          "fast_merge": 0.009162079811096192
+        },
+        {
+          "fast_prepare": 1.9711999222636224e-05,
+          "fast_produce": 0.005485472202301026,
+          "fast_select": 0.0030247360467910767,
+          "fast_exact": 0.03207190418243408,
+          "fast_merge": 0.009493727684020997
+        },
+        {
+          "fast_prepare": 1.9231999292969705e-05,
+          "fast_produce": 0.0053350400924682614,
+          "fast_select": 0.0029795520305633547,
+          "fast_exact": 0.037410911560058595,
+          "fast_merge": 0.011154047966003418
+        },
+        {
+          "fast_prepare": 1.9295999780297278e-05,
+          "fast_produce": 0.0053211841583251955,
+          "fast_select": 0.002967839956283569,
+          "fast_exact": 0.03632153511047363,
+          "fast_merge": 0.010244256019592285
+        },
+        {
+          "fast_prepare": 2.0128000527620317e-05,
+          "fast_produce": 0.005720928192138672,
+          "fast_select": 0.0031583360433578493,
+          "fast_exact": 0.03226105499267578,
+          "fast_merge": 0.008766816139221192
+        },
+        {
+          "fast_prepare": 1.9328000023961066e-05,
+          "fast_produce": 0.005306303977966309,
+          "fast_select": 0.0029608319997787473,
+          "fast_exact": 0.03419564819335937,
+          "fast_merge": 0.009620448112487794
+        },
+        {
+          "fast_prepare": 1.9840000197291375e-05,
+          "fast_produce": 0.005519072055816651,
+          "fast_select": 0.003064671993255615,
+          "fast_exact": 0.032787616729736326,
+          "fast_merge": 0.00936252784729004
+        },
+        {
+          "fast_prepare": 1.9840000197291375e-05,
+          "fast_produce": 0.00558409595489502,
+          "fast_select": 0.003081920027732849,
+          "fast_exact": 0.030141056060791014,
+          "fast_merge": 0.00864857578277588
+        },
+        {
+          "fast_prepare": 1.9775999709963798e-05,
+          "fast_produce": 0.005642303943634033,
+          "fast_select": 0.003125728011131287,
+          "fast_exact": 0.0324416332244873,
+          "fast_merge": 0.009043231964111328
+        },
+        {
+          "fast_prepare": 1.9168000668287278e-05,
+          "fast_produce": 0.0053803520202636715,
+          "fast_select": 0.002977855920791626,
+          "fast_exact": 0.0315197114944458,
+          "fast_merge": 0.00862505578994751
+        },
+        {
+          "fast_prepare": 1.9807999953627586e-05,
+          "fast_produce": 0.005702559947967529,
+          "fast_select": 0.0031466240882873533,
+          "fast_exact": 0.03175337600708008,
+          "fast_merge": 0.008978336334228516
+        },
+        {
+          "fast_prepare": 1.9168000668287278e-05,
+          "fast_produce": 0.005362911939620972,
+          "fast_select": 0.0029785920381546023,
+          "fast_exact": 0.030787391662597655,
+          "fast_merge": 0.008494559764862061
+        },
+        {
+          "fast_prepare": 1.8848000094294547e-05,
+          "fast_produce": 0.005389472007751465,
+          "fast_select": 0.0030017600059509277,
+          "fast_exact": 0.03300496006011963,
+          "fast_merge": 0.009306655883789063
+        },
+        {
+          "fast_prepare": 2.0128000527620317e-05,
+          "fast_produce": 0.005516160011291504,
+          "fast_select": 0.003044735908508301,
+          "fast_exact": 0.02994147205352783,
+          "fast_merge": 0.00850982427597046
+        },
+        {
+          "fast_prepare": 1.897599920630455e-05,
+          "fast_produce": 0.005362112045288086,
+          "fast_select": 0.002983232021331787,
+          "fast_exact": 0.03460627174377441,
+          "fast_merge": 0.009885823726654053
+        },
+        {
+          "fast_prepare": 1.9680000841617586e-05,
+          "fast_produce": 0.005595936059951782,
+          "fast_select": 0.0031095679998397827,
+          "fast_exact": 0.03373721694946289,
+          "fast_merge": 0.009856128215789794
+        },
+        {
+          "fast_prepare": 1.913600042462349e-05,
+          "fast_produce": 0.0053129918575286865,
+          "fast_select": 0.0029604159593582154,
+          "fast_exact": 0.029770495414733887,
+          "fast_merge": 0.008723936080932616
+        },
+        {
+          "fast_prepare": 2.0255999639630318e-05,
+          "fast_produce": 0.005645567893981933,
+          "fast_select": 0.003133888006210327,
+          "fast_exact": 0.033382976531982425,
+          "fast_merge": 0.009245696067810059
+        },
+        {
+          "fast_prepare": 1.9392000511288643e-05,
+          "fast_produce": 0.005427200078964234,
+          "fast_select": 0.0030240640640258787,
+          "fast_exact": 0.033592063903808596,
+          "fast_merge": 0.009602752208709717
+        },
+        {
+          "fast_prepare": 1.9551999866962432e-05,
+          "fast_produce": 0.005551391839981079,
+          "fast_select": 0.0030794240236282347,
+          "fast_exact": 0.03284227180480957,
+          "fast_merge": 0.009554399967193603
+        },
+        {
+          "fast_prepare": 1.9263999536633493e-05,
+          "fast_produce": 0.0053786239624023435,
+          "fast_select": 0.0029942400455474855,
+          "fast_exact": 0.031240639686584474,
+          "fast_merge": 0.008680095672607422
+        },
+        {
+          "fast_prepare": 1.9680000841617586e-05,
+          "fast_produce": 0.005542559862136841,
+          "fast_select": 0.003074112057685852,
+          "fast_exact": 0.035805311203002926,
+          "fast_merge": 0.010348512172698974
+        },
+        {
+          "fast_prepare": 1.9936000928282736e-05,
+          "fast_produce": 0.005563199996948242,
+          "fast_select": 0.003096223950386047,
+          "fast_exact": 0.033028833389282225,
+          "fast_merge": 0.009668351650238037
+        },
+        {
+          "fast_prepare": 1.8912000581622124e-05,
+          "fast_produce": 0.005330848217010498,
+          "fast_select": 0.0029799998998641967,
+          "fast_exact": 0.03283087921142578,
+          "fast_merge": 0.009431871891021728
+        },
+        {
+          "fast_prepare": 1.9295999780297278e-05,
+          "fast_produce": 0.005375360012054443,
+          "fast_select": 0.0029965760707855223,
+          "fast_exact": 0.03410063934326172,
+          "fast_merge": 0.010224672317504882
+        },
+        {
+          "fast_prepare": 1.9936000928282736e-05,
+          "fast_produce": 0.00548854398727417,
+          "fast_select": 0.003052864074707031,
+          "fast_exact": 0.03233897686004639,
+          "fast_merge": 0.009331168174743653
+        },
+        {
+          "fast_prepare": 1.9295999780297278e-05,
+          "fast_produce": 0.005315807819366455,
+          "fast_select": 0.0029442880153656005,
+          "fast_exact": 0.02416659164428711,
+          "fast_merge": 0.006659584045410156
+        }
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 8.381502993870527,
+      "decode_ms_per_token": 8.381502993870527,
+      "decode_tokens_per_second": 119.3103433514621
+    },
+    {
+      "prefill_s": 2.857335698005045,
+      "decode_s": 0.008741053999983706,
+      "capture_s": 0.15528999001253396,
+      "cache_init_s": 0.009811908996198326,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      "prefill_leaf_profile": [
+        {
+          "fast_prepare": 1.948799937963486e-05,
+          "fast_produce": 0.005241952180862427,
+          "fast_select": 0.0029140160083770753,
+          "fast_exact": 0.030170783996582032,
+          "fast_merge": 0.014919744014739991
+        },
+        {
+          "fast_prepare": 1.9999999552965164e-05,
+          "fast_produce": 0.0055328960418701174,
+          "fast_select": 0.0029774399995803834,
+          "fast_exact": 0.012307071685791015,
+          "fast_merge": 0.0039829759597778324
+        },
+        {
+          "fast_prepare": 1.9936000928282736e-05,
+          "fast_produce": 0.005439776182174683,
+          "fast_select": 0.003012192010879517,
+          "fast_exact": 0.031752960205078125,
+          "fast_merge": 0.008865536212921143
+        },
+        {
+          "fast_prepare": 1.961600035429001e-05,
+          "fast_produce": 0.005326496124267578,
+          "fast_select": 0.0029595839977264405,
+          "fast_exact": 0.03146384048461914,
+          "fast_merge": 0.008829279899597168
+        },
+        {
+          "fast_prepare": 2.0447999238967895e-05,
+          "fast_produce": 0.005491711854934692,
+          "fast_select": 0.003041919946670532,
+          "fast_exact": 0.031054271697998046,
+          "fast_merge": 0.008607135772705079
+        },
+        {
+          "fast_prepare": 2.0287999883294106e-05,
+          "fast_produce": 0.005459743976593018,
+          "fast_select": 0.0030393919944763184,
+          "fast_exact": 0.03196687984466553,
+          "fast_merge": 0.009147232055664062
+        },
+        {
+          "fast_prepare": 2.0767999812960626e-05,
+          "fast_produce": 0.005660928010940551,
+          "fast_select": 0.0031418880224227904,
+          "fast_exact": 0.03240764808654785,
+          "fast_merge": 0.009615776062011718
+        },
+        {
+          "fast_prepare": 1.9231999292969705e-05,
+          "fast_produce": 0.005397664070129394,
+          "fast_select": 0.003012192010879517,
+          "fast_exact": 0.03775481605529785,
+          "fast_merge": 0.011357279777526855
+        },
+        {
+          "fast_prepare": 1.958400011062622e-05,
+          "fast_produce": 0.005375168085098267,
+          "fast_select": 0.0029928959608078003,
+          "fast_exact": 0.036552030563354494,
+          "fast_merge": 0.010280864238739014
+        },
+        {
+          "fast_prepare": 2.0479999482631683e-05,
+          "fast_produce": 0.005554912090301514,
+          "fast_select": 0.003053696036338806,
+          "fast_exact": 0.031626496315002445,
+          "fast_merge": 0.008619840145111085
+        },
+        {
+          "fast_prepare": 2.057600021362305e-05,
+          "fast_produce": 0.005584543943405152,
+          "fast_select": 0.003091999888420105,
+          "fast_exact": 0.03521910285949707,
+          "fast_merge": 0.009873600006103515
+        },
+        {
+          "fast_prepare": 1.990400068461895e-05,
+          "fast_produce": 0.005403136014938355,
+          "fast_select": 0.0029920960664749146,
+          "fast_exact": 0.03225571250915527,
+          "fast_merge": 0.009254816055297852
+        },
+        {
+          "fast_prepare": 2.0511999726295472e-05,
+          "fast_produce": 0.005580351829528808,
+          "fast_select": 0.0030817919969558715,
+          "fast_exact": 0.029893824577331543,
+          "fast_merge": 0.008540704250335693
+        },
+        {
+          "fast_prepare": 2.067199908196926e-05,
+          "fast_produce": 0.005627648115158081,
+          "fast_select": 0.0031012479066848753,
+          "fast_exact": 0.03236480140686035,
+          "fast_merge": 0.0090414080619812
+        },
+        {
+          "fast_prepare": 1.961600035429001e-05,
+          "fast_produce": 0.005367840051651001,
+          "fast_select": 0.0029707839488983152,
+          "fast_exact": 0.03149094486236572,
+          "fast_merge": 0.008600287914276123
+        },
+        {
+          "fast_prepare": 2.0320000126957894e-05,
+          "fast_produce": 0.005619231939315796,
+          "fast_select": 0.0030986560583114624,
+          "fast_exact": 0.03184614372253418,
+          "fast_merge": 0.008888480186462402
+        },
+        {
+          "fast_prepare": 2.009600028395653e-05,
+          "fast_produce": 0.005404127836227417,
+          "fast_select": 0.0030046080350875854,
+          "fast_exact": 0.03086150360107422,
+          "fast_merge": 0.008551552057266236
+        },
+        {
+          "fast_prepare": 2.0511999726295472e-05,
+          "fast_produce": 0.005609855890274048,
+          "fast_select": 0.0031023359298706053,
+          "fast_exact": 0.0338799991607666,
+          "fast_merge": 0.009371295928955078
+        },
+        {
+          "fast_prepare": 1.9840000197291375e-05,
+          "fast_produce": 0.005401504039764404,
+          "fast_select": 0.002987231969833374,
+          "fast_exact": 0.029675935745239256,
+          "fast_merge": 0.008389247894287109
+        },
+        {
+          "fast_prepare": 2.0287999883294106e-05,
+          "fast_produce": 0.005463392019271851,
+          "fast_select": 0.0030495359897613527,
+          "fast_exact": 0.03478633689880371,
+          "fast_merge": 0.00991542387008667
+        },
+        {
+          "fast_prepare": 2.0287999883294106e-05,
+          "fast_produce": 0.005529151916503906,
+          "fast_select": 0.003028480052947998,
+          "fast_exact": 0.03305414390563965,
+          "fast_merge": 0.00977839994430542
+        },
+        {
+          "fast_prepare": 2.0287999883294106e-05,
+          "fast_produce": 0.005571104049682617,
+          "fast_select": 0.003102336049079895,
+          "fast_exact": 0.030521120071411133,
+          "fast_merge": 0.008942016124725342
+        },
+        {
+          "fast_prepare": 2.0384000614285468e-05,
+          "fast_produce": 0.005568351984024048,
+          "fast_select": 0.003076416015625,
+          "fast_exact": 0.033000064849853517,
+          "fast_merge": 0.009187359809875489
+        },
+        {
+          "fast_prepare": 1.974399946630001e-05,
+          "fast_produce": 0.005409504175186157,
+          "fast_select": 0.003031615972518921,
+          "fast_exact": 0.03400409698486328,
+          "fast_merge": 0.009739871978759765
+        },
+        {
+          "fast_prepare": 2.0287999883294106e-05,
+          "fast_produce": 0.005494848012924194,
+          "fast_select": 0.0030510720014572143,
+          "fast_exact": 0.032882591247558594,
+          "fast_merge": 0.009433248043060304
+        },
+        {
+          "fast_prepare": 2.070399932563305e-05,
+          "fast_produce": 0.005594175815582275,
+          "fast_select": 0.003104128003120422,
+          "fast_exact": 0.031889440536499024,
+          "fast_merge": 0.008804288387298584
+        },
+        {
+          "fast_prepare": 2.0320000126957894e-05,
+          "fast_produce": 0.005524415969848633,
+          "fast_select": 0.0030398399829864504,
+          "fast_exact": 0.035559297561645505,
+          "fast_merge": 0.01031766414642334
+        },
+        {
+          "fast_prepare": 2.0959999412298203e-05,
+          "fast_produce": 0.005664960145950317,
+          "fast_select": 0.0031560959815979004,
+          "fast_exact": 0.03320182418823242,
+          "fast_merge": 0.009732064247131347
+        },
+        {
+          "fast_prepare": 2.0160000771284102e-05,
+          "fast_produce": 0.0054013760089874265,
+          "fast_select": 0.0030139840841293336,
+          "fast_exact": 0.033032577514648435,
+          "fast_merge": 0.009456511974334716
+        },
+        {
+          "fast_prepare": 2.099199965596199e-05,
+          "fast_produce": 0.005606112003326416,
+          "fast_select": 0.0031158080101013185,
+          "fast_exact": 0.03467788887023926,
+          "fast_merge": 0.010449664115905762
+        },
+        {
+          "fast_prepare": 2.054399996995926e-05,
+          "fast_produce": 0.00560646390914917,
+          "fast_select": 0.0031068480014801027,
+          "fast_exact": 0.03265071964263916,
+          "fast_merge": 0.00943948793411255
+        },
+        {
+          "fast_prepare": 2.0447999238967895e-05,
+          "fast_produce": 0.005451135873794556,
+          "fast_select": 0.0029965120553970335,
+          "fast_exact": 0.024562975883483888,
+          "fast_merge": 0.006758239984512329
+        }
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.741053999983706,
+      "decode_ms_per_token": 8.741053999983706,
+      "decode_tokens_per_second": 114.40267958553558
+    },
+    {
+      "prefill_s": 2.858641077997163,
+      "decode_s": 0.008848934012348764,
+      "capture_s": 0.15727948700077832,
+      "cache_init_s": 0.010275377004290931,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      "prefill_leaf_profile": [
+        {
+          "fast_prepare": 2.0511999726295472e-05,
+          "fast_produce": 0.005310528039932251,
+          "fast_select": 0.0029639999866485594,
+          "fast_exact": 0.030598847389221192,
+          "fast_merge": 0.015255231857299805
+        },
+        {
+          "fast_prepare": 1.9648000597953797e-05,
+          "fast_produce": 0.005278176069259644,
+          "fast_select": 0.0028752959966659546,
+          "fast_exact": 0.011857696056365967,
+          "fast_merge": 0.0038219199180603027
+        },
+        {
+          "fast_prepare": 2.0800000056624414e-05,
+          "fast_produce": 0.0056052799224853515,
+          "fast_select": 0.003113376021385193,
+          "fast_exact": 0.032568191528320314,
+          "fast_merge": 0.009146560192108154
+        },
+        {
+          "fast_prepare": 1.974399946630001e-05,
+          "fast_produce": 0.0053916161060333255,
+          "fast_select": 0.0030022720098495485,
+          "fast_exact": 0.03174710369110107,
+          "fast_merge": 0.008851711750030517
+        },
+        {
+          "fast_prepare": 2.160000056028366e-05,
+          "fast_produce": 0.0056494719982147215,
+          "fast_select": 0.003115007996559143,
+          "fast_exact": 0.03124003219604492,
+          "fast_merge": 0.008746816158294677
+        },
+        {
+          "fast_prepare": 2.115200087428093e-05,
+          "fast_produce": 0.005338143825531006,
+          "fast_select": 0.0029820799827575684,
+          "fast_exact": 0.031472736358642575,
+          "fast_merge": 0.008976096153259278
+        },
+        {
+          "fast_prepare": 2.112000063061714e-05,
+          "fast_produce": 0.0056007359027862545,
+          "fast_select": 0.0031040960550308225,
+          "fast_exact": 0.03271017646789551,
+          "fast_merge": 0.009604703903198243
+        },
+        {
+          "fast_prepare": 2.102399989962578e-05,
+          "fast_produce": 0.005401407957077027,
+          "fast_select": 0.0030105280876159667,
+          "fast_exact": 0.03773164749145508,
+          "fast_merge": 0.01129315185546875
+        },
+        {
+          "fast_prepare": 2.118399925529957e-05,
+          "fast_produce": 0.005559231996536255,
+          "fast_select": 0.0030509439706802367,
+          "fast_exact": 0.03690374374389648,
+          "fast_merge": 0.01046614408493042
+        },
+        {
+          "fast_prepare": 2.102399989962578e-05,
+          "fast_produce": 0.005655743837356567,
+          "fast_select": 0.003129088044166565,
+          "fast_exact": 0.03182217502593994,
+          "fast_merge": 0.008641664028167725
+        },
+        {
+          "fast_prepare": 1.990400068461895e-05,
+          "fast_produce": 0.005326239824295044,
+          "fast_select": 0.002970944046974182,
+          "fast_exact": 0.03428352165222168,
+          "fast_merge": 0.009618303775787353
+        },
+        {
+          "fast_prepare": 2.1344000473618507e-05,
+          "fast_produce": 0.005614016056060791,
+          "fast_select": 0.0030946239233016967,
+          "fast_exact": 0.03277395153045654,
+          "fast_merge": 0.00949564790725708
+        },
+        {
+          "fast_prepare": 2.009600028395653e-05,
+          "fast_produce": 0.005420896053314209,
+          "fast_select": 0.003002816081047058,
+          "fast_exact": 0.029453439712524412,
+          "fast_merge": 0.00841212821006775
+        },
+        {
+          "fast_prepare": 2.1376000717282296e-05,
+          "fast_produce": 0.005587039947509765,
+          "fast_select": 0.0030987199544906616,
+          "fast_exact": 0.03236374282836914,
+          "fast_merge": 0.009025504112243652
+        },
+        {
+          "fast_prepare": 2.0767999812960626e-05,
+          "fast_produce": 0.005380831956863404,
+          "fast_select": 0.0029893440008163454,
+          "fast_exact": 0.03137075328826904,
+          "fast_merge": 0.00857097578048706
+        },
+        {
+          "fast_prepare": 1.9840000197291375e-05,
+          "fast_produce": 0.005363647937774658,
+          "fast_select": 0.0029927680492401122,
+          "fast_exact": 0.031596832275390625,
+          "fast_merge": 0.008851135730743408
+        },
+        {
+          "fast_prepare": 2.067199908196926e-05,
+          "fast_produce": 0.005349759817123413,
+          "fast_select": 0.002972383975982666,
+          "fast_exact": 0.03081100940704346,
+          "fast_merge": 0.008552703857421875
+        },
+        {
+          "fast_prepare": 2.0864000543951988e-05,
+          "fast_produce": 0.0054063360691070554,
+          "fast_select": 0.0030131200551986696,
+          "fast_exact": 0.03318614387512207,
+          "fast_merge": 0.009282367706298828
+        },
+        {
+          "fast_prepare": 2.1471999585628508e-05,
+          "fast_produce": 0.005656255960464478,
+          "fast_select": 0.003127680063247681,
+          "fast_exact": 0.030390591621398927,
+          "fast_merge": 0.008570079803466796
+        },
+        {
+          "fast_prepare": 2.0511999726295472e-05,
+          "fast_produce": 0.005495136022567749,
+          "fast_select": 0.0030686080455780028,
+          "fast_exact": 0.034811967849731444,
+          "fast_merge": 0.010025664329528809
+        },
+        {
+          "fast_prepare": 2.099199965596199e-05,
+          "fast_produce": 0.005713504076004028,
+          "fast_select": 0.0031231679916381835,
+          "fast_exact": 0.033542943954467774,
+          "fast_merge": 0.009979999542236329
+        },
+        {
+          "fast_prepare": 2.0511999726295472e-05,
+          "fast_produce": 0.005402719974517823,
+          "fast_select": 0.0030130239725112916,
+          "fast_exact": 0.030161503791809083,
+          "fast_merge": 0.008824831962585449
+        },
+        {
+          "fast_prepare": 2.1536000072956085e-05,
+          "fast_produce": 0.005623136043548584,
+          "fast_select": 0.003126431941986084,
+          "fast_exact": 0.03342255973815918,
+          "fast_merge": 0.009303167819976806
+        },
+        {
+          "fast_prepare": 1.9999999552965164e-05,
+          "fast_produce": 0.00537769603729248,
+          "fast_select": 0.0029931840896606447,
+          "fast_exact": 0.03331180763244629,
+          "fast_merge": 0.009601887702941894
+        },
+        {
+          "fast_prepare": 2.131200022995472e-05,
+          "fast_produce": 0.005646208047866821,
+          "fast_select": 0.003122399926185608,
+          "fast_exact": 0.033215072631835936,
+          "fast_merge": 0.00962387228012085
+        },
+        {
+          "fast_prepare": 2.070399932563305e-05,
+          "fast_produce": 0.005406399965286255,
+          "fast_select": 0.0030140160322189333,
+          "fast_exact": 0.030966336250305176,
+          "fast_merge": 0.008585760116577149
+        },
+        {
+          "fast_prepare": 2.163200080394745e-05,
+          "fast_produce": 0.005721279859542847,
+          "fast_select": 0.0031687999963760376,
+          "fast_exact": 0.03700687980651855,
+          "fast_merge": 0.010647712230682373
+        },
+        {
+          "fast_prepare": 2.115200087428093e-05,
+          "fast_produce": 0.0055517759323120116,
+          "fast_select": 0.0030798720121383667,
+          "fast_exact": 0.03314124870300293,
+          "fast_merge": 0.009777696132659911
+        },
+        {
+          "fast_prepare": 2.1056000143289565e-05,
+          "fast_produce": 0.00569705605506897,
+          "fast_select": 0.003112511992454529,
+          "fast_exact": 0.033514688491821286,
+          "fast_merge": 0.009645695686340333
+        },
+        {
+          "fast_prepare": 2.160000056028366e-05,
+          "fast_produce": 0.005737215995788574,
+          "fast_select": 0.003173695921897888,
+          "fast_exact": 0.03604787063598633,
+          "fast_merge": 0.010650720119476318
+        },
+        {
+          "fast_prepare": 2.1056000143289565e-05,
+          "fast_produce": 0.005409248113632202,
+          "fast_select": 0.003019903898239136,
+          "fast_exact": 0.03220208072662353,
+          "fast_merge": 0.00933907175064087
+        },
+        {
+          "fast_prepare": 2.2016000002622604e-05,
+          "fast_produce": 0.005716192007064819,
+          "fast_select": 0.0031475200653076174,
+          "fast_exact": 0.024993919372558595,
+          "fast_merge": 0.0068674559593200684
+        }
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.848934012348764,
+      "decode_ms_per_token": 8.848934012348764,
+      "decode_tokens_per_second": 113.0079621573052
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.794994006166235,
+  "median_decode_tokens_per_second": 113.70532087142038,
+  "median_decode_ms_per_token": 8.794994006166235,
+  "median_prefill_s": 2.857988388001104
+}

@@ -1,0 +1,400 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": {
+    "rule": "entry",
+    "mass_multiplier": 16.0,
+    "entry_bound": 16,
+    "max_regions": 8,
+    "leaf_backend": "threshold-default",
+    "work_bound": 16,
+    "tile_queries": 512,
+    "prefill_block_size": 16384,
+    "reuse_mean": true,
+    "no_host_sync": true,
+    "packed": true,
+    "fuse_pack": false,
+    "pair_reuse": false,
+    "implementation": "fused"
+  },
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 2.9900457090116106,
+      "decode_s": 0.008429920009803027,
+      "capture_s": 0.20034750198828988,
+      "cache_init_s": 0.2854157340043457,
+      "decode_warmup_s": 0.0,
+      "prefill_cap_audit": [
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 186367,
+          "capped_regions": 16218,
+          "uncapped_entries": 364275,
+          "capped_entries": 46635,
+          "above_cap_heads": 1967,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 13895,
+          "capped_regions": 10675,
+          "uncapped_entries": 43210,
+          "capped_entries": 28408,
+          "above_cap_heads": 617,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 162787,
+          "capped_regions": 16382,
+          "uncapped_entries": 428502,
+          "capped_entries": 56971,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 169588,
+          "capped_regions": 16337,
+          "uncapped_entries": 427546,
+          "capped_entries": 44268,
+          "above_cap_heads": 2022,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 168777,
+          "capped_regions": 16377,
+          "uncapped_entries": 454288,
+          "capped_entries": 56650,
+          "above_cap_heads": 2039,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 220368,
+          "capped_regions": 16384,
+          "uncapped_entries": 579877,
+          "capped_entries": 42987,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 214470,
+          "capped_regions": 16384,
+          "uncapped_entries": 573377,
+          "capped_entries": 47854,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 250164,
+          "capped_regions": 16384,
+          "uncapped_entries": 684185,
+          "capped_entries": 49871,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 202254,
+          "capped_regions": 16383,
+          "uncapped_entries": 647069,
+          "capped_entries": 54878,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 156538,
+          "capped_regions": 16384,
+          "uncapped_entries": 621231,
+          "capped_entries": 72470,
+          "above_cap_heads": 2046,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 171214,
+          "capped_regions": 16383,
+          "uncapped_entries": 614834,
+          "capped_entries": 75202,
+          "above_cap_heads": 2047,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 162872,
+          "capped_regions": 16377,
+          "uncapped_entries": 664244,
+          "capped_entries": 73661,
+          "above_cap_heads": 2043,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 235246,
+          "capped_regions": 16381,
+          "uncapped_entries": 640709,
+          "capped_entries": 80038,
+          "above_cap_heads": 2041,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 86958,
+          "capped_regions": 16371,
+          "uncapped_entries": 698909,
+          "capped_entries": 106220,
+          "above_cap_heads": 2042,
+          "zero_regions_heads": 1,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 86712,
+          "capped_regions": 16379,
+          "uncapped_entries": 680213,
+          "capped_entries": 131279,
+          "above_cap_heads": 2043,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 112515,
+          "capped_regions": 16336,
+          "uncapped_entries": 591546,
+          "capped_entries": 80996,
+          "above_cap_heads": 2024,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 192692,
+          "capped_regions": 16384,
+          "uncapped_entries": 662626,
+          "capped_entries": 65067,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 149662,
+          "capped_regions": 16384,
+          "uncapped_entries": 566933,
+          "capped_entries": 61341,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 146179,
+          "capped_regions": 16381,
+          "uncapped_entries": 567502,
+          "capped_entries": 90418,
+          "above_cap_heads": 2047,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 171722,
+          "capped_regions": 16384,
+          "uncapped_entries": 527518,
+          "capped_entries": 49439,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 160624,
+          "capped_regions": 16384,
+          "uncapped_entries": 513807,
+          "capped_entries": 42169,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 136610,
+          "capped_regions": 16382,
+          "uncapped_entries": 479011,
+          "capped_entries": 72080,
+          "above_cap_heads": 2043,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 128430,
+          "capped_regions": 16384,
+          "uncapped_entries": 451819,
+          "capped_entries": 64337,
+          "above_cap_heads": 2047,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 149150,
+          "capped_regions": 16384,
+          "uncapped_entries": 417037,
+          "capped_entries": 44697,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 155793,
+          "capped_regions": 16379,
+          "uncapped_entries": 481102,
+          "capped_entries": 49526,
+          "above_cap_heads": 2044,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 144496,
+          "capped_regions": 16384,
+          "uncapped_entries": 442028,
+          "capped_entries": 50485,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 160678,
+          "capped_regions": 16384,
+          "uncapped_entries": 521783,
+          "capped_entries": 57145,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 148096,
+          "capped_regions": 16382,
+          "uncapped_entries": 476489,
+          "capped_entries": 69467,
+          "above_cap_heads": 2044,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 154581,
+          "capped_regions": 16384,
+          "uncapped_entries": 472478,
+          "capped_entries": 67621,
+          "above_cap_heads": 2047,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 192206,
+          "capped_regions": 16384,
+          "uncapped_entries": 520966,
+          "capped_entries": 78045,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 134029,
+          "capped_regions": 16384,
+          "uncapped_entries": 471033,
+          "capped_entries": 57349,
+          "above_cap_heads": 2048,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        },
+        {
+          "query_heads": 2048,
+          "uncapped_regions": 151726,
+          "capped_regions": 16339,
+          "uncapped_entries": 398348,
+          "capped_entries": 52002,
+          "above_cap_heads": 2019,
+          "zero_regions_heads": 0,
+          "selection_mismatches": 0
+        }
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.429920009803027,
+      "decode_ms_per_token": 8.429920009803027,
+      "decode_tokens_per_second": 118.62508764461764
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.429920009803027,
+  "median_decode_tokens_per_second": 118.62508764461764,
+  "median_decode_ms_per_token": 8.429920009803027,
+  "median_prefill_s": 2.9900457090116106
+}

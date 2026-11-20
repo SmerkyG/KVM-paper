@@ -1,0 +1,394 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": {
+    "rule": "entry",
+    "mass_multiplier": 16.0,
+    "entry_bound": 16,
+    "work_bound": 16,
+    "tile_queries": 1024,
+    "implementation": "fused"
+  },
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 8.002430006001305,
+      "decode_s": 0.00849387000016577,
+      "capture_s": 0.2318288010010292,
+      "cache_init_s": 0.2835412530002941,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {
+          "prepare_state": 0.001539967999633518,
+          "route_logits": 0.006350896997901145,
+          "select_and_coarse": 0.027467320003779605,
+          "compact": 0.004890457999863429,
+          "expand_indices": 0.32035203999839723,
+          "exact_leaves": 0.26868195299721265,
+          "merge": 0.006000838002364617
+        },
+        {
+          "prepare_state": 8.198999967135023e-05,
+          "route_logits": 0.007490983995012357,
+          "select_and_coarse": 0.015642451002349844,
+          "compact": 0.2619314459971065,
+          "expand_indices": 1.0239617370025371,
+          "exact_leaves": 0.790306174001671,
+          "merge": 0.0027332980007486185
+        },
+        {
+          "prepare_state": 0.00012907999916933477,
+          "route_logits": 0.006043956000212347,
+          "select_and_coarse": 0.015302970001357608,
+          "compact": 0.002603252001790679,
+          "expand_indices": 0.29896267199546855,
+          "exact_leaves": 0.015719504002845497,
+          "merge": 0.002180484998461907
+        },
+        {
+          "prepare_state": 9.692100138636306e-05,
+          "route_logits": 0.005655060002027312,
+          "select_and_coarse": 0.015838393997910316,
+          "compact": 0.0027899429987883195,
+          "expand_indices": 0.21892900500097312,
+          "exact_leaves": 0.016398179999669082,
+          "merge": 0.002128296000591945
+        },
+        {
+          "prepare_state": 9.544500062474981e-05,
+          "route_logits": 0.005254885994872893,
+          "select_and_coarse": 0.015225021006699535,
+          "compact": 0.0026477869960217504,
+          "expand_indices": 0.003832358001091052,
+          "exact_leaves": 0.016694727997673908,
+          "merge": 0.0019156460039084777
+        },
+        {
+          "prepare_state": 8.743499893171247e-05,
+          "route_logits": 0.00526228600210743,
+          "select_and_coarse": 0.015508031998251681,
+          "compact": 0.002822584998284583,
+          "expand_indices": 0.004523940997387399,
+          "exact_leaves": 0.01797553700453136,
+          "merge": 0.001920463999340427
+        },
+        {
+          "prepare_state": 9.078400034923106e-05,
+          "route_logits": 0.0052574540004570736,
+          "select_and_coarse": 0.015627717004463193,
+          "compact": 0.0027372959957574494,
+          "expand_indices": 0.004614930003299378,
+          "exact_leaves": 0.01896591399963654,
+          "merge": 0.00194985599591746
+        },
+        {
+          "prepare_state": 9.027700070873834e-05,
+          "route_logits": 0.005345545998352463,
+          "select_and_coarse": 0.016242717996647116,
+          "compact": 0.003181887001119321,
+          "expand_indices": 0.005036447000748012,
+          "exact_leaves": 0.02295744100047159,
+          "merge": 0.0019779550020757597
+        },
+        {
+          "prepare_state": 8.907899973564781e-05,
+          "route_logits": 0.005308799007252674,
+          "select_and_coarse": 0.01573248699241958,
+          "compact": 0.0031233140034601092,
+          "expand_indices": 0.004890034995696624,
+          "exact_leaves": 0.021062972005893243,
+          "merge": 0.001951534995896509
+        },
+        {
+          "prepare_state": 8.772700130066369e-05,
+          "route_logits": 0.0053374959989014314,
+          "select_and_coarse": 0.015328453000620357,
+          "compact": 0.002575669997895602,
+          "expand_indices": 0.004468988998269197,
+          "exact_leaves": 0.019302926999444026,
+          "merge": 0.0019498820038279518
+        },
+        {
+          "prepare_state": 8.73989993124269e-05,
+          "route_logits": 0.005260345002170652,
+          "select_and_coarse": 0.01575492699885217,
+          "compact": 0.003272329000537866,
+          "expand_indices": 0.0049045299983845325,
+          "exact_leaves": 0.02132032400004391,
+          "merge": 0.0019324120003147982
+        },
+        {
+          "prepare_state": 8.32129990158137e-05,
+          "route_logits": 0.005186379998121993,
+          "select_and_coarse": 0.015159945001869346,
+          "compact": 0.002568967000115663,
+          "expand_indices": 0.004459302001123433,
+          "exact_leaves": 0.0204800890005572,
+          "merge": 0.001900790999570745
+        },
+        {
+          "prepare_state": 8.370499926968478e-05,
+          "route_logits": 0.00523254099789483,
+          "select_and_coarse": 0.015677246999985073,
+          "compact": 0.0030553260003216565,
+          "expand_indices": 0.004753402003188967,
+          "exact_leaves": 0.018494958996598143,
+          "merge": 0.001998395002374309
+        },
+        {
+          "prepare_state": 9.300600140704773e-05,
+          "route_logits": 0.005280812996716122,
+          "select_and_coarse": 0.015544546999080922,
+          "compact": 0.0030923900012567174,
+          "expand_indices": 0.004783029000464012,
+          "exact_leaves": 0.022298736999800894,
+          "merge": 0.0019291810021968558
+        },
+        {
+          "prepare_state": 7.549600013589952e-05,
+          "route_logits": 0.005316197997672134,
+          "select_and_coarse": 0.015280551997420844,
+          "compact": 0.0032349880075344117,
+          "expand_indices": 0.0047690880001027836,
+          "exact_leaves": 0.02194910399884975,
+          "merge": 0.00197556899911433
+        },
+        {
+          "prepare_state": 9.412500003236346e-05,
+          "route_logits": 0.005145016002643388,
+          "select_and_coarse": 0.015195490997939487,
+          "compact": 0.0032121990006999113,
+          "expand_indices": 0.0047238169972843025,
+          "exact_leaves": 0.018234482004118036,
+          "merge": 0.001929413996549556
+        },
+        {
+          "prepare_state": 8.525399971404113e-05,
+          "route_logits": 0.00518931400438305,
+          "select_and_coarse": 0.015802804999111686,
+          "compact": 0.003065602995775407,
+          "expand_indices": 0.004834601002585259,
+          "exact_leaves": 0.01850337900032173,
+          "merge": 0.0019230809975852026
+        },
+        {
+          "prepare_state": 8.633499965071678e-05,
+          "route_logits": 0.0051253629972052295,
+          "select_and_coarse": 0.015368280004622648,
+          "compact": 0.003242407998186536,
+          "expand_indices": 0.004752470000312314,
+          "exact_leaves": 0.01793844000167155,
+          "merge": 0.0019352999988768715
+        },
+        {
+          "prepare_state": 7.728599848633166e-05,
+          "route_logits": 0.005245668000497972,
+          "select_and_coarse": 0.015304079997804365,
+          "compact": 0.00263393200293649,
+          "expand_indices": 0.004497496001931722,
+          "exact_leaves": 0.017701613996905508,
+          "merge": 0.0019530770005076192
+        },
+        {
+          "prepare_state": 8.402999992540572e-05,
+          "route_logits": 0.005222634003075655,
+          "select_and_coarse": 0.015680734992201906,
+          "compact": 0.0032963980065687792,
+          "expand_indices": 0.004933789996357518,
+          "exact_leaves": 0.017173256001115078,
+          "merge": 0.0019268100004410371
+        },
+        {
+          "prepare_state": 7.859399920562282e-05,
+          "route_logits": 0.005279918002997874,
+          "select_and_coarse": 0.015464265996342874,
+          "compact": 0.003223982002964476,
+          "expand_indices": 0.0048300039998139255,
+          "exact_leaves": 0.017815898998378543,
+          "merge": 0.0019434120004007127
+        },
+        {
+          "prepare_state": 8.341499960806686e-05,
+          "route_logits": 0.005316783994203433,
+          "select_and_coarse": 0.015704091003499343,
+          "compact": 0.0027146149968757527,
+          "expand_indices": 0.004605564001394669,
+          "exact_leaves": 0.01706277300218062,
+          "merge": 0.0019634810014395043
+        },
+        {
+          "prepare_state": 0.0001060089998645708,
+          "route_logits": 0.005133079997904133,
+          "select_and_coarse": 0.015302815001632553,
+          "compact": 0.0031216520019370364,
+          "expand_indices": 0.004702814998381655,
+          "exact_leaves": 0.017329750997305382,
+          "merge": 0.00190139500227815
+        },
+        {
+          "prepare_state": 8.202499884646386e-05,
+          "route_logits": 0.005161940005564247,
+          "select_and_coarse": 0.015208097000140697,
+          "compact": 0.0026026380000985228,
+          "expand_indices": 0.00400729200191563,
+          "exact_leaves": 0.01643951699770696,
+          "merge": 0.0019103499944321811
+        },
+        {
+          "prepare_state": 8.783900011621881e-05,
+          "route_logits": 0.005284250002659974,
+          "select_and_coarse": 0.015523497997492086,
+          "compact": 0.003227873998184805,
+          "expand_indices": 0.004545004001556663,
+          "exact_leaves": 0.016934883999056183,
+          "merge": 0.002010490001339349
+        },
+        {
+          "prepare_state": 7.874299990362488e-05,
+          "route_logits": 0.005294591006531846,
+          "select_and_coarse": 0.015850516994760255,
+          "compact": 0.0028380200019455515,
+          "expand_indices": 0.0040461840017087525,
+          "exact_leaves": 0.016428178003479843,
+          "merge": 0.0019649349924293347
+        },
+        {
+          "prepare_state": 8.131700087687932e-05,
+          "route_logits": 0.005666899000061676,
+          "select_and_coarse": 0.015412608998303767,
+          "compact": 0.0032093870013341075,
+          "expand_indices": 0.00477295600103389,
+          "exact_leaves": 0.01891593000254943,
+          "merge": 0.001950118996319361
+        },
+        {
+          "prepare_state": 9.260899969376624e-05,
+          "route_logits": 0.005947670999375987,
+          "select_and_coarse": 0.01567660200089449,
+          "compact": 0.0031799509961274453,
+          "expand_indices": 1.020899355002257,
+          "exact_leaves": 0.28285239700016973,
+          "merge": 0.002278110001498135
+        },
+        {
+          "prepare_state": 8.610400072939228e-05,
+          "route_logits": 0.005269833001875668,
+          "select_and_coarse": 0.015292875998056843,
+          "compact": 0.0026408170069771586,
+          "expand_indices": 0.004454104997421382,
+          "exact_leaves": 0.017437000997233554,
+          "merge": 0.0019496119984978577
+        },
+        {
+          "prepare_state": 8.712999988347292e-05,
+          "route_logits": 0.00533416600592318,
+          "select_and_coarse": 0.015043681994939107,
+          "compact": 0.00310120400172309,
+          "expand_indices": 0.004363322997960495,
+          "exact_leaves": 0.01788417999705416,
+          "merge": 0.002009871002883301
+        },
+        {
+          "prepare_state": 8.039699969231151e-05,
+          "route_logits": 0.005268330003673327,
+          "select_and_coarse": 0.01522740800282918,
+          "compact": 0.003026251000846969,
+          "expand_indices": 0.0046373789955396205,
+          "exact_leaves": 0.016814999004054698,
+          "merge": 0.001970008992429939
+        },
+        {
+          "prepare_state": 7.946600089780986e-05,
+          "route_logits": 0.005376917997637065,
+          "select_and_coarse": 0.015532431003521197,
+          "compact": 0.002626261992190848,
+          "expand_indices": 0.0029911860001448076,
+          "exact_leaves": 0.012225485003000358,
+          "merge": 0.0019866230031766463
+        }
+      ],
+      "prefill_leaf_profile": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.49387000016577,
+      "decode_ms_per_token": 8.49387000016577,
+      "decode_tokens_per_second": 117.7319643437542
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.49387000016577,
+  "median_decode_tokens_per_second": 117.7319643437542,
+  "median_decode_ms_per_token": 8.49387000016577,
+  "median_prefill_s": 8.002430006001305
+}

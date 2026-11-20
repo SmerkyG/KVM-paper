@@ -1,0 +1,138 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-full",
+  "model": "Qwen/Qwen3-8B",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+  "qwen_yarn": true,
+  "cache_update_optimizations": {
+    "packed_max": true,
+    "fused_rms": false,
+    "fused_rescale": true
+  },
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": null,
+  "prefill_threshold": null,
+  "prompt_tokens": 65536,
+  "manifest": "/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json",
+  "manifest_sha256": "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+  "prompt_token_sha256": "0fe2f5a0dcc12dbdb42b47f4a47e5fe702f35aef83a6caa6df30ec3efba6eb83",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": false,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 5.430248824995942,
+      "decode_s": 0.011151664992212318,
+      "capture_s": 0.1612021399923833,
+      "cache_init_s": 0.09240679199865554,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        497,
+        497
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16416093696,
+        "after_run_before_collection": 16483202560,
+        "after_run_after_collection": 16483202560,
+        "peak_allocated": 29066418688
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 11.151664992212318,
+      "decode_ms_per_token": 11.151664992212318,
+      "decode_tokens_per_second": 89.67270812908589
+    },
+    {
+      "prefill_s": 5.275462489997153,
+      "decode_s": 0.011464511990197934,
+      "capture_s": 0.13094556899159215,
+      "cache_init_s": 0.07424989400897175,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        497,
+        497
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16483202560,
+        "after_run_before_collection": 16483202560,
+        "after_run_after_collection": 16483202560,
+        "peak_allocated": 29099973120
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 11.464511990197934,
+      "decode_ms_per_token": 11.464511990197934,
+      "decode_tokens_per_second": 87.2256927163574
+    },
+    {
+      "prefill_s": 5.259610485009034,
+      "decode_s": 0.011675428002490662,
+      "capture_s": 0.15437786500842776,
+      "cache_init_s": 0.07534353500523139,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        497,
+        497
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16483202560,
+        "after_run_before_collection": 16483202560,
+        "after_run_after_collection": 16483202560,
+        "peak_allocated": 29099973120
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 11.675428002490662,
+      "decode_ms_per_token": 11.675428002490662,
+      "decode_tokens_per_second": 85.64996501941299
+    },
+    {
+      "prefill_s": 5.257311484005186,
+      "decode_s": 0.011587303000851534,
+      "capture_s": 0.13565078200190328,
+      "cache_init_s": 0.07608019100734964,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        497,
+        497
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16483202560,
+        "after_run_before_collection": 16483202560,
+        "after_run_after_collection": 16483202560,
+        "peak_allocated": 29099973120
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 11.587303000851534,
+      "decode_ms_per_token": 11.587303000851534,
+      "decode_tokens_per_second": 86.30135933499896
+    }
+  ],
+  "median_decode_ms_per_batch_step": 11.587303000851534,
+  "median_decode_tokens_per_second": 86.30135933499896,
+  "median_decode_ms_per_token": 11.587303000851534,
+  "median_prefill_s": 5.259610485009034
+}

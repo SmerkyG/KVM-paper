@@ -1,0 +1,328 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": {
+    "rule": "entry",
+    "mass_multiplier": 16.0,
+    "entry_bound": 16,
+    "work_bound": 16,
+    "tile_queries": 1024,
+    "implementation": "fused"
+  },
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 10.799674497000524,
+      "decode_s": 0.0084068890009803,
+      "capture_s": 0.20130129599965585,
+      "cache_init_s": 0.2669880510002258,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {
+          "prepare_state": 0.0015835230005905032,
+          "route_logits": 0.006875713001136319,
+          "select_and_coarse": 0.024160974000551505,
+          "compact": 0.010959145993183483,
+          "exact_leaves": 0.35994125400611665,
+          "merge": 0.005845086998306215
+        },
+        {
+          "prepare_state": 8.481199984089471e-05,
+          "route_logits": 0.005774505996669177,
+          "select_and_coarse": 0.012746229998811032,
+          "compact": 0.012848187001509359,
+          "exact_leaves": 0.03955549500278721,
+          "merge": 0.0021834079998370726
+        },
+        {
+          "prepare_state": 8.183400132111274e-05,
+          "route_logits": 0.005948993004494696,
+          "select_and_coarse": 0.012796095996236545,
+          "compact": 0.008351667000169982,
+          "exact_leaves": 0.1517985509999562,
+          "merge": 0.0021324039989849553
+        },
+        {
+          "prepare_state": 8.001499918464106e-05,
+          "route_logits": 0.0056807910004863515,
+          "select_and_coarse": 0.012776465999195352,
+          "compact": 0.008442940996246762,
+          "exact_leaves": 0.18520473900389334,
+          "merge": 0.002055657001619693
+        },
+        {
+          "prepare_state": 7.980000009411015e-05,
+          "route_logits": 0.005732452000302146,
+          "select_and_coarse": 0.012747816999763018,
+          "compact": 0.00860201599971333,
+          "exact_leaves": 0.17381608900177525,
+          "merge": 0.002103371998600778
+        },
+        {
+          "prepare_state": 7.985299998836126e-05,
+          "route_logits": 0.005850580002515926,
+          "select_and_coarse": 0.012766504996761796,
+          "compact": 0.008513382001183345,
+          "exact_leaves": 0.20897417200103519,
+          "merge": 0.0021026889990025666
+        },
+        {
+          "prepare_state": 7.962300151120871e-05,
+          "route_logits": 0.005828857001688448,
+          "select_and_coarse": 0.012723127991193905,
+          "compact": 0.008415971005888423,
+          "exact_leaves": 0.1874016860019765,
+          "merge": 0.002097937998769339
+        },
+        {
+          "prepare_state": 8.619900108897127e-05,
+          "route_logits": 0.005900372001633514,
+          "select_and_coarse": 0.012760216999595286,
+          "compact": 0.008762708997892332,
+          "exact_leaves": 0.29407968499981507,
+          "merge": 0.0021299239997460973
+        },
+        {
+          "prepare_state": 8.745700142753776e-05,
+          "route_logits": 0.0057985889943665825,
+          "select_and_coarse": 0.012658635001571383,
+          "compact": 0.008686590997967869,
+          "exact_leaves": 0.29117466699790384,
+          "merge": 0.0020870400076091755
+        },
+        {
+          "prepare_state": 9.043499994731974e-05,
+          "route_logits": 0.005891098002393846,
+          "select_and_coarse": 0.012757580996549223,
+          "compact": 0.00832565300333954,
+          "exact_leaves": 0.15131881299566885,
+          "merge": 0.002083637002215255
+        },
+        {
+          "prepare_state": 8.035400060180109e-05,
+          "route_logits": 0.005893804996958352,
+          "select_and_coarse": 0.01274313800058735,
+          "compact": 0.008890894998330623,
+          "exact_leaves": 0.3352785610004503,
+          "merge": 0.0021190260031289654
+        },
+        {
+          "prepare_state": 8.397399869863875e-05,
+          "route_logits": 0.005833249999341206,
+          "select_and_coarse": 0.012587222996444325,
+          "compact": 0.008380093999221572,
+          "exact_leaves": 0.15317629700257385,
+          "merge": 0.0020870030020887498
+        },
+        {
+          "prepare_state": 7.52870000724215e-05,
+          "route_logits": 0.00602011999944807,
+          "select_and_coarse": 0.012806174003344495,
+          "compact": 0.008755980001296848,
+          "exact_leaves": 0.27447797800050466,
+          "merge": 0.00209795699629467
+        },
+        {
+          "prepare_state": 7.414299943775404e-05,
+          "route_logits": 0.005932672000199091,
+          "select_and_coarse": 0.012725091000902466,
+          "compact": 0.008709471001566271,
+          "exact_leaves": 0.2764784439968935,
+          "merge": 0.0020863290010311175
+        },
+        {
+          "prepare_state": 9.384500117448624e-05,
+          "route_logits": 0.00604055999792763,
+          "select_and_coarse": 0.012790224003765616,
+          "compact": 0.008908182000595843,
+          "exact_leaves": 0.3319189629946777,
+          "merge": 0.002110599001753144
+        },
+        {
+          "prepare_state": 7.973500032676384e-05,
+          "route_logits": 0.005802516001494951,
+          "select_and_coarse": 0.01288501200178871,
+          "compact": 0.008958338998127147,
+          "exact_leaves": 0.33242968800368544,
+          "merge": 0.002090120995489997
+        },
+        {
+          "prepare_state": 7.05599995853845e-05,
+          "route_logits": 0.0059819560028699925,
+          "select_and_coarse": 0.012795870999980252,
+          "compact": 0.00873704299920064,
+          "exact_leaves": 0.2753824920000625,
+          "merge": 0.002144364998457604
+        },
+        {
+          "prepare_state": 0.00010507600018172525,
+          "route_logits": 0.005986668995319633,
+          "select_and_coarse": 0.01275502800308459,
+          "compact": 0.008869392997439718,
+          "exact_leaves": 0.33320782000373583,
+          "merge": 0.0021066749995952705
+        },
+        {
+          "prepare_state": 8.095900011539925e-05,
+          "route_logits": 0.005806111996207619,
+          "select_and_coarse": 0.012686404001215124,
+          "compact": 0.008308770004077815,
+          "exact_leaves": 0.16189052899790113,
+          "merge": 0.002103011000144761
+        },
+        {
+          "prepare_state": 7.700800051679835e-05,
+          "route_logits": 0.006116515998655814,
+          "select_and_coarse": 0.012911813999380684,
+          "compact": 0.008977420002338476,
+          "exact_leaves": 0.3352848200011067,
+          "merge": 0.0021182349973969394
+        },
+        {
+          "prepare_state": 7.4677000156953e-05,
+          "route_logits": 0.005951066003035521,
+          "select_and_coarse": 0.01287825999497727,
+          "compact": 0.008903073006877094,
+          "exact_leaves": 0.3235346409946942,
+          "merge": 0.00209008499950869
+        },
+        {
+          "prepare_state": 7.079200076987036e-05,
+          "route_logits": 0.00582427699737309,
+          "select_and_coarse": 0.012683205999564962,
+          "compact": 0.008383373005926842,
+          "exact_leaves": 0.17455271699509467,
+          "merge": 0.0020730610012833495
+        },
+        {
+          "prepare_state": 8.046699986152817e-05,
+          "route_logits": 0.0059895430040342035,
+          "select_and_coarse": 0.012837079997552792,
+          "compact": 0.008840925000185962,
+          "exact_leaves": 0.2992621360008343,
+          "merge": 0.002094862997182645
+        },
+        {
+          "prepare_state": 0.00010223499884887133,
+          "route_logits": 0.005879296002603951,
+          "select_and_coarse": 0.012773761998687405,
+          "compact": 0.008370568000827916,
+          "exact_leaves": 0.15399339799660083,
+          "merge": 0.002083455001411494
+        },
+        {
+          "prepare_state": 8.528399848728441e-05,
+          "route_logits": 0.0059171549983148,
+          "select_and_coarse": 0.012781565999830491,
+          "compact": 0.008859661998940283,
+          "exact_leaves": 0.3224812250027753,
+          "merge": 0.00210654600050475
+        },
+        {
+          "prepare_state": 7.8929999290267e-05,
+          "route_logits": 0.005967339000562788,
+          "select_and_coarse": 0.012833679005780141,
+          "compact": 0.008611789990027319,
+          "exact_leaves": 0.21928635600306734,
+          "merge": 0.002092360000460758
+        },
+        {
+          "prepare_state": 8.071299998846371e-05,
+          "route_logits": 0.005977180000627413,
+          "select_and_coarse": 0.012727366003673524,
+          "compact": 0.008798390996162198,
+          "exact_leaves": 0.31346626699814806,
+          "merge": 0.002145327001926489
+        },
+        {
+          "prepare_state": 0.00010028300130215939,
+          "route_logits": 0.005895054993743543,
+          "select_and_coarse": 0.012735114001770853,
+          "compact": 0.008767947005253518,
+          "exact_leaves": 0.3004776529978699,
+          "merge": 0.0020626790010283003
+        },
+        {
+          "prepare_state": 7.949599967105314e-05,
+          "route_logits": 0.005910757001402089,
+          "select_and_coarse": 0.012710896002317895,
+          "compact": 0.00834107299488096,
+          "exact_leaves": 0.1650183870060573,
+          "merge": 0.002096064994475455
+        },
+        {
+          "prepare_state": 7.795800047460943e-05,
+          "route_logits": 0.005835794001541217,
+          "select_and_coarse": 0.012736747003145865,
+          "compact": 0.008766766999542597,
+          "exact_leaves": 0.2908001939977112,
+          "merge": 0.0020961439986422192
+        },
+        {
+          "prepare_state": 7.929599996714387e-05,
+          "route_logits": 0.005917456002862309,
+          "select_and_coarse": 0.012825077999877976,
+          "compact": 0.008736641000723466,
+          "exact_leaves": 0.26635574299871223,
+          "merge": 0.0021241889990051277
+        },
+        {
+          "prepare_state": 7.660299888812006e-05,
+          "route_logits": 0.00576164399535628,
+          "select_and_coarse": 0.012728389005133067,
+          "compact": 0.008324434997120989,
+          "exact_leaves": 0.14624845500111405,
+          "merge": 0.0020889000024908455
+        }
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.4068890009803,
+      "decode_ms_per_token": 8.4068890009803,
+      "decode_tokens_per_second": 118.95006581904356
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.4068890009803,
+  "median_decode_tokens_per_second": 118.95006581904356,
+  "median_decode_ms_per_token": 8.4068890009803,
+  "median_prefill_s": 10.799674497000524
+}

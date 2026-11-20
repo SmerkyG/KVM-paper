@@ -1,0 +1,89 @@
+{
+  "method": "retro-squeezed",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": true,
+  "squeezed_index": "/home/ubuntu/comparison/results/squeezed-32768-index.pt",
+  "squeezed_index_read_s": 0.5093246539981919,
+  "squeezed_offline_clustering_s": 356.16576912300025,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": false,
+  "dtype": "bfloat16",
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 1025,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "records": [
+    {
+      "prefill_s": 1.737858383999992,
+      "decode_s": 10.171775071998127,
+      "capture_s": 0.5069924870003888,
+      "cache_init_s": 0.1085009340022225,
+      "squeezed_geometry": {
+        "block_m": 16,
+        "num_warps": 4
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_token": 9.93337409374817
+    },
+    {
+      "prefill_s": 1.603432651998446,
+      "decode_s": 10.165425782000966,
+      "capture_s": 0.13638261400046758,
+      "cache_init_s": 0.08815982099986286,
+      "squeezed_geometry": {
+        "block_m": 16,
+        "num_warps": 4
+      },
+      "iteration": 1,
+      "warmup": true,
+      "decode_ms_per_token": 9.927173615235318
+    },
+    {
+      "prefill_s": 1.6179668309996487,
+      "decode_s": 10.163177074999112,
+      "capture_s": 0.13037534499744652,
+      "cache_init_s": 0.0886735719977878,
+      "squeezed_geometry": {
+        "block_m": 16,
+        "num_warps": 4
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_token": 9.92497761230382
+    },
+    {
+      "prefill_s": 1.6239933550023125,
+      "decode_s": 10.464761005001492,
+      "capture_s": 0.12978494199705892,
+      "cache_init_s": 0.08402153299903148,
+      "squeezed_geometry": {
+        "block_m": 16,
+        "num_warps": 4
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_token": 10.21949316894677
+    },
+    {
+      "prefill_s": 1.6359388130003936,
+      "decode_s": 10.454996968001069,
+      "capture_s": 0.13136989600025117,
+      "cache_init_s": 0.09026468299998669,
+      "squeezed_geometry": {
+        "block_m": 16,
+        "num_warps": 4
+      },
+      "iteration": 4,
+      "warmup": false,
+      "decode_ms_per_token": 10.209957976563544
+    }
+  ],
+  "median_decode_ms_per_token": 10.209957976563544,
+  "median_prefill_s": 1.6239933550023125
+}

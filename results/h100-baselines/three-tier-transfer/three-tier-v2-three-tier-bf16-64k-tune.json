@@ -1,0 +1,863 @@
+{
+  "stage": "complete",
+  "mode": "three-tier-bf16",
+  "length": 65536,
+  "records": [
+    {
+      "layer": 0,
+      "implementation": "top8",
+      "tile": 32,
+      "workers": 8,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 58.18819999694824,
+      "repetitions_us": [
+        58.18819999694824,
+        58.22749733924866,
+        58.17859768867493
+      ],
+      "max_abs_vs_uncached": null,
+      "selection_mismatches": 0,
+      "mean_opened_regions": null,
+      "mean_opened_region_entries": null,
+      "mean_selected_proxy_mass": null
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier-reference",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 48.51970076560974,
+      "repetitions_us": [
+        48.51810038089752,
+        48.52229952812195,
+        48.51970076560974
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 56.904399394989014,
+      "repetitions_us": [
+        56.836700439453125,
+        56.904399394989014,
+        56.92819952964783
+      ],
+      "max_abs_vs_uncached": 1.4901161193847656e-08,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 54.833900928497314,
+      "repetitions_us": [
+        54.833900928497314,
+        54.882997274398804,
+        54.80690002441406
+      ],
+      "max_abs_vs_uncached": 1.4901161193847656e-08,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 56.96520209312439,
+      "repetitions_us": [
+        56.96520209312439,
+        56.97370171546936,
+        56.94739818572998
+      ],
+      "max_abs_vs_uncached": 1.4901161193847656e-08,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 49.19680058956146,
+      "repetitions_us": [
+        48.98180067539215,
+        49.19680058956146,
+        49.23790097236633
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 48.40700030326843,
+      "repetitions_us": [
+        48.328301310539246,
+        48.40700030326843,
+        48.46689999103546
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 49.84520077705383,
+      "repetitions_us": [
+        49.81839954853058,
+        49.84520077705383,
+        49.86900091171265
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 53.305500745773315,
+      "repetitions_us": [
+        53.22999954223633,
+        53.305500745773315,
+        53.328198194503784
+      ],
+      "max_abs_vs_uncached": 3.725290298461914e-09,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 48.23929965496063,
+      "repetitions_us": [
+        48.154398798942566,
+        48.23929965496063,
+        48.246100544929504
+      ],
+      "max_abs_vs_uncached": 3.725290298461914e-09,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 49.34670031070709,
+      "repetitions_us": [
+        49.324798583984375,
+        49.430298805236816,
+        49.34670031070709
+      ],
+      "max_abs_vs_uncached": 3.725290298461914e-09,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 2,
+      "merge_block": 32,
+      "microseconds": 56.9957971572876,
+      "repetitions_us": [
+        57.01709985733032,
+        56.92070126533508,
+        56.9957971572876
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 16,
+      "microseconds": 48.5507994890213,
+      "repetitions_us": [
+        48.5507994890213,
+        48.573800921440125,
+        48.539999127388
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 128,
+      "page_warps": 2,
+      "merge_block": 32,
+      "microseconds": 55.64330220222473,
+      "repetitions_us": [
+        55.64330220222473,
+        55.66920042037964,
+        55.633097887039185
+      ],
+      "max_abs_vs_uncached": 3.725290298461914e-09,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 0,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 256,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 50.59499740600586,
+      "repetitions_us": [
+        50.59499740600586,
+        50.554102659225464,
+        50.616997480392456
+      ],
+      "max_abs_vs_uncached": 3.725290298461914e-09,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 35.59375,
+      "mean_opened_region_entries": 1799.28125,
+      "mean_selected_proxy_mass": 0.2861317992210388
+    },
+    {
+      "layer": 15,
+      "implementation": "top8",
+      "tile": 32,
+      "workers": 8,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 52.70090103149414,
+      "repetitions_us": [
+        52.69520282745361,
+        52.852898836135864,
+        52.70090103149414
+      ],
+      "max_abs_vs_uncached": null,
+      "selection_mismatches": 0,
+      "mean_opened_regions": null,
+      "mean_opened_region_entries": null,
+      "mean_selected_proxy_mass": null
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier-reference",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 50.7673978805542,
+      "repetitions_us": [
+        50.75349807739258,
+        50.836801528930664,
+        50.7673978805542
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 55.80639839172363,
+      "repetitions_us": [
+        55.76779842376709,
+        55.819499492645264,
+        55.80639839172363
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 55.512601137161255,
+      "repetitions_us": [
+        55.55049777030945,
+        55.512601137161255,
+        55.46659827232361
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 57.07269906997681,
+      "repetitions_us": [
+        57.0946991443634,
+        57.07269906997681,
+        56.98609948158264
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 47.627100348472595,
+      "repetitions_us": [
+        47.627100348472595,
+        47.6516991853714,
+        47.616299986839294
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 48.857998847961426,
+      "repetitions_us": [
+        48.857998847961426,
+        48.86170029640198,
+        48.845499753952026
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 49.99929964542389,
+      "repetitions_us": [
+        50.04670023918152,
+        49.99929964542389,
+        49.984198808670044
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 47.41629958152771,
+      "repetitions_us": [
+        47.4016010761261,
+        47.41629958152771,
+        47.41759896278381
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 48.133501410484314,
+      "repetitions_us": [
+        48.089799284935,
+        48.134300112724304,
+        48.133501410484314
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 49.455100297927856,
+      "repetitions_us": [
+        49.36420023441315,
+        49.455100297927856,
+        49.501100182533264
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 2,
+      "merge_block": 32,
+      "microseconds": 54.4268012046814,
+      "repetitions_us": [
+        54.41129803657532,
+        54.44750189781189,
+        54.4268012046814
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 16,
+      "microseconds": 48.36660027503967,
+      "repetitions_us": [
+        48.36660027503967,
+        48.38950037956238,
+        48.35270047187805
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 128,
+      "page_warps": 2,
+      "merge_block": 32,
+      "microseconds": 55.68000078201294,
+      "repetitions_us": [
+        55.68000078201294,
+        55.64640164375305,
+        55.688899755477905
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 15,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 256,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 49.893298745155334,
+      "repetitions_us": [
+        49.893298745155334,
+        49.93860125541687,
+        49.88990128040314
+      ],
+      "max_abs_vs_uncached": 6.103515625e-05,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.5625,
+      "mean_opened_region_entries": 2011.78125,
+      "mean_selected_proxy_mass": 0.41338470578193665
+    },
+    {
+      "layer": 31,
+      "implementation": "top8",
+      "tile": 32,
+      "workers": 8,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 44.68879997730255,
+      "repetitions_us": [
+        44.61979866027832,
+        44.71299946308136,
+        44.68879997730255
+      ],
+      "max_abs_vs_uncached": null,
+      "selection_mismatches": 0,
+      "mean_opened_regions": null,
+      "mean_opened_region_entries": null,
+      "mean_selected_proxy_mass": null
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier-reference",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 41.97939932346344,
+      "repetitions_us": [
+        41.97939932346344,
+        42.025500535964966,
+        41.96789860725403
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 52.081698179244995,
+      "repetitions_us": [
+        52.081698179244995,
+        52.06980109214783,
+        52.08979845046997
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 46.298399567604065,
+      "repetitions_us": [
+        46.298399567604065,
+        46.294400095939636,
+        46.32180035114288
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 32,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 47.205498814582825,
+      "repetitions_us": [
+        47.205498814582825,
+        47.22999930381775,
+        47.18660116195679
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 44.570499658584595,
+      "repetitions_us": [
+        44.5717990398407,
+        44.570499658584595,
+        44.56599950790405
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 40.06969928741455,
+      "repetitions_us": [
+        40.06969928741455,
+        40.162500739097595,
+        40.04429876804352
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 40.26859998703003,
+      "repetitions_us": [
+        40.26859998703003,
+        40.32439887523651,
+        40.25700092315674
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 32,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 44.49619948863983,
+      "repetitions_us": [
+        44.464099407196045,
+        44.5019006729126,
+        44.49619948863983
+      ],
+      "max_abs_vs_uncached": 0.00048828125,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 39.236098527908325,
+      "repetitions_us": [
+        39.23330008983612,
+        39.24629986286163,
+        39.236098527908325
+      ],
+      "max_abs_vs_uncached": 0.00048828125,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 128,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 39.99040126800537,
+      "repetitions_us": [
+        39.99040126800537,
+        39.98329937458038,
+        40.023499727249146
+      ],
+      "max_abs_vs_uncached": 0.00048828125,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 2,
+      "merge_block": 32,
+      "microseconds": 42.28369891643524,
+      "repetitions_us": [
+        42.28369891643524,
+        42.34020113945007,
+        42.273300886154175
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 16,
+      "microseconds": 39.07249867916107,
+      "repetitions_us": [
+        39.07249867916107,
+        39.071300625801086,
+        39.14850056171417
+      ],
+      "max_abs_vs_uncached": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 128,
+      "page_warps": 2,
+      "merge_block": 32,
+      "microseconds": 43.20000112056732,
+      "repetitions_us": [
+        43.17229986190796,
+        43.22009980678558,
+        43.20000112056732
+      ],
+      "max_abs_vs_uncached": 0.00048828125,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    },
+    {
+      "layer": 31,
+      "implementation": "three-tier",
+      "tile": 128,
+      "workers": 256,
+      "page_warps": 1,
+      "merge_block": 32,
+      "microseconds": 43.57990026473999,
+      "repetitions_us": [
+        43.568798899650574,
+        43.594399094581604,
+        43.57990026473999
+      ],
+      "max_abs_vs_uncached": 0.00048828125,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 21.125,
+      "mean_opened_region_entries": 948.90625,
+      "mean_selected_proxy_mass": 0.15473845601081848
+    }
+  ],
+  "scope": "CUDA graph of complete attention call and local-length rollback; excludes model and cache updates"
+}

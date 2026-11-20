@@ -1,0 +1,243 @@
+{
+  "batch_size": 8,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "7b0d01fbc043cc9593fa41ebc58c0e05e808cdc7b530899b9ee2aae1cfbc2dfc"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "FLASH_ATTN"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 33809,
+    "max_num_batched_tokens": 16392,
+    "max_num_seqs": 8,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 33809,
+  "measurements": {
+    "32768": {
+      "decode_ms_per_batch_step": 17.80458309277355,
+      "prefill_seconds": 10.363467560000117,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "745893b9a405926f3aff351d3af7d43c12364b0a497af5ff7a11ea002d32f198",
+          "unique_16_token_block_ratio": 0.998046875
+        },
+        {
+          "request_index": 1,
+          "source_stream_indices": [
+            2
+          ],
+          "token_sha256": "7b2f05b9895995c07e3c3f1c45e6efb1115af964a62484b4c6113fc154d7eb15",
+          "unique_16_token_block_ratio": 0.99267578125
+        },
+        {
+          "request_index": 2,
+          "source_stream_indices": [
+            3
+          ],
+          "token_sha256": "ebcfc3574713513f44a76adfe4c6dc6fa3546fd5ed13d8f9617c7d815602eb22",
+          "unique_16_token_block_ratio": 0.99365234375
+        },
+        {
+          "request_index": 3,
+          "source_stream_indices": [
+            5
+          ],
+          "token_sha256": "bc32e0e41e07605322cb11e7b7b49b818bf06960c660038941ab5fdf57451d52",
+          "unique_16_token_block_ratio": 0.982421875
+        },
+        {
+          "request_index": 4,
+          "source_stream_indices": [
+            6
+          ],
+          "token_sha256": "395330f897bb1aee0811644d47351f462074b857c9d2f7efd148370a3206f514",
+          "unique_16_token_block_ratio": 0.9970703125
+        },
+        {
+          "request_index": 5,
+          "source_stream_indices": [
+            7
+          ],
+          "token_sha256": "01900de12d4e3f18c30746b2b22af3f3f6d2c170369d91fba59e076a16336fb9",
+          "unique_16_token_block_ratio": 0.96826171875
+        },
+        {
+          "request_index": 6,
+          "source_stream_indices": [
+            9
+          ],
+          "token_sha256": "d7f87bd1b2fafe946d1a2e45e03b9cdaa4b1fdddbca668a78c6ccda63ff592b1",
+          "unique_16_token_block_ratio": 0.9951171875
+        },
+        {
+          "request_index": 7,
+          "source_stream_indices": [
+            12
+          ],
+          "token_sha256": "a97656aafb14f34f0dbae2032d63900eed58a2297c7f39d977dd768c6c3368be",
+          "unique_16_token_block_ratio": 0.98193359375
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 17.814545625976397,
+          "decode_seconds": 18.24209472099983,
+          "elapsed_seconds": 27.984301574000256,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "b7741da648de9a3e9208c5829146752807fff2f3f4940e17d55ffa858adf15ee",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "2688ffc4aa3180408342548362c220cac0c45a54ac09fef12387b6a949fbf93c",
+            "146f64b47c9e1e0391234862d346cfdaee31f8ab36ed8e3eae99cf45276c3aad",
+            "2f21903aeffa8616469061277ea22f2570081fd53bc1d559af4d82d66fc8edfc",
+            "e1ece8863c83c8c58229ea575dea12158587e490f7e00577977706f674f5b01f",
+            "b44e8081ad32e7e65e841895412c77113f53106aa90a96a78185965359ecedb5"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 9.732847901000241
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 17.807550863281563,
+          "decode_seconds": 18.23493208400032,
+          "elapsed_seconds": 28.480057732000205,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "b7741da648de9a3e9208c5829146752807fff2f3f4940e17d55ffa858adf15ee",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "2688ffc4aa3180408342548362c220cac0c45a54ac09fef12387b6a949fbf93c",
+            "146f64b47c9e1e0391234862d346cfdaee31f8ab36ed8e3eae99cf45276c3aad",
+            "2f21903aeffa8616469061277ea22f2570081fd53bc1d559af4d82d66fc8edfc",
+            "e1ece8863c83c8c58229ea575dea12158587e490f7e00577977706f674f5b01f",
+            "b44e8081ad32e7e65e841895412c77113f53106aa90a96a78185965359ecedb5"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 10.24173871999983
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 17.812632446288834,
+          "decode_seconds": 18.240135624999766,
+          "elapsed_seconds": 28.605994702000316,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "b7741da648de9a3e9208c5829146752807fff2f3f4940e17d55ffa858adf15ee",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "2688ffc4aa3180408342548362c220cac0c45a54ac09fef12387b6a949fbf93c",
+            "146f64b47c9e1e0391234862d346cfdaee31f8ab36ed8e3eae99cf45276c3aad",
+            "2f21903aeffa8616469061277ea22f2570081fd53bc1d559af4d82d66fc8edfc",
+            "e1ece8863c83c8c58229ea575dea12158587e490f7e00577977706f674f5b01f",
+            "b44e8081ad32e7e65e841895412c77113f53106aa90a96a78185965359ecedb5"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 10.363467560000117
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 17.80156435253888,
+          "decode_seconds": 18.228801896999812,
+          "elapsed_seconds": 28.591698345000168,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "b7741da648de9a3e9208c5829146752807fff2f3f4940e17d55ffa858adf15ee",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "2688ffc4aa3180408342548362c220cac0c45a54ac09fef12387b6a949fbf93c",
+            "146f64b47c9e1e0391234862d346cfdaee31f8ab36ed8e3eae99cf45276c3aad",
+            "2f21903aeffa8616469061277ea22f2570081fd53bc1d559af4d82d66fc8edfc",
+            "e1ece8863c83c8c58229ea575dea12158587e490f7e00577977706f674f5b01f",
+            "b44e8081ad32e7e65e841895412c77113f53106aa90a96a78185965359ecedb5"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 10.360607859000083
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 17.80458309277355,
+          "decode_seconds": 18.231893087000117,
+          "elapsed_seconds": 28.728332994000084,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "b7741da648de9a3e9208c5829146752807fff2f3f4940e17d55ffa858adf15ee",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "2688ffc4aa3180408342548362c220cac0c45a54ac09fef12387b6a949fbf93c",
+            "146f64b47c9e1e0391234862d346cfdaee31f8ab36ed8e3eae99cf45276c3aad",
+            "2f21903aeffa8616469061277ea22f2570081fd53bc1d559af4d82d66fc8edfc",
+            "e1ece8863c83c8c58229ea575dea12158587e490f7e00577977706f674f5b01f",
+            "b44e8081ad32e7e65e841895412c77113f53106aa90a96a78185965359ecedb5"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 10.494340241999907
+        }
+      ]
+    }
+  },
+  "mode": "full",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "d13f706d97a8f57e6b06f7044f6fab96b2262a2a587e527aa08ff495c28668d2",
+  "prompt_source": {
+    "batch_size": 8,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "repeats": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 28.66904787400017,
+  "warmups": 2,
+  "worker_state": [
+    []
+  ]
+}

@@ -1,0 +1,19 @@
+context_tokens,batch_size,method,precision,prefill,initial_centroid_slots_per_kv_head,attention_policy,decode_ms_per_token,ruler_13_task_mean_pct,timing_source,quality_source,quality_section,samples_per_task
+32768,1,Dense BF16,BF16,Dense,,Full attention,8.732033710937337,88.88,../llama-final-checks/llama32k-b1-final-predecode-dense.json,../adaptive-threshold-prefill/RULER_32K.md,Main comparison,32
+32768,1,Dense FP16,FP16,Dense,,Full attention,8.669483137695,88.82,../llama-final-checks/llama32k-b1-quest-matched-dense-fp16.json,../llama-final-checks/QUEST.md,32K RULER,32
+32768,1,LoD two-tier,BF16,LoD c=16,2896,Region c=16 in prefill and decode,7.237000696289186,87.95,../llama-final-checks/llama32k-b1-final-predecode-two-tier.json,../adaptive-threshold-prefill/RULER_32K.md,Main comparison,32
+32768,1,LoD adaptive three-tier,BF16,LoD c=16,2896,Region c=16 in prefill and decode; adaptive page c=0.5 in decode,8.076444362792756,88.09,../llama-final-checks/llama32k-b1-final-predecode-adaptive.json,../adaptive-threshold-prefill/RULER_32K.md,Main comparison,32
+32768,1,RetroInfer,BF16,Dense,2896,"2,896 initial slots per KV head, 1.8% retrieval and 23.2% estimation",9.923577445800191,87.82051282051282,llama-lodmatch-b1-32768-retro.json,RULER_LOD_MATCHED.md,32K RULER,32
+32768,1,QUEST,FP16,Dense,,"1,184 configured exact-token budget",8.34835606591966,82.91666666666667,llama-lodmatch-b1-32768-quest.json,RULER_LOD_MATCHED.md,32K RULER,32
+32768,1,ClusterKV,FP16,Dense,400,985 configured exact-token budget,8.972353637691555,80.87740384615384,llama-lodmatch-b1-32768-clusterkv.json,RULER_LOD_MATCHED.md,32K RULER,32
+32768,1,Multipole,BF16,Dense,2896,"2,896 initial slots per KV head, 512 remote exact tokens",16.480516158692282,87.12339743589743,llama-lodmatch-b1-32768-paired.json,RULER_LOD_MATCHED.md,32K RULER,32
+32768,1,Squeezed,BF16,Dense,2896,"2,896 initial slots per KV head, independent fit with p80 cutoff",11.678931119140756,89.66346153846153,llama-lodmatch-b1-32768-paired.json,RULER_LOD_MATCHED.md,32K RULER,32
+65536,1,Dense BF16,BF16,Dense,,Full attention,10.1181185083008,85.99,../llama-final-checks/llama64k-b1-final-predecode-dense.json,../ruler-64k-panel/RULER_64K.md,Main comparison,32
+65536,1,Dense FP16,FP16,Dense,,Full attention,10.05628534423808,85.99,../llama-final-checks/llama64k-b1-quest-matched-dense-fp16.json,../llama-final-checks/QUEST.md,64K RULER,32
+65536,1,LoD two-tier,BF16,LoD c=16,4096,Region c=16 in prefill and decode,7.481372035156308,84.58,../llama-final-checks/llama64k-b1-final-predecode-two-tier.json,../ruler-64k-panel/RULER_64K.md,Main comparison,32
+65536,1,LoD adaptive three-tier,BF16,LoD c=16,4096,Region c=16 in prefill and decode; adaptive page c=0.5 in decode,8.53445036035172,84.66,../llama-final-checks/llama64k-b1-final-predecode-adaptive.json,../ruler-64k-panel/RULER_64K.md,Main comparison,32
+65536,1,RetroInfer,BF16,Dense,4096,"4,096 initial slots per KV head, 1.8% retrieval and 23.2% estimation",10.677986342773504,84.34695512820512,../llama-final-checks/llama64k-b1-final-predecode-retro.json,RULER_LOD_MATCHED.md,64K RULER,32
+65536,1,QUEST,FP16,Dense,,"1,888 configured exact-token budget",9.587316539061419,80.2323717948718,llama-lodmatch-b1-65536-quest.json,RULER_LOD_MATCHED.md,64K RULER,32
+65536,1,ClusterKV,FP16,Dense,400,"1,702 configured exact-token budget",9.73795374804709,68.87820512820512,llama-lodmatch-b1-65536-clusterkv.json,RULER_LOD_MATCHED.md,64K RULER,32
+65536,1,Multipole,BF16,Dense,4096,"4,096 initial slots per KV head, 512 remote exact tokens",17.517827361327676,81.97916666666667,llama-lodmatch-b1-65536-paired.json,RULER_LOD_MATCHED.md,64K RULER,32
+65536,1,Squeezed,BF16,Dense,4096,"4,096 initial slots per KV head, independent fit with p80 cutoff",13.470234448242024,86.08173076923077,llama-lodmatch-b1-65536-paired.json,RULER_LOD_MATCHED.md,64K RULER,32

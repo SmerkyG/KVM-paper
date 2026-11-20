@@ -1,0 +1,365 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 40960,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 32768,
+  "methods": [
+    "subset-512"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": null,
+  "warmup_steps": null,
+  "dense_kv_source": null,
+  "captures_host_kv": false,
+  "cohort_sha256": "246288e38147f6920f0c239f7308f8d5c85991411230eb953201d8e269421b84",
+  "records": [
+    {
+      "task": "niah_multikey_2",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "5530389"
+      ],
+      "prompt_sha256": "3734ca31aade188bb2e3934d9dc7f70a33299e1114f6564367fce59e4b253954",
+      "input_tokens": 32250,
+      "prefill_token_id": 3070,
+      "input_token_sha256": "8a3aef0ffef8e1ccc5c6e4ff01be4d113edfc20dbf21dceed146b1d09e36a368",
+      "decoders": {
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 18,
+            "eager_argmax": 18
+          },
+          "output_token_ids": [
+            3070,
+            18,
+            20,
+            15,
+            22,
+            17,
+            22,
+            17,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            25,
+            220
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.4551932360000137,
+            "generation_s": 0.24572631499995623,
+            "worker_setup_s": 0.13674700499996106,
+            "arm_setup_s": 8.002221022999947,
+            "stop_at_token": 11
+          },
+          "last_layer_selected_prefix_counts": [
+            511,
+            508,
+            495,
+            510,
+            512,
+            503,
+            504,
+            510
+          ],
+          "cache_setup_s": 3.4897087789995567,
+          "worker_pid": 4580,
+          "prediction": " **3507272**.",
+          "score": 0.0
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.30857414700039953,
+        "prefill_and_capture_s": 2.7398156489998655,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 1.8385661106109619,
+        "lod_cache_completion_s": 0.0001947029995790217,
+        "peak_allocated_bytes": 39668383744
+      },
+      "elapsed_s": 11.053681331000007
+    },
+    {
+      "task": "niah_multikey_3",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "c5eba017-fe0e-4da1-801b-07c40ce356ea"
+      ],
+      "prompt_sha256": "dd04e61512e44f08624de08aeb646100ed6b4808d3c326dc05d02f1201f963a0",
+      "input_tokens": 32496,
+      "prefill_token_id": 25,
+      "input_token_sha256": "6a45bf2accb08932d5018bb8754343f82ce8d4c71357fac28bb5106af1e8826f",
+      "decoders": {
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 3070,
+            "eager_argmax": 3070
+          },
+          "output_token_ids": [
+            25,
+            3070,
+            66,
+            20,
+            70753,
+            15,
+            16,
+            22,
+            33203,
+            15,
+            68,
+            12,
+            19,
+            3235,
+            16,
+            12,
+            23,
+            15,
+            16,
+            65,
+            12,
+            15,
+            22,
+            66,
+            19,
+            15,
+            346,
+            18,
+            20,
+            21,
+            12508,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            272,
+            20
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.4575279800001226,
+            "generation_s": 1.20016783400024,
+            "worker_setup_s": 0.13712538100025995,
+            "arm_setup_s": 8.88582126700021,
+            "stop_at_token": 34
+          },
+          "last_layer_selected_prefix_counts": [
+            499,
+            508,
+            493,
+            512,
+            506,
+            512,
+            512,
+            510
+          ],
+          "cache_setup_s": 3.4210866719995465,
+          "worker_pid": 4643,
+          "prediction": ": **c5eba017-fe0e-4da1-801b-07c40ce356ea**.",
+          "score": 1.0
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.02628548899974703,
+        "prefill_and_capture_s": 1.939077814000484,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 1.1912904605865478,
+        "lod_cache_completion_s": 0.0002034959998127306,
+        "peak_allocated_bytes": 39771124736
+      },
+      "elapsed_s": 10.853426108999884
+    },
+    {
+      "task": "cwe",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "reform",
+        "dresser",
+        "mower",
+        "unarmed",
+        "remains",
+        "deceive",
+        "secure",
+        "tracking",
+        "twitter",
+        "gasp"
+      ],
+      "prompt_sha256": "d533089728ff71b07b5503b6d6cd79d7fd9ff28ca65354b5fef6a907b0d0dc7e",
+      "input_tokens": 32165,
+      "prefill_token_id": 16,
+      "input_token_sha256": "9183456c03fdd42bc36393d9ce88c4c474fb047e1fc6b75c41ef31f9d683343c",
+      "decoders": {
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            98678,
+            220,
+            17,
+            13,
+            14836,
+            220,
+            18,
+            13,
+            22272,
+            220,
+            19,
+            13,
+            6819,
+            79,
+            220,
+            20,
+            13,
+            95537,
+            220,
+            21,
+            13,
+            63899,
+            220,
+            22,
+            13,
+            7146,
+            220,
+            23,
+            13,
+            9767,
+            220,
+            24,
+            13,
+            14849,
+            220,
+            16,
+            15,
+            13,
+            92828,
+            151645,
+            271,
+            334,
+            9112,
+            66963,
+            576,
+            3409
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.45249741400039056,
+            "generation_s": 0.8075696989999415,
+            "worker_setup_s": 0.13520319700000982,
+            "arm_setup_s": 8.373618008000449,
+            "stop_at_token": 42
+          },
+          "last_layer_selected_prefix_counts": [
+            508,
+            510,
+            509,
+            508,
+            507,
+            501,
+            510,
+            507
+          ],
+          "cache_setup_s": 3.3078970979995574,
+          "worker_pid": 4706,
+          "prediction": "1. mower 2. reform 3. twitter 4. gasp 5. dresser 6. unarmed 7. remain 8. secure 9. tracking 10. deceive",
+          "score": 0.9
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.027079053999841562,
+        "prefill_and_capture_s": 1.9635070660006022,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 1.2249792346954345,
+        "lod_cache_completion_s": 0.00019333599993842654,
+        "peak_allocated_bytes": 39657754112
+      },
+      "elapsed_s": 10.366559871999925
+    },
+    {
+      "task": "qa_1",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "France",
+        "France",
+        "France",
+        "France"
+      ],
+      "prompt_sha256": "c3064ec7d909a735e410ea4a1ac78232b881aee449561bab4bf51b0e23dd8a8b",
+      "input_tokens": 31147,
+      "prefill_token_id": 9625,
+      "input_token_sha256": "7afd2d518d6761eb704ea0b097a74cd87e8bef53c93c85ecb298ecf1fe1b1f49",
+      "decoders": {
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 151645,
+            "eager_argmax": 151645
+          },
+          "output_token_ids": [
+            9625,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            9625,
+            151645
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.4804489130001457,
+            "generation_s": 0.10410204299932957,
+            "worker_setup_s": 0.13638884800002415,
+            "arm_setup_s": 7.5886103749999165,
+            "stop_at_token": 2
+          },
+          "last_layer_selected_prefix_counts": [
+            509,
+            506,
+            508,
+            509,
+            504,
+            510,
+            495,
+            512
+          ],
+          "cache_setup_s": 3.0657991469997796,
+          "worker_pid": 4776,
+          "prediction": " France",
+          "score": 1.0
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.026756512000247312,
+        "prefill_and_capture_s": 1.8696884519995365,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 1.1540278434753417,
+        "lod_cache_completion_s": 0.00020360100006655557,
+        "peak_allocated_bytes": 39293411328
+      },
+      "elapsed_s": 9.48758823099979
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc",
+  "stop_at_eos": true
+}

@@ -1,0 +1,945 @@
+{
+  "stage": "complete",
+  "scope": "Tune attention using frozen real-model queries and semantic KV snapshots.\n\nThe model itself and cache catch-up are excluded. Every measured invocation\nincludes the complete attention pipeline and identical local-length rollback.\n",
+  "inputs": [
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-00.pt",
+      "sha256": "d68c166479a69a8bff2f210622d1cf11e31554db7c5bbf30a511feac1d35eeed"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-08.pt",
+      "sha256": "6f3d3861af8c63208a33b43aa190808f3fd9a05646da0e82861a668248311083"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-15.pt",
+      "sha256": "80584f3563d986dda72af00f33822dc90efca8f5999f27334cce0c4d2a9bdca8"
+    }
+  ],
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 84.67128872871399,
+      "repetitions_us": [
+        84.67128872871399,
+        84.6696396668752,
+        84.71631010373433
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 69.88650560379028,
+      "repetitions_us": [
+        69.88650560379028,
+        69.91151471932729,
+        69.87151503562927
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 43.70127618312836,
+      "repetitions_us": [
+        44.37563816706339,
+        43.61419379711151,
+        43.70127618312836
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 41.467765967051186,
+      "repetitions_us": [
+        41.50922348101934,
+        41.419645150502525,
+        41.467765967051186
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 41.507343451182045,
+      "repetitions_us": [
+        41.507343451182045,
+        41.57401621341705,
+        41.4877658089002
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 40.35528004169464,
+      "repetitions_us": [
+        40.400490164756775,
+        40.35528004169464,
+        40.34611334403356
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 41.31943732500076,
+      "repetitions_us": [
+        41.320676604906716,
+        41.31943732500076,
+        41.286103427410126
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 41.92859431107839,
+      "repetitions_us": [
+        42.18129813671112,
+        41.916718085606895,
+        41.92859431107839
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 45.073553919792175,
+      "repetitions_us": [
+        45.66209018230438,
+        45.053968826929726,
+        45.073553919792175
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 44.98813549677531,
+      "repetitions_us": [
+        45.98687092463175,
+        44.98375952243805,
+        44.98813549677531
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 45.406470696131386,
+      "repetitions_us": [
+        45.97999652226766,
+        45.321678121884666,
+        45.406470696131386
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 45.05355656147003,
+      "repetitions_us": [
+        45.96500098705292,
+        45.05355656147003,
+        45.04584272702535
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 44.29960250854492,
+      "repetitions_us": [
+        45.17042636871338,
+        44.25335427125295,
+        44.29960250854492
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 45.513336857159935,
+      "repetitions_us": [
+        46.67936762173971,
+        45.513336857159935,
+        45.458962519963585
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 81.32868508497874,
+      "repetitions_us": [
+        81.33535583813985,
+        81.32868508497874,
+        81.31806055704753
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 68.97677481174469,
+      "repetitions_us": [
+        68.99801890055339,
+        68.97677481174469,
+        68.9601053794225
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {}
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 42.8185909986496,
+      "repetitions_us": [
+        42.76691873868307,
+        42.8185909986496,
+        42.83295075098673
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 42.01067487398783,
+      "repetitions_us": [
+        42.01067487398783,
+        41.974847515424095,
+        42.02067852020264
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 39.35383756955465,
+      "repetitions_us": [
+        39.354885617891945,
+        39.35383756955465,
+        39.33446854352951
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 40.216535329818726,
+      "repetitions_us": [
+        40.216535329818726,
+        40.156953036785126,
+        40.218619008859
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 40.420494973659515,
+      "repetitions_us": [
+        40.411328275998436,
+        40.420494973659515,
+        40.44049481550852
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 41.82422161102295,
+      "repetitions_us": [
+        41.79339607556661,
+        41.85359179973602,
+        41.82422161102295
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 46.30541304747263,
+      "repetitions_us": [
+        46.24812304973602,
+        46.30999267101288,
+        46.30541304747263
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 45.46999931335449,
+      "repetitions_us": [
+        45.49251000086466,
+        45.46999931335449,
+        45.46292622884115
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 44.52148079872131,
+      "repetitions_us": [
+        44.57502067089081,
+        44.52148079872131,
+        44.51356828212738
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 44.73959902922312,
+      "repetitions_us": [
+        44.69606280326843,
+        44.73959902922312,
+        44.77022588253021
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 43.490663170814514,
+      "repetitions_us": [
+        43.45712065696716,
+        43.490663170814514,
+        43.497746189435325
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 44.38502093156179,
+      "repetitions_us": [
+        44.41669086615244,
+        44.38502093156179,
+        44.360230366388954
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 92.75352954864502,
+      "repetitions_us": [
+        92.75352954864502,
+        92.77644753456116,
+        92.74186690648396
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 72.37005730470021,
+      "repetitions_us": [
+        72.37005730470021,
+        72.36901919047038,
+        72.39735126495361
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 45.197516679763794,
+      "repetitions_us": [
+        45.197516679763794,
+        45.192922155062355,
+        45.201887687047325
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 45.203556617101036,
+      "repetitions_us": [
+        45.26605208714803,
+        45.203556617101036,
+        45.13376454512278
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 46.88394566377004,
+      "repetitions_us": [
+        46.883742014567055,
+        46.884357929229736,
+        46.88394566377004
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 47.521437207857765,
+      "repetitions_us": [
+        47.55852619806925,
+        47.40394155184428,
+        47.521437207857765
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 44.677515824635826,
+      "repetitions_us": [
+        44.68335211277008,
+        44.670855005582176,
+        44.677515824635826
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 64,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 46.2164580821991,
+      "repetitions_us": [
+        46.523536245028176,
+        46.2164580821991,
+        46.174575885136925
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 49.50057963530222,
+      "repetitions_us": [
+        49.47245121002197,
+        49.50057963530222,
+        49.50307309627533
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 50.51994323730469,
+      "repetitions_us": [
+        50.51994323730469,
+        50.46827097733816,
+        50.55264631907145
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 50.95972617467245,
+      "repetitions_us": [
+        50.95972617467245,
+        50.97180108229319,
+        50.92847843964895
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 52.70657936731974,
+      "repetitions_us": [
+        52.6790718237559,
+        52.70657936731974,
+        52.78490483760834
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 47.19393948713938,
+      "repetitions_us": [
+        47.21394181251526,
+        47.19393948713938,
+        47.13540275891622
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "balanced",
+      "tile": 128,
+      "splits": 256,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 48.723503947257996,
+      "repetitions_us": [
+        48.723503947257996,
+        48.55204621950785,
+        48.74329765637716
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1
+      }
+    }
+  ],
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=32646362-3330-3237-6265-306466626234, pci_bus_id=117, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "489dc37dba3cee09a7e9b93cb49dddfe9a27599cc7923812abc292860b833f0e",
+      "source_file_count": 226
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

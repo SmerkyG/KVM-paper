@@ -1,0 +1,69 @@
+{
+  "source": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/source",
+  "jobs": [
+    {
+      "id": "24770-amd-qwen-prefill-check-v14",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--name",
+        "amd-qwen-prefill-check-v14",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/source/integrations/vllm_lod",
+        "LOD_AMD_PREFILL_GROUP_N=128",
+        "LOD_AMD_PREFILL_GROUP_WARPS=8",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_prefill_check",
+        "--backend",
+        "blas",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/check.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/check.json"
+    },
+    {
+      "id": "24771-amd-qwen-prefill-replay-v14",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--name",
+        "amd-qwen-prefill-replay-v14",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/source/integrations/vllm_lod",
+        "LOD_AMD_PREFILL_PROBE_VARIANTS=top8,blas",
+        "LOD_AMD_PREFILL_PROFILE_LEAVES=1",
+        "LOD_AMD_PREFILL_GROUP_N=128",
+        "LOD_AMD_PREFILL_GROUP_WARPS=8",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_prefill_replay",
+        "--snapshots",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots",
+        "--layer",
+        "0",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/replay.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/bucket-v14/replay.json"
+    }
+  ]
+}

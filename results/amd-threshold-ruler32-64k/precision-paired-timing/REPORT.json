@@ -1,0 +1,33 @@
+{
+  "stage": "complete",
+  "scope": "Paired graph-captured attention on identical archived real-model query/KV snapshots; flag order 0,1,1,0; excludes full model and cache updates.",
+  "layers": [
+    {
+      "layer": 0,
+      "uncorrected_us": 34.94264557957649,
+      "corrected_us": 40.97752893964449,
+      "difference_us": 6.034883360068001,
+      "overhead_percent": 17.270825548467663
+    },
+    {
+      "layer": 8,
+      "uncorrected_us": 33.55756526192029,
+      "corrected_us": 35.55690372983615,
+      "difference_us": 1.9993384679158623,
+      "overhead_percent": 5.957936615218706
+    },
+    {
+      "layer": 15,
+      "uncorrected_us": 38.87184088428815,
+      "corrected_us": 40.85773974657059,
+      "difference_us": 1.9858988622824398,
+      "overhead_percent": 5.108836672268668
+    }
+  ],
+  "mean_uncorrected_us": 35.79068390859498,
+  "mean_corrected_us": 39.130724138683746,
+  "mean_difference_us": 3.3400402300887677,
+  "attention_overhead_percent": 9.332149781263798,
+  "estimated_extra_ms_per_token_16_lod_layers": 0.053440643681420284,
+  "projection_is_not_a_full_model_measurement": true
+}

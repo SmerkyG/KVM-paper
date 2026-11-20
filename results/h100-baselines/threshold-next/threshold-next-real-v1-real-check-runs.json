@@ -1,0 +1,48 @@
+{
+  "stage": "submitted",
+  "jobs": [
+    {
+      "name": "threshold-next-real-v1-real-qwen-4096",
+      "id": "1794282104636472114-threshold-next-real-v1-real-qwen-4096",
+      "output": "/home/ubuntu/comparison/results/threshold-next-real-v1-real-qwen-4096.json",
+      "command": [
+        "env",
+        "CUDA_HOME=/usr/local/cuda-12.4",
+        "LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64",
+        "HF_HUB_OFFLINE=1",
+        "PYTHONPATH=/home/ubuntu/comparison/RetroInfer:.",
+        "LOD_TRACK_UPDATES=1",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "transformers==4.51.3",
+        "--with",
+        "triton==3.7.1",
+        "python",
+        "-m",
+        "benchmarks.h100_checked_run",
+        "--",
+        "python",
+        "-m",
+        "benchmarks.qwen3_real_capture",
+        "--dataset-parquet",
+        "/home/ubuntu/.cache/huggingface/hub/datasets--Seerkfang--prolong-64k-512-new/snapshots/97295b7d7fe48dc0aa6ba373af3a8b9d945e505b/train_00000.parquet",
+        "--length",
+        "4096",
+        "--chunk-size",
+        "2048",
+        "--layer",
+        "18",
+        "--benchmark",
+        "--benchmark-kinds",
+        "threshold",
+        "--output",
+        "/home/ubuntu/comparison/results/threshold-next-real-v1-real-qwen-4096.json"
+      ]
+    }
+  ]
+}

@@ -72,6 +72,39 @@ def build(payload, observation_window, cluster_percent, *, requested_clusters=No
                 seconds=time.perf_counter() - start)
 
 
+def build_batched_gpu(layers, observation_window, *, requested_clusters=None):
+    """Use batched Lloyd iterations in place of cuML for the same index objective."""
+    from multipoleattention.kmeans_ops_sequential import block_kmeans
+
+    start = time.perf_counter()
+    indexed_tokens = layers[0][0].shape[2] - observation_window
+    clusters = cluster_count(indexed_tokens, 5, requested_clusters)
+    centroids, labels, scores = {}, {}, []
+    for layer, (keys, _, observations, _) in enumerate(layers):
+        keys = keys[0, :, :indexed_tokens].cuda().float()
+        query = observations[0].cuda()
+        if query.size(1) != observation_window or query.size(0) % keys.size(0):
+            raise ValueError('Q/K observation geometry differs')
+        normalized = F.normalize(keys, dim=-1).contiguous()
+        _, _, ids = block_kmeans(normalized, clusters, lloyd_iters=10, chunk_size=8192)
+        counts = torch.zeros((keys.size(0), clusters), dtype=torch.int64, device=keys.device)
+        counts.scatter_add_(1, ids, torch.ones_like(ids))
+        sums = keys.new_zeros((keys.size(0), clusters, keys.size(-1)))
+        sums.scatter_add_(1, ids.unsqueeze(-1).expand_as(keys), keys)
+        means = sums / counts.clamp_min(1).unsqueeze(-1)
+        scores.append(calibration_scores(query, means, ids, counts).cpu().numpy().reshape(-1))
+        centroids[layer] = means[None].to(torch.bfloat16)
+        labels[layer] = ids[None]
+    threshold = float(np.quantile(np.concatenate(scores), 0.8))
+    if not 0 < threshold < 1:
+        raise RuntimeError(f'invalid p80 threshold {threshold}')
+    return dict(centroids=centroids, labels=labels, threshold={0.8: threshold},
+                observation_window=observation_window, calibration_tokens=observation_window,
+                indexed_tokens=indexed_tokens, clusters=clusters,
+                fit_backend='batched Lloyd, 10 iterations, random initialization',
+                seconds=time.perf_counter() - start)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--input', type=Path)

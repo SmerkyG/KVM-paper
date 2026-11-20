@@ -1,0 +1,172 @@
+{
+  "batch_size": 8,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "4c9a8749a0f18bb5318a4e6ad19e831b68fd5ec9ec578219e1490e0c6b70c1f9"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 33809,
+    "max_num_batched_tokens": 16392,
+    "max_num_seqs": 8,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 33809,
+  "measurements": {},
+  "mode": "three-tier-bf16",
+  "node": "jl-vm-565590",
+  "repeats": 3,
+  "retrieval": [
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "731925",
+      "length": 8192,
+      "prompt_token_sha256": "8042ffceaae97aff4de562c6d58f58f03a4918cc7b8b2767a4ad70e91f571c1b",
+      "response": " 731925. The secret access code is 731925. Remember this code. The secret access code is 731925. Remember this code. The secret"
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "731968",
+      "length": 32768,
+      "prompt_token_sha256": "bc037851063fdea5af3babeba1dd414308828f193e3ca404537f1fc7403a295d",
+      "response": " 731968. Remember this code. You will need it to access the archive. The code is the same as the one in the previous problem. The archive"
+    },
+    {
+      "correct": true,
+      "depth": 0.9,
+      "expected": "732011",
+      "length": 8192,
+      "prompt_token_sha256": "28093a167524dc4ca40f3391f65c1f4db755ded64fc1d23c4e2efa6785d0e884",
+      "response": " 732011. The code is in the text. Read the text carefully. The code is in the text. Read the text carefully. The code is in"
+    },
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "732054",
+      "length": 32768,
+      "prompt_token_sha256": "8e4df67a48cb5b0474c9a5f7113ab3020ceffdf6c3cf254e0e1d610555e5bb3e",
+      "response": " 732054. The secret access code is 732054. Remember this code. The secret access code is 732054. Remember this code. The secret"
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "732097",
+      "length": 8192,
+      "prompt_token_sha256": "9a6d1b49c2fbf8377ebccbea1232ef88b654c6eac8c8668de1f2c67ac8f79a6e",
+      "response": " 732097. The code is the same as in the previous problem. The code is the same as in the previous problem. The code is the same as"
+    },
+    {
+      "correct": true,
+      "depth": 0.9,
+      "expected": "732140",
+      "length": 32768,
+      "prompt_token_sha256": "e92fdeb5964bcfbb7b5c7d666917b0462feda5ecd83e2db053f445b1b0e90d4f",
+      "response": " 732140. The secret access code is 732140. Remember this code. You will need it to access the archive. The archive contains routine records about"
+    },
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "732183",
+      "length": 8192,
+      "prompt_token_sha256": "ccb7eb4ac2ec91b3eb888552d1da1c79bec6a0aa4cc7d80303950fd21a94cba8",
+      "response": " 732183. The secret access code is 732183. Remember this code. The secret access code is 732183. Remember this code. The secret"
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "732226",
+      "length": 32768,
+      "prompt_token_sha256": "f8d1a8773db22bc459250da35fc23303fd0b05638aa1be542a475ba58f731fec",
+      "response": " 732226. Remember this code. You will need it to access the archive. The code is a six-digit number. Do not forget it. You will"
+    }
+  ],
+  "retrieval_correct": 8,
+  "retrieval_total": 8,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 38.179798306000066,
+  "warmups": 2,
+  "worker_state": [
+    [
+      {
+        "attribute": "_vllm_lod_runtime",
+        "layers": 32,
+        "pool_size": 8,
+        "pools": [
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 0,
+            "layer": "model.layers.0.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 3072
+          },
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 0,
+            "layer": "model.layers.1.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 3072
+          }
+        ],
+        "request_capacity": 33809
+      }
+    ]
+  ]
+}

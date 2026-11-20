@@ -1,0 +1,25 @@
+{
+  "model": "Qwen/Qwen3-8B",
+  "layer": 18,
+  "length": 131072,
+  "batch": 1,
+  "prompt_sha256": "a3a1cda22b592c1853bbac5bf4ccecddb00d7710374a2b121eeeadeb9395c6f3",
+  "dataset_parquet": "/home/ubuntu/.cache/huggingface/hub/datasets--Seerkfang--prolong-64k-512-new/snapshots/97295b7d7fe48dc0aa6ba373af3a8b9d945e505b/train_00000.parquet",
+  "dataset_domains": [
+    "thestackv1_concat_by_repo-long/65536-65536",
+    "thestackv1_concat_by_repo-long/65536-65536"
+  ],
+  "query_position": 131072,
+  "teacher_forced_next_token": true,
+  "yarn": true,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 4.0,
+    "original_max_position_embeddings": 32768
+  },
+  "chunk_size": 4096,
+  "prefill_attention": "flash_attention_2",
+  "transformers": "4.51.3",
+  "sampled_live_cache_key_max_abs": 0.0,
+  "sampled_live_cache_value_max_abs": 0.0
+}

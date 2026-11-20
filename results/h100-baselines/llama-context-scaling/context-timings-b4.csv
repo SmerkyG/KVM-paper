@@ -1,0 +1,32 @@
+prompt_tokens,method,decode_ms_per_batch_step,output_tokens_per_s,centroid_slots_per_kv_head,raw_results
+8192,Dense BF16,8.72160400048827,458.6312334034042,,llama8k-b4-final-predecode-dense.json
+8192,Dense FP16,8.785726496581603,455.28392006697925,,llama8k-b4-final-predecode-dense-fp16.json
+8192,LoD adaptive two-tier BF16,7.799527791992666,512.8515605914724,1448,llama8k-b4-final-predecode-two-tier.json
+8192,LoD adaptive three-tier BF16,8.109981716796888,493.21936099010554,1448,llama8k-b4-final-predecode-adaptive.json
+8192,QUEST FP16,11.301235239257856,353.9436101732431,,llama8k-b4-final-predecode-quest.json
+8192,Multipole BF16 (512 exact tokens),17.948356564941648,222.8616300064576,1448,../llama-context-scaling/llama-denseprefill-b4-8192-t1448.json
+8192,Squeezed BF16 (p90),10.43172821044891,383.4455729007023,1448,../llama-context-scaling/llama-denseprefill-b4-8192-t1448.json
+16384,Dense BF16,9.909053231444531,403.671259662502,,llama16k-b4-final-predecode-dense.json
+16384,Dense FP16,9.937006429199258,402.5357162139149,,llama16k-b4-final-predecode-dense-fp16.json
+16384,RetroInfer BF16,9.951479122559448,401.95029811520413,,llama16k-b4-final-predecode-retro.json
+16384,LoD adaptive two-tier BF16,8.164613950684796,489.91906098199604,2048,llama16k-b4-final-predecode-two-tier.json
+16384,LoD adaptive three-tier BF16,8.550307184082229,467.8194495101466,2048,llama16k-b4-final-predecode-adaptive.json
+16384,QUEST FP16,12.293340217283344,325.37942734037046,,llama16k-b4-final-predecode-quest.json
+16384,Multipole BF16 (512 exact tokens),17.73045732128864,225.6004979181937,2048,../llama-context-scaling/llama-denseprefill-b4-16384-t2048.json
+16384,Squeezed BF16 (p90),11.670332316407794,342.7494514767362,2048,../llama-context-scaling/llama-denseprefill-b4-16384-t2048.json
+32768,Dense BF16,12.754716381836673,313.6094821909323,,llama32k-b4-final-predecode-dense.json
+32768,Dense FP16,12.856142596192832,311.13531683948065,,llama32k-b4-final-predecode-dense-fp16.json
+32768,RetroInfer BF16,10.52728153027438,379.9651399553428,,llama32k-b4-final-predecode-retro.json
+32768,LoD adaptive two-tier BF16,8.547949561035217,467.94847950829177,2896,llama32k-b4-final-predecode-two-tier.json
+32768,LoD adaptive three-tier BF16,9.09602408935406,439.75257328985964,2896,llama32k-b4-final-predecode-adaptive.json
+32768,QUEST FP16,14.927538748045421,267.9611198814507,,llama32k-b4-final-predecode-quest.json
+32768,Multipole BF16 (512 exact tokens),19.302052667967473,207.2318456905964,2896,../llama-context-scaling/llama-denseprefill-b4-32768-t2896.json
+32768,Squeezed BF16 (p90),13.766821448729871,290.5536339594962,2896,../llama-context-scaling/llama-denseprefill-b4-32768-t2896.json
+65536,Dense BF16,18.258646261720024,219.07429185405485,,llama64k-b4-final-predecode-dense.json
+65536,Dense FP16,18.268371001952666,218.95767277621243,,llama64k-b4-final-predecode-dense-fp16.json
+65536,RetroInfer BF16,11.962250609375502,334.38523657621505,,llama64k-b4-final-predecode-retro.json
+65536,LoD adaptive two-tier BF16,9.201129428711319,434.72923959947246,4096,llama64k-b4-final-predecode-two-tier.json
+65536,LoD adaptive three-tier BF16,10.015385686035216,399.38551798133267,4096,llama64k-b4-final-predecode-adaptive.json
+65536,QUEST FP16,19.753885391113002,202.49180962645173,,llama64k-b4-final-predecode-quest.json
+65536,Multipole BF16 (512 exact tokens),20.53003800488362,194.83646348090016,4096,../llama-context-scaling/llama-denseprefill-b4-65536-t4096.json
+65536,Squeezed BF16 (p90),17.37589998486122,230.20390330774268,4096,../llama-context-scaling/llama-denseprefill-b4-65536-t4096.json

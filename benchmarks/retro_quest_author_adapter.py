@@ -38,8 +38,6 @@ class RetroAuthorQuestCache:
             marker = Path(str(binary) + '.shared-kv.sha256')
             if not marker.exists() or marker.read_text().strip() != hashlib.sha256(binary.read_bytes()).hexdigest():
                 raise RuntimeError('shared KV requires the matching patched author kernel build')
-        if model.input_length % 16:
-            raise ValueError('author graph comparison requires a page-aligned prompt')
         self.context = 0
         self.prompt_length = model.input_length
         self.layer_num = model.num_layers
@@ -126,6 +124,17 @@ class RetroAuthorQuestCache:
         c._decode_handler.begin_forward(self.attn_indptr, self.heads, self.heads,
                                          self.dim, 16, torch.float16)
 
+    def _restore_prefill_tail(self):
+        full_pages, tail = divmod(self.prompt_length, 16)
+        if not tail:
+            return
+        controller = self.controller
+        kv = controller.kv_cache.pool.buf
+        kv[:, self.sentinel, :, :tail].copy_(kv[:, self.archive_ids[full_pages], :, :tail])
+        bounds = controller.metadata_cache.pool.buf
+        bounds[:, self.meta_sentinel, :, 0].copy_(
+            bounds[:, self.meta_ids[full_pages // 16], :, full_pages % 16])
+
     def _archive_completed_page(self):
         # Called immediately before the next page's first token. No query can
         # observe the sentinel until its first append has reset its bounds.
@@ -203,6 +212,9 @@ class RetroAuthorQuestCache:
             self.graph_logits_variants.append(logits)
             self.graph_outputs.append(output)
             self.context = previous
+        # Capture executes dummy appends for all phases. Restore the real
+        # prefill tail and its bounds before the first append to that page.
+        self._restore_prefill_tail()
         self.phase = 1
 
     def graph_step(self, token):
@@ -218,11 +230,28 @@ class RetroAuthorQuestCache:
 
     def checked_graph_step(self, model, token):
         previous = self.context
+        # Eager comparison writes the same position. Preserve the original
+        # input state for the check and the replay state for continued decoding.
+        controller = self.controller
+        writes = [
+            controller.kv_cache.pool.buf[:, self.sentinel, :, previous % 16],
+            controller.metadata_cache.pool.buf[:, self.meta_sentinel, :, 0],
+            *(cache[:, previous] for cache in (*self.dense_k, *self.dense_v)),
+        ]
+        before = [tensor.clone() for tensor in writes]
         graph_token = self.graph_step(token)
         graph_logits = self.graph_logits.clone()
+        after = [tensor.clone() for tensor in writes]
         self.context = previous
         self._set_position(previous)
-        eager_logits = model.decode_forward(inputs_ids=token)
+        for tensor, saved in zip(writes, before):
+            tensor.copy_(saved)
+        try:
+            eager_logits = model.decode_forward(inputs_ids=token)
+        finally:
+            for tensor, saved in zip(writes, after):
+                tensor.copy_(saved)
+            self.context = previous + 1
         difference = (graph_logits - eager_logits).abs()
         return graph_token, dict(max_abs=float(difference.max()),
             mean_abs=float(difference.mean()), graph_argmax=int(graph_logits.argmax()),

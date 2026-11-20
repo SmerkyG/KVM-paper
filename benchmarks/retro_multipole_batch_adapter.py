@@ -40,6 +40,7 @@ class RetroMultipoleBatchCache:
         self.prefix = model.input_length
         self.capacity = model.input_length + model.max_new_length
         self.interval = interval
+        self.tokens_per_centroid = 16
         self.sink = 10
         self.context = 0
         self.clustered = ((self.prefix - self.sink) // interval - 1) * interval
@@ -140,8 +141,6 @@ class RetroMultipoleBatchCache:
 
     def install_repeated_prefix(self, layers):
         """Build the common initial index once, then copy to independent requests."""
-        if self.fixed_centroids is None:
-            raise ValueError('repeated-prefix installation requires a fixed centroid budget')
         tail = self.sink + self.clustered
         for layer, (k, v, _, raw) in enumerate(layers):
             k, v, raw = k.to(self.device), v.to(self.device), raw.to(self.device)
@@ -152,7 +151,12 @@ class RetroMultipoleBatchCache:
                 (k[:, :, :self.sink], k[:, :, tail:]), dim=2).transpose(1, 2))
             self.local_v[layer][:, :self.prefix-self.clustered].copy_(torch.cat(
                 (v[:, :, :self.sink], v[:, :, tail:]), dim=2).transpose(1, 2))
-            centers, labels, counts = self._cluster_fixed(raw[:, :, self.sink:tail].contiguous())
+            data = raw[:, :, self.sink:tail].contiguous()
+            if self.fixed_centroids is None:
+                c, l, n, _ = run_clustering_online(data, [self.clustered // 16], 1, rank=0)
+                centers, labels, counts = c[0], l[0], n[0]
+            else:
+                centers, labels, counts = self._cluster_fixed(data)
             self._install_clusters(layer, centers.repeat(1, self.batch, 1, 1),
                                    labels.repeat(1, self.batch, 1), counts.repeat(1, self.batch, 1))
         self.context = self.prefix

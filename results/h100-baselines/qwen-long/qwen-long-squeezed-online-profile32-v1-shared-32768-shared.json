@@ -1,0 +1,759 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 40960,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 32768,
+  "methods": [
+    "lod",
+    "dense",
+    "subset-512"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": null,
+  "warmup_steps": null,
+  "dense_kv_source": "device",
+  "captures_host_kv": false,
+  "cohort_sha256": "246288e38147f6920f0c239f7308f8d5c85991411230eb953201d8e269421b84",
+  "records": [
+    {
+      "task": "niah_multikey_2",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "5530389"
+      ],
+      "prompt_sha256": "3734ca31aade188bb2e3934d9dc7f70a33299e1114f6564367fce59e4b253954",
+      "input_tokens": 32250,
+      "prefill_token_id": 3070,
+      "input_token_sha256": "8a3aef0ffef8e1ccc5c6e4ff01be4d113edfc20dbf21dceed146b1d09e36a368",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 18,
+            "eager_argmax": 18
+          },
+          "output_token_ids": [
+            3070,
+            18,
+            20,
+            15,
+            22,
+            17,
+            22,
+            17,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            25,
+            220
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.3066954739997527,
+            "generation_s": 0.16347508699982427,
+            "arm_setup_s": 1.452000105928164e-06,
+            "stop_at_token": 11
+          },
+          "prediction": " **3507272**.",
+          "score": 0.0
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 18,
+            "eager_argmax": 18,
+            "graph_argmax_by_request": [
+              18
+            ],
+            "eager_argmax_by_request": [
+              18
+            ]
+          },
+          "output_token_ids": [
+            3070,
+            18,
+            20,
+            15,
+            22,
+            17,
+            22,
+            17,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            25,
+            220
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.20312162099980924,
+            "generation_s": 0.12940648499989038,
+            "arm_setup_s": 0.2104727930000081,
+            "stop_at_token": 11
+          },
+          "prediction": " **3507272**.",
+          "score": 0.0
+        },
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 18,
+            "eager_argmax": 18
+          },
+          "output_token_ids": [
+            3070,
+            18,
+            20,
+            15,
+            22,
+            17,
+            22,
+            17,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            25,
+            220
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 2.5228401700005634,
+            "generation_s": 0.24500030199942557,
+            "worker_setup_s": 0.13812547999987146,
+            "arm_setup_s": 15.35928655600037,
+            "stop_at_token": 11
+          },
+          "last_layer_selected_prefix_counts": [
+            511,
+            508,
+            495,
+            510,
+            512,
+            503,
+            504,
+            510
+          ],
+          "cache_setup_s": 7.729126594999798,
+          "worker_pid": 3066,
+          "prediction": " **3507272**.",
+          "score": 0.0
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.3194465569995373,
+        "prefill_and_capture_s": 4.94091181100066,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 3.9163043785095213,
+        "lod_cache_completion_s": 0.00020708800002466887,
+        "peak_allocated_bytes": 39668383744
+      },
+      "elapsed_s": 21.63668059199972
+    },
+    {
+      "task": "niah_multikey_3",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "c5eba017-fe0e-4da1-801b-07c40ce356ea"
+      ],
+      "prompt_sha256": "dd04e61512e44f08624de08aeb646100ed6b4808d3c326dc05d02f1201f963a0",
+      "input_tokens": 32496,
+      "prefill_token_id": 25,
+      "input_token_sha256": "6a45bf2accb08932d5018bb8754343f82ce8d4c71357fac28bb5106af1e8826f",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 3070,
+            "eager_argmax": 3070
+          },
+          "output_token_ids": [
+            25,
+            3070,
+            66,
+            20,
+            70753,
+            15,
+            16,
+            22,
+            33203,
+            15,
+            68,
+            12,
+            19,
+            3235,
+            16,
+            12,
+            23,
+            15,
+            16,
+            65,
+            12,
+            15,
+            22,
+            66,
+            19,
+            15,
+            346,
+            18,
+            20,
+            21,
+            12508,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            1565,
+            66
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.1862883599997076,
+            "generation_s": 0.3241922090001026,
+            "arm_setup_s": 1.4430006558541209e-06,
+            "stop_at_token": 34
+          },
+          "prediction": ": **c5eba017-fe0e-4da1-801b-07c40ce356ea**.",
+          "score": 1.0
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 3070,
+            "eager_argmax": 3070,
+            "graph_argmax_by_request": [
+              3070
+            ],
+            "eager_argmax_by_request": [
+              3070
+            ]
+          },
+          "output_token_ids": [
+            25,
+            3070,
+            66,
+            20,
+            70753,
+            15,
+            16,
+            22,
+            33203,
+            15,
+            68,
+            12,
+            19,
+            3235,
+            16,
+            12,
+            23,
+            15,
+            16,
+            65,
+            12,
+            15,
+            22,
+            66,
+            19,
+            15,
+            346,
+            18,
+            20,
+            21,
+            12508,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            1565,
+            66
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.12155129700022371,
+            "generation_s": 0.3527353019999282,
+            "arm_setup_s": 0.2059183170003962,
+            "stop_at_token": 34
+          },
+          "prediction": ": **c5eba017-fe0e-4da1-801b-07c40ce356ea**.",
+          "score": 1.0
+        },
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 3070,
+            "eager_argmax": 3070
+          },
+          "output_token_ids": [
+            25,
+            3070,
+            66,
+            20,
+            70753,
+            15,
+            16,
+            22,
+            33203,
+            15,
+            68,
+            12,
+            19,
+            3235,
+            16,
+            12,
+            23,
+            15,
+            16,
+            65,
+            12,
+            15,
+            22,
+            66,
+            19,
+            15,
+            346,
+            18,
+            20,
+            21,
+            12508,
+            334,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            272,
+            20
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 1.9466838970001845,
+            "generation_s": 2.528769745000318,
+            "worker_setup_s": 0.13675984000019525,
+            "arm_setup_s": 11.817953564000163,
+            "stop_at_token": 34
+          },
+          "last_layer_selected_prefix_counts": [
+            499,
+            508,
+            493,
+            512,
+            506,
+            512,
+            512,
+            510
+          ],
+          "cache_setup_s": 3.5259648259998357,
+          "worker_pid": 3249,
+          "prediction": ": **c5eba017-fe0e-4da1-801b-07c40ce356ea**.",
+          "score": 1.0
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.02658431300005759,
+        "prefill_and_capture_s": 3.017667392000476,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 2.269255781173706,
+        "lod_cache_completion_s": 0.00020838999989791773,
+        "peak_allocated_bytes": 39804679168
+      },
+      "elapsed_s": 16.056209911000224
+    },
+    {
+      "task": "cwe",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "reform",
+        "dresser",
+        "mower",
+        "unarmed",
+        "remains",
+        "deceive",
+        "secure",
+        "tracking",
+        "twitter",
+        "gasp"
+      ],
+      "prompt_sha256": "d533089728ff71b07b5503b6d6cd79d7fd9ff28ca65354b5fef6a907b0d0dc7e",
+      "input_tokens": 32165,
+      "prefill_token_id": 16,
+      "input_token_sha256": "9183456c03fdd42bc36393d9ce88c4c474fb047e1fc6b75c41ef31f9d683343c",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            98678,
+            220,
+            17,
+            13,
+            22272,
+            220,
+            18,
+            13,
+            95537,
+            220,
+            19,
+            13,
+            9767,
+            220,
+            20,
+            13,
+            14836,
+            220,
+            21,
+            13,
+            6819,
+            79,
+            220,
+            22,
+            13,
+            7146,
+            220,
+            23,
+            13,
+            22272,
+            220,
+            24,
+            13,
+            22272,
+            220,
+            16,
+            15,
+            13,
+            22272,
+            151645,
+            198,
+            151643,
+            33975,
+            25,
+            3555,
+            374
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.16406201900008455,
+            "generation_s": 0.353404880999733,
+            "arm_setup_s": 1.276999682886526e-06,
+            "stop_at_token": 42
+          },
+          "prediction": "1. mower 2. twitter 3. dresser 4. secure 5. reform 6. gasp 7. remain 8. twitter 9. twitter 10. twitter",
+          "score": 0.6
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13,
+            "graph_argmax_by_request": [
+              13
+            ],
+            "eager_argmax_by_request": [
+              13
+            ]
+          },
+          "output_token_ids": [
+            16,
+            13,
+            98678,
+            220,
+            17,
+            13,
+            95537,
+            220,
+            18,
+            13,
+            22272,
+            220,
+            19,
+            13,
+            9767,
+            220,
+            20,
+            13,
+            14836,
+            220,
+            21,
+            13,
+            6819,
+            79,
+            220,
+            22,
+            13,
+            7146,
+            220,
+            23,
+            13,
+            92828,
+            220,
+            24,
+            13,
+            22272,
+            220,
+            16,
+            15,
+            13,
+            22272,
+            151645,
+            198,
+            151643,
+            33975,
+            25,
+            3555,
+            374
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.1210778479999135,
+            "generation_s": 0.42480308699941816,
+            "arm_setup_s": 0.20588773299914465,
+            "stop_at_token": 42
+          },
+          "prediction": "1. mower 2. dresser 3. twitter 4. secure 5. reform 6. gasp 7. remain 8. deceive 9. twitter 10. twitter",
+          "score": 0.7
+        },
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13
+          },
+          "output_token_ids": [
+            16,
+            13,
+            98678,
+            220,
+            17,
+            13,
+            14836,
+            220,
+            18,
+            13,
+            22272,
+            220,
+            19,
+            13,
+            6819,
+            79,
+            220,
+            20,
+            13,
+            95537,
+            220,
+            21,
+            13,
+            63899,
+            220,
+            22,
+            13,
+            7146,
+            220,
+            23,
+            13,
+            9767,
+            220,
+            24,
+            13,
+            14849,
+            220,
+            16,
+            15,
+            13,
+            92828,
+            151645,
+            271,
+            334,
+            9112,
+            66963,
+            576,
+            3409
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 1.6979278640001212,
+            "generation_s": 0.8079609309997977,
+            "worker_setup_s": 0.1352565509996566,
+            "arm_setup_s": 9.512171796000075,
+            "stop_at_token": 42
+          },
+          "last_layer_selected_prefix_counts": [
+            508,
+            510,
+            509,
+            508,
+            507,
+            501,
+            510,
+            507
+          ],
+          "cache_setup_s": 3.2581662949996826,
+          "worker_pid": 3465,
+          "prediction": "1. mower 2. reform 3. twitter 4. gasp 5. dresser 6. unarmed 7. remain 8. secure 9. tracking 10. deceive",
+          "score": 0.9
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.22667866899973887,
+        "prefill_and_capture_s": 2.0001688120000836,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 1.261626438140869,
+        "lod_cache_completion_s": 0.00020025699996040203,
+        "peak_allocated_bytes": 39691308544
+      },
+      "elapsed_s": 13.011841200999697
+    },
+    {
+      "task": "qa_1",
+      "source_row": 0,
+      "index": 0,
+      "answers": [
+        "France",
+        "France",
+        "France",
+        "France"
+      ],
+      "prompt_sha256": "c3064ec7d909a735e410ea4a1ac78232b881aee449561bab4bf51b0e23dd8a8b",
+      "input_tokens": 31147,
+      "prefill_token_id": 9625,
+      "input_token_sha256": "7afd2d518d6761eb704ea0b097a74cd87e8bef53c93c85ecb298ecf1fe1b1f49",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 151645,
+            "eager_argmax": 151645
+          },
+          "output_token_ids": [
+            9625,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            9625,
+            151645
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.18292773099983606,
+            "generation_s": 0.04620072200032155,
+            "arm_setup_s": 1.0270005077472888e-06,
+            "stop_at_token": 2
+          },
+          "prediction": " France",
+          "score": 1.0
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 13,
+            "eager_argmax": 13,
+            "graph_argmax_by_request": [
+              13
+            ],
+            "eager_argmax_by_request": [
+              13
+            ]
+          },
+          "output_token_ids": [
+            9625,
+            13,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            9625
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.12080968600002961,
+            "generation_s": 0.05537724399982835,
+            "arm_setup_s": 0.20540613899993332,
+            "stop_at_token": 3
+          },
+          "prediction": " France.",
+          "score": 1.0
+        },
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 151645,
+            "eager_argmax": 151645
+          },
+          "output_token_ids": [
+            9625,
+            151645,
+            271,
+            334,
+            16141,
+            66963,
+            9625,
+            151645
+          ],
+          "quality_profile": {
+            "graph_and_check_s": 0.45400840699949185,
+            "generation_s": 0.1039963870007341,
+            "worker_setup_s": 0.1357369520001157,
+            "arm_setup_s": 7.250524808000591,
+            "stop_at_token": 2
+          },
+          "last_layer_selected_prefix_counts": [
+            509,
+            506,
+            508,
+            509,
+            504,
+            510,
+            495,
+            512
+          ],
+          "cache_setup_s": 2.9554886369996893,
+          "worker_pid": 3538,
+          "prediction": " France",
+          "score": 1.0
+        }
+      },
+      "quality_profile": {
+        "lod_cache_allocation_s": 0.027061877000051027,
+        "prefill_and_capture_s": 1.92238194499987,
+        "prefill_capture_s": 0.0,
+        "prefill_attention_and_state_s": 1.2064412117004395,
+        "lod_cache_completion_s": 0.0002068250005322625,
+        "peak_allocated_bytes": 39326965760
+      },
+      "elapsed_s": 9.814009828000053
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc",
+  "stop_at_eos": true
+}

@@ -1,0 +1,832 @@
+{
+  "stage": "complete",
+  "settings": {
+    "qwen": {
+      "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+      "LOD_AMD_THRESHOLD_TILE": "64",
+      "LOD_AMD_THRESHOLD_SPLITS": "128",
+      "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+      "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+      "LOD_AMD_THRESHOLD_PRECISE": "0",
+      "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+      "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+      "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+    },
+    "k2": {
+      "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+      "LOD_AMD_THRESHOLD_TILE": "64",
+      "LOD_AMD_THRESHOLD_SPLITS": "128",
+      "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+      "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+      "LOD_AMD_THRESHOLD_PRECISE": "0",
+      "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+      "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+      "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+    }
+  },
+  "models": {
+    "qwen": {
+      "ms_per_token": {
+        "top8": 28.473263208979915,
+        "fast": 28.44163738336647,
+        "top8-after": 27.455956372250512
+      },
+      "native_median_ms": 27.965246466010285,
+      "less_time_percent": -1.7035105266645978,
+      "faster_than_both_controls": false,
+      "faster_than_all_control_repetitions": false,
+      "native_repetitions_ms": [
+        28.474055225160555,
+        28.472471192799276,
+        27.45389100527973,
+        27.458021739221294
+      ],
+      "optimized_repetitions_ms": [
+        28.45512247586157,
+        28.428152290871367
+      ],
+      "native_controls_output_identical": false,
+      "measurements": {
+        "top8": {
+          "cohort_decode_timings_seconds": [
+            29.15743255056441,
+            29.15581050142646
+          ],
+          "cohort_prefill_timings_seconds": [
+            7.992031019181013,
+            7.9914080034941435
+          ],
+          "decode_ms_per_batch_step": 28.473263208979915,
+          "decode_timings_seconds": [
+            29.15743255056441,
+            29.15581050142646
+          ],
+          "decode_tokens_per_second": 35.12066715572732,
+          "first_mismatch_positions": [
+            [
+              null
+            ],
+            [
+              null
+            ]
+          ],
+          "greedy_output_identical": true,
+          "output_token_sha256": [
+            [
+              "5fd7b07e04a2bc17fc27a67dc7e9af7c514727307aa4674383d1ae9a71c1b3ef"
+            ],
+            [
+              "5fd7b07e04a2bc17fc27a67dc7e9af7c514727307aa4674383d1ae9a71c1b3ef"
+            ]
+          ],
+          "prefill_prompt_tokens_per_second": 8200.488005994996,
+          "prefill_seconds": 7.991719511337578,
+          "prefill_timings_seconds": [
+            7.992031019181013,
+            7.9914080034941435
+          ],
+          "prompts": [
+            {
+              "request_index": 0,
+              "source_stream_indices": [
+                0
+              ],
+              "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+              "unique_16_token_block_ratio": 1.0
+            }
+          ],
+          "speculative_measurements": [],
+          "warmup_output_token_sha256": [
+            "5fd7b07e04a2bc17fc27a67dc7e9af7c514727307aa4674383d1ae9a71c1b3ef"
+          ]
+        },
+        "fast": {
+          "cohort_decode_timings_seconds": [
+            29.13804541528225,
+            29.11042794585228
+          ],
+          "cohort_prefill_timings_seconds": [
+            7.986872775480151,
+            7.990620605647564
+          ],
+          "decode_ms_per_batch_step": 28.44163738336647,
+          "decode_timings_seconds": [
+            29.13804541528225,
+            29.11042794585228
+          ],
+          "decode_tokens_per_second": 35.159719762998954,
+          "first_mismatch_positions": [
+            [
+              null
+            ],
+            [
+              null
+            ]
+          ],
+          "greedy_output_identical": true,
+          "output_token_sha256": [
+            [
+              "93c31b14630487838bac50c2b0cfcd32c84778e56ed39288d6b3caf91ddb189b"
+            ],
+            [
+              "93c31b14630487838bac50c2b0cfcd32c84778e56ed39288d6b3caf91ddb189b"
+            ]
+          ],
+          "prefill_prompt_tokens_per_second": 8203.539621228667,
+          "prefill_seconds": 7.9887466905638576,
+          "prefill_timings_seconds": [
+            7.986872775480151,
+            7.990620605647564
+          ],
+          "prompts": [
+            {
+              "request_index": 0,
+              "source_stream_indices": [
+                0
+              ],
+              "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+              "unique_16_token_block_ratio": 1.0
+            }
+          ],
+          "speculative_measurements": [],
+          "warmup_output_token_sha256": [
+            "93c31b14630487838bac50c2b0cfcd32c84778e56ed39288d6b3caf91ddb189b"
+          ]
+        },
+        "top8-after": {
+          "cohort_decode_timings_seconds": [
+            28.112784389406443,
+            28.117014260962605
+          ],
+          "cohort_prefill_timings_seconds": [
+            7.982842791825533,
+            7.9840713776648045
+          ],
+          "decode_ms_per_batch_step": 27.455956372250512,
+          "decode_timings_seconds": [
+            28.112784389406443,
+            28.117014260962605
+          ],
+          "decode_tokens_per_second": 36.421969296640164,
+          "first_mismatch_positions": [
+            [
+              null
+            ],
+            [
+              null
+            ]
+          ],
+          "greedy_output_identical": true,
+          "output_token_sha256": [
+            [
+              "d633168373439b1e0e097571a4dbe9547791060ca76dc89488acf0d88f50cf7d"
+            ],
+            [
+              "d633168373439b1e0e097571a4dbe9547791060ca76dc89488acf0d88f50cf7d"
+            ]
+          ],
+          "prefill_prompt_tokens_per_second": 8208.975047317099,
+          "prefill_seconds": 7.983457084745169,
+          "prefill_timings_seconds": [
+            7.982842791825533,
+            7.9840713776648045
+          ],
+          "prompts": [
+            {
+              "request_index": 0,
+              "source_stream_indices": [
+                0
+              ],
+              "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+              "unique_16_token_block_ratio": 1.0
+            }
+          ],
+          "speculative_measurements": [],
+          "warmup_output_token_sha256": [
+            "d633168373439b1e0e097571a4dbe9547791060ca76dc89488acf0d88f50cf7d"
+          ]
+        }
+      },
+      "kernel_diagnostic": {
+        "old_us": 87.97605335712433,
+        "new_us": 35.59329484899839,
+        "native_top8_us": 39.04298941294352,
+        "max_abs": 0.0625,
+        "records": [
+          {
+            "layer": 0,
+            "layer_name": "language_model.model.layers.3.self_attn.attn",
+            "rule": "region",
+            "implementation": "legacy",
+            "tile": 64,
+            "splits": 64,
+            "entry_block": 32,
+            "entry_warps": 4,
+            "microseconds": 84.7896859049797,
+            "repetitions_us": [
+              84.8107859492302,
+              84.75688099861145,
+              84.7896859049797
+            ],
+            "max_abs_vs_legacy": 0.0,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 36.875,
+            "mean_opened_entries": 2352.20849609375,
+            "mean_union_entries_per_kv": 5042.0,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 256,
+            "query_heads": 24,
+            "kv_heads": 4
+          },
+          {
+            "layer": 0,
+            "layer_name": "language_model.model.layers.3.self_attn.attn",
+            "rule": "region",
+            "implementation": "materialized",
+            "tile": 64,
+            "splits": 128,
+            "entry_block": 64,
+            "entry_warps": 4,
+            "microseconds": 34.973930567502975,
+            "repetitions_us": [
+              34.94439274072647,
+              35.023145377635956,
+              34.973930567502975
+            ],
+            "max_abs_vs_legacy": 0.00390625,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 36.875,
+            "mean_opened_entries": 2352.20849609375,
+            "mean_union_entries_per_kv": 5042.0,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 256,
+            "query_heads": 24,
+            "kv_heads": 4
+          },
+          {
+            "layer": 0,
+            "implementation": "native-top8",
+            "microseconds": 41.04088246822357,
+            "repetitions_us": [
+              40.997445583343506,
+              41.08244180679321,
+              41.04088246822357
+            ]
+          },
+          {
+            "layer": 8,
+            "layer_name": "language_model.model.layers.35.self_attn.attn",
+            "rule": "region",
+            "implementation": "legacy",
+            "tile": 64,
+            "splits": 64,
+            "entry_block": 32,
+            "entry_warps": 4,
+            "microseconds": 83.57876539230347,
+            "repetitions_us": [
+              83.57876539230347,
+              83.57173949480057,
+              83.59266817569733
+            ],
+            "max_abs_vs_legacy": 0.0,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 43.79166793823242,
+            "mean_opened_entries": 2125.916748046875,
+            "mean_union_entries_per_kv": 4025.75,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 256,
+            "query_heads": 24,
+            "kv_heads": 4
+          },
+          {
+            "layer": 8,
+            "layer_name": "language_model.model.layers.35.self_attn.attn",
+            "rule": "region",
+            "implementation": "materialized",
+            "tile": 64,
+            "splits": 128,
+            "entry_block": 64,
+            "entry_warps": 4,
+            "microseconds": 33.076293766498566,
+            "repetitions_us": [
+              33.076293766498566,
+              33.08863192796707,
+              33.03957358002663
+            ],
+            "max_abs_vs_legacy": 0.015625,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 43.79166793823242,
+            "mean_opened_entries": 2125.916748046875,
+            "mean_union_entries_per_kv": 4025.75,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 256,
+            "query_heads": 24,
+            "kv_heads": 4
+          },
+          {
+            "layer": 8,
+            "implementation": "native-top8",
+            "microseconds": 34.02925282716751,
+            "repetitions_us": [
+              34.014880657196045,
+              34.02925282716751,
+              34.05175358057022
+            ]
+          },
+          {
+            "layer": 15,
+            "layer_name": "language_model.model.layers.63.self_attn.attn",
+            "rule": "region",
+            "implementation": "legacy",
+            "tile": 64,
+            "splits": 64,
+            "entry_block": 32,
+            "entry_warps": 4,
+            "microseconds": 95.55970877408981,
+            "repetitions_us": [
+              95.56829929351807,
+              95.55970877408981,
+              95.55330127477646
+            ],
+            "max_abs_vs_legacy": 0.0,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 33.125,
+            "mean_opened_entries": 3061.08349609375,
+            "mean_union_entries_per_kv": 7687.75,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 256,
+            "query_heads": 24,
+            "kv_heads": 4
+          },
+          {
+            "layer": 15,
+            "layer_name": "language_model.model.layers.63.self_attn.attn",
+            "rule": "region",
+            "implementation": "materialized",
+            "tile": 64,
+            "splits": 128,
+            "entry_block": 64,
+            "entry_warps": 4,
+            "microseconds": 38.72966021299362,
+            "repetitions_us": [
+              38.717471063137054,
+              38.74075412750244,
+              38.72966021299362
+            ],
+            "max_abs_vs_legacy": 0.0625,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 33.125,
+            "mean_opened_entries": 3061.08349609375,
+            "mean_union_entries_per_kv": 7687.75,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 256,
+            "query_heads": 24,
+            "kv_heads": 4
+          },
+          {
+            "layer": 15,
+            "implementation": "native-top8",
+            "microseconds": 42.058832943439484,
+            "repetitions_us": [
+              42.06383600831032,
+              42.05742850899696,
+              42.058832943439484
+            ]
+          }
+        ]
+      },
+      "quality": {
+        "old": {
+          "niah_multikey_2": 75.0,
+          "niah_multikey_3": 100.0
+        },
+        "new": {
+          "niah_multikey_2": 75.0,
+          "niah_multikey_3": 100.0
+        },
+        "improved": 1,
+        "declined": 1
+      },
+      "max_reference_error": 0.0005813837051391602
+    },
+    "k2": {
+      "ms_per_token": {
+        "top8": 39.24004776035872,
+        "fast": 39.05995360128145,
+        "top8-after": 39.22518407853204
+      },
+      "native_median_ms": 39.238988990291546,
+      "less_time_percent": 0.45626911808148707,
+      "faster_than_both_controls": true,
+      "faster_than_all_control_repetitions": true,
+      "native_repetitions_ms": [
+        39.23494444825337,
+        39.24515107246407,
+        39.20733462473436,
+        39.24303353232972
+      ],
+      "optimized_repetitions_ms": [
+        39.05363339436008,
+        39.06627380820282
+      ],
+      "native_controls_output_identical": false,
+      "measurements": {
+        "top8": {
+          "cohort_decode_timings_seconds": [
+            40.176583115011454,
+            40.187034698203206
+          ],
+          "cohort_prefill_timings_seconds": [
+            13.622968718409538,
+            13.618551986292005
+          ],
+          "decode_ms_per_batch_step": 39.24004776035872,
+          "decode_timings_seconds": [
+            40.176583115011454,
+            40.187034698203206
+          ],
+          "decode_tokens_per_second": 25.484168778464767,
+          "first_mismatch_positions": [
+            [
+              null
+            ],
+            [
+              null
+            ]
+          ],
+          "greedy_output_identical": true,
+          "output_token_sha256": [
+            [
+              "fb1d07284f17ca76a39252b3ee6b7a3ae2ee1c4cfca5499f1d95f1b85b7cbd7a"
+            ],
+            [
+              "fb1d07284f17ca76a39252b3ee6b7a3ae2ee1c4cfca5499f1d95f1b85b7cbd7a"
+            ]
+          ],
+          "prefill_prompt_tokens_per_second": 4811.478823844758,
+          "prefill_seconds": 13.620760352350771,
+          "prefill_timings_seconds": [
+            13.622968718409538,
+            13.618551986292005
+          ],
+          "prompts": [
+            {
+              "request_index": 0,
+              "source_stream_indices": [
+                0,
+                1
+              ],
+              "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+              "unique_16_token_block_ratio": 1.0
+            }
+          ],
+          "speculative_measurements": [],
+          "warmup_output_token_sha256": [
+            "fb1d07284f17ca76a39252b3ee6b7a3ae2ee1c4cfca5499f1d95f1b85b7cbd7a"
+          ]
+        },
+        "fast": {
+          "cohort_decode_timings_seconds": [
+            39.99092059582472,
+            40.00386437959969
+          ],
+          "cohort_prefill_timings_seconds": [
+            13.637059343978763,
+            13.629332344979048
+          ],
+          "decode_ms_per_batch_step": 39.05995360128145,
+          "decode_timings_seconds": [
+            39.99092059582472,
+            40.00386437959969
+          ],
+          "decode_tokens_per_second": 25.601668916657207,
+          "first_mismatch_positions": [
+            [
+              101
+            ],
+            [
+              101
+            ]
+          ],
+          "greedy_output_identical": false,
+          "output_token_sha256": [
+            [
+              "28dcb6b43eca3e3e5f365d2d156de60b6407dcd1a70438fabeb09f933b454dd8"
+            ],
+            [
+              "28dcb6b43eca3e3e5f365d2d156de60b6407dcd1a70438fabeb09f933b454dd8"
+            ]
+          ],
+          "prefill_prompt_tokens_per_second": 4807.090043127371,
+          "prefill_seconds": 13.633195844478905,
+          "prefill_timings_seconds": [
+            13.637059343978763,
+            13.629332344979048
+          ],
+          "prompts": [
+            {
+              "request_index": 0,
+              "source_stream_indices": [
+                0,
+                1
+              ],
+              "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+              "unique_16_token_block_ratio": 1.0
+            }
+          ],
+          "speculative_measurements": [],
+          "warmup_output_token_sha256": [
+            "f9baec59fd41580540adaa4410e14de0d8b0150907ced9fe402ae7d23a50dfd1"
+          ]
+        },
+        "top8-after": {
+          "cohort_decode_timings_seconds": [
+            40.14831065572798,
+            40.18486633710563
+          ],
+          "cohort_prefill_timings_seconds": [
+            13.606623167172074,
+            13.60767445154488
+          ],
+          "decode_ms_per_batch_step": 39.22518407853204,
+          "decode_timings_seconds": [
+            40.14831065572798,
+            40.18486633710563
+          ],
+          "decode_tokens_per_second": 25.4938255483497,
+          "first_mismatch_positions": [
+            [
+              52
+            ],
+            [
+              3
+            ]
+          ],
+          "greedy_output_identical": false,
+          "output_token_sha256": [
+            [
+              "b942eeb667258772f53149cd6c24f972c2efe11597521cc548fe50295a32f3ae"
+            ],
+            [
+              "754bb5712fc828e3b730a8801cd530a899e8ff7725b08e2310dfd329102ba16f"
+            ]
+          ],
+          "prefill_prompt_tokens_per_second": 4816.291856448784,
+          "prefill_seconds": 13.607148809358478,
+          "prefill_timings_seconds": [
+            13.606623167172074,
+            13.60767445154488
+          ],
+          "prompts": [
+            {
+              "request_index": 0,
+              "source_stream_indices": [
+                0,
+                1
+              ],
+              "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+              "unique_16_token_block_ratio": 1.0
+            }
+          ],
+          "speculative_measurements": [],
+          "warmup_output_token_sha256": [
+            "fb1d07284f17ca76a39252b3ee6b7a3ae2ee1c4cfca5499f1d95f1b85b7cbd7a"
+          ]
+        }
+      },
+      "kernel_diagnostic": {
+        "old_us": 127.49242782592773,
+        "new_us": 39.17282943924268,
+        "native_top8_us": 36.8330180644989,
+        "max_abs": 0.015625,
+        "records": [
+          {
+            "layer": 0,
+            "layer_name": "model.layers.0.self_attn.attn",
+            "rule": "region",
+            "implementation": "legacy",
+            "tile": 64,
+            "splits": 64,
+            "entry_block": 32,
+            "entry_warps": 4,
+            "microseconds": 177.4228811264038,
+            "repetitions_us": [
+              177.64490842819214,
+              177.31083929538727,
+              177.4228811264038
+            ],
+            "max_abs_vs_legacy": 0.0,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 26.96875,
+            "mean_opened_entries": 5394.0,
+            "mean_union_entries_per_kv": 14477.125,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 128,
+            "query_heads": 64,
+            "kv_heads": 8
+          },
+          {
+            "layer": 0,
+            "layer_name": "model.layers.0.self_attn.attn",
+            "rule": "region",
+            "implementation": "materialized",
+            "tile": 64,
+            "splits": 128,
+            "entry_block": 64,
+            "entry_warps": 4,
+            "microseconds": 43.65459457039833,
+            "repetitions_us": [
+              44.1550575196743,
+              43.65459457039833,
+              43.60600560903549
+            ],
+            "max_abs_vs_legacy": 0.001953125,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 26.96875,
+            "mean_opened_entries": 5394.0,
+            "mean_union_entries_per_kv": 14477.125,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 128,
+            "query_heads": 64,
+            "kv_heads": 8
+          },
+          {
+            "layer": 0,
+            "implementation": "native-top8",
+            "microseconds": 47.40064591169357,
+            "repetitions_us": [
+              47.388769686222076,
+              47.40064591169357,
+              47.455329447984695
+            ]
+          },
+          {
+            "layer": 32,
+            "layer_name": "model.layers.32.self_attn.attn",
+            "rule": "region",
+            "implementation": "legacy",
+            "tile": 64,
+            "splits": 64,
+            "entry_block": 32,
+            "entry_warps": 4,
+            "microseconds": 94.41066533327103,
+            "repetitions_us": [
+              94.41066533327103,
+              94.34410184621811,
+              94.44034099578857
+            ],
+            "max_abs_vs_legacy": 0.0,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 37.078125,
+            "mean_opened_entries": 1600.296875,
+            "mean_union_entries_per_kv": 4401.875,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 128,
+            "query_heads": 64,
+            "kv_heads": 8
+          },
+          {
+            "layer": 32,
+            "layer_name": "model.layers.32.self_attn.attn",
+            "rule": "region",
+            "implementation": "materialized",
+            "tile": 64,
+            "splits": 128,
+            "entry_block": 64,
+            "entry_warps": 4,
+            "microseconds": 37.363894283771515,
+            "repetitions_us": [
+              37.24608197808266,
+              37.460457533597946,
+              37.363894283771515
+            ],
+            "max_abs_vs_legacy": 0.015625,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 37.078125,
+            "mean_opened_entries": 1600.296875,
+            "mean_union_entries_per_kv": 4401.875,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 128,
+            "query_heads": 64,
+            "kv_heads": 8
+          },
+          {
+            "layer": 32,
+            "implementation": "native-top8",
+            "microseconds": 30.926477164030075,
+            "repetitions_us": [
+              30.93460202217102,
+              30.926477164030075,
+              30.923664569854736
+            ]
+          },
+          {
+            "layer": 63,
+            "layer_name": "model.layers.63.self_attn.attn",
+            "rule": "region",
+            "implementation": "legacy",
+            "tile": 64,
+            "splits": 64,
+            "entry_block": 32,
+            "entry_warps": 4,
+            "microseconds": 110.64373701810837,
+            "repetitions_us": [
+              110.46889424324036,
+              110.64373701810837,
+              110.68795621395111
+            ],
+            "max_abs_vs_legacy": 0.0,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 23.375,
+            "mean_opened_entries": 2166.3125,
+            "mean_union_entries_per_kv": 5077.125,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 128,
+            "query_heads": 64,
+            "kv_heads": 8
+          },
+          {
+            "layer": 63,
+            "layer_name": "model.layers.63.self_attn.attn",
+            "rule": "region",
+            "implementation": "materialized",
+            "tile": 64,
+            "splits": 128,
+            "entry_block": 64,
+            "entry_warps": 4,
+            "microseconds": 36.4999994635582,
+            "repetitions_us": [
+              36.4999994635582,
+              36.475151777267456,
+              36.553751677274704
+            ],
+            "max_abs_vs_legacy": 0.015625,
+            "selection_mismatches": 0,
+            "mean_opened_regions": 23.375,
+            "mean_opened_entries": 2166.3125,
+            "mean_union_entries_per_kv": 5077.125,
+            "local_entries": 257,
+            "active_regions": 4096,
+            "state_capacity": 4352,
+            "head_dim": 128,
+            "query_heads": 64,
+            "kv_heads": 8
+          },
+          {
+            "layer": 63,
+            "implementation": "native-top8",
+            "microseconds": 32.171931117773056,
+            "repetitions_us": [
+              32.184898853302,
+              32.171931117773056,
+              32.133810222148895
+            ]
+          }
+        ]
+      },
+      "quality": {
+        "old": {
+          "niah_multikey_2": 62.5,
+          "niah_multikey_3": 87.5
+        },
+        "new": {
+          "niah_multikey_2": 62.5,
+          "niah_multikey_3": 87.5
+        },
+        "improved": 0,
+        "declined": 0
+      },
+      "max_reference_error": 0.0005813837051391602
+    }
+  },
+  "core_sources": {
+    "benchmarks/amd_threshold_materialized.py": "a708227e4e50378152c5fc997eccd2acc5e5b64397fe83119097359ba8497b25",
+    "benchmarks/amd_threshold_shared.py": "77788ac05b8c1e2e67d7353c9f7d161a291dd54da9d2b57fd3537eecc74a7e7d",
+    "benchmarks/amd_threshold_decode.py": "12d6315ec9227bd4dfbdb529dfc5c9246775b3f4ea81ab6a30b2b165a0e2f605",
+    "benchmarks/amd_threshold_frontier.py": "3de8b12b559752ec684511ddd129321a1316d96edb8212dde158f5f3fc3277b7",
+    "benchmarks/amd_threshold_merge.py": "77a8cb1a8462d17c2378bb15a2d5610856887463581f26f8cd5942999d58f036",
+    "integrations/vllm_lod/vllm_lod_plugin/pool.py": "ab8fba68843717b2de901f7a958f6baa9c647bb7f6705567f0f975b54edd90f3"
+  }
+}

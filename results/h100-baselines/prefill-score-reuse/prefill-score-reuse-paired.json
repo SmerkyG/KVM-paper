@@ -1,0 +1,83 @@
+{
+  "stage": "complete",
+  "records": [
+    {
+      "implementation": "reference",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "max_abs": 0.0019140541553497314,
+      "mean_abs": 0.00013576597848441452,
+      "selection_mismatches": 0
+    },
+    {
+      "implementation": "fused",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "max_abs": 0.0015693902969360352,
+      "mean_abs": 0.0001198808167828247,
+      "selection_mismatches": 0
+    },
+    {
+      "implementation": "reuse_vs_fused",
+      "rule": "entry",
+      "entry_bound": 16,
+      "work_bound": 16,
+      "changed_regions": 8,
+      "query_region_pairs": 12288,
+      "max_abs": 0.0660552978515625
+    },
+    {
+      "implementation": "reuse",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "max_abs": 0.06606567651033401,
+      "mean_abs": 0.0004552826576400548,
+      "selection_mismatches": 8
+    },
+    {
+      "implementation": "reference",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 32,
+      "work_bound": 1,
+      "max_abs": 0.0012325644493103027,
+      "mean_abs": 8.759192860452458e-05,
+      "selection_mismatches": 0
+    },
+    {
+      "implementation": "fused",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 32,
+      "work_bound": 1,
+      "max_abs": 0.0012325644493103027,
+      "mean_abs": 0.00010527281847316772,
+      "selection_mismatches": 0
+    },
+    {
+      "implementation": "reuse_vs_fused",
+      "rule": "entry",
+      "entry_bound": 32,
+      "work_bound": 1,
+      "changed_regions": 0,
+      "query_region_pairs": 12288,
+      "max_abs": 0.0
+    },
+    {
+      "implementation": "reuse",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 32,
+      "work_bound": 1,
+      "max_abs": 0.0012325644493103027,
+      "mean_abs": 0.00010527281847316772,
+      "selection_mismatches": 0
+    }
+  ]
+}

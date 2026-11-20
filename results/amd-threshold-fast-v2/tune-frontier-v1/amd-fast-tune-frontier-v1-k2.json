@@ -1,0 +1,1179 @@
+{
+  "stage": "complete",
+  "scope": "Tune attention using frozen real-model queries and semantic KV snapshots.\n\nThe model itself and cache catch-up are excluded. Every measured invocation\nincludes the complete attention pipeline and identical local-length rollback.\n",
+  "inputs": [
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2/layer-00.pt",
+      "sha256": "220af25aa7b6ec4f5b41f24ec891c16976410f36f21393f69718fe15963bea0f"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2/layer-32.pt",
+      "sha256": "28b4dedd3945999928576638da771c375ca7f3d4324eb25913c951f4f6715bcb"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2/layer-63.pt",
+      "sha256": "b329c46cea0b57c31e9985e0eb1fb9932550dc288e9931762baa66ea94e4ce49"
+    }
+  ],
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 177.60032415390015,
+      "repetitions_us": [
+        177.31845378875732,
+        177.60032415390015,
+        177.83824602762857
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 108.31435521443684,
+      "repetitions_us": [
+        108.42872659365337,
+        108.26872785886128,
+        108.31435521443684
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 1.1920928955078125e-07,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 229.5359174410502,
+      "repetitions_us": [
+        229.55822944641113,
+        229.5359174410502,
+        229.52906290690103
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 198.7492044766744,
+      "repetitions_us": [
+        198.7492044766744,
+        198.77290725708008,
+        198.72436920801798
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 140.97613096237183,
+      "repetitions_us": [
+        140.97613096237183,
+        141.1015490690867,
+        140.92387755711874
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 164.35782114664713,
+      "repetitions_us": [
+        164.49866692225137,
+        164.35782114664713,
+        164.2978290716807
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 137.18098402023315,
+      "repetitions_us": [
+        138.72845967610678,
+        137.18098402023315,
+        136.97662949562073
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 222.957710425059,
+      "repetitions_us": [
+        222.957710425059,
+        223.03895155588785,
+        222.95542558034262
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 328.63672574361163,
+      "repetitions_us": [
+        328.7329872449239,
+        328.5646438598633,
+        328.63672574361163
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 273.1645504633586,
+      "repetitions_us": [
+        273.2107837994893,
+        273.1645504633586,
+        273.15829197565716
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 181.55554930369058,
+      "repetitions_us": [
+        181.55554930369058,
+        180.94414472579956,
+        181.8049748738607
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 168.30883423487344,
+      "repetitions_us": [
+        168.34773619969687,
+        168.30883423487344,
+        168.27615102132162
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 120.77562014261882,
+      "repetitions_us": [
+        121.08539541562398,
+        120.77562014261882,
+        120.72700262069702
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 150.43089787165323,
+      "repetitions_us": [
+        150.44506390889487,
+        150.40881435076395,
+        150.43089787165323
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 564.9605989456177,
+      "repetitions_us": [
+        564.9605989456177,
+        565.117875734965,
+        564.8674567540487
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 472.10896015167236,
+      "repetitions_us": [
+        472.11186091105145,
+        472.10896015167236,
+        471.99686368306476
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 297.4101702372233,
+      "repetitions_us": [
+        297.49536514282227,
+        297.37788438796997,
+        297.4101702372233
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 263.57024908065796,
+      "repetitions_us": [
+        263.6977632840474,
+        263.57024908065796,
+        263.5385990142822
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 176.5421231587728,
+      "repetitions_us": [
+        176.50761206944784,
+        176.5421231587728,
+        176.9427458445231
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 162.59392102559408,
+      "repetitions_us": [
+        162.6641849676768,
+        162.53098845481873,
+        162.59392102559408
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 94.44141387939453,
+      "repetitions_us": [
+        94.44141387939453,
+        94.36724583307902,
+        94.47682897249858
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 67.59083271026611,
+      "repetitions_us": [
+        67.59479145208995,
+        67.57999956607819,
+        67.59083271026611
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 123.83947769800822,
+      "repetitions_us": [
+        123.84302417437236,
+        123.83947769800822,
+        123.80968530972798
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 135.66270470619202,
+      "repetitions_us": [
+        135.68020860354105,
+        135.66270470619202,
+        135.64936319986978
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 90.51958719889323,
+      "repetitions_us": [
+        90.51958719889323,
+        90.18041690190633,
+        90.55604537328084
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 131.0137907663981,
+      "repetitions_us": [
+        131.0137907663981,
+        131.00377718607584,
+        131.01504246393839
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 105.0296425819397,
+      "repetitions_us": [
+        105.61194022496541,
+        105.0296425819397,
+        104.95465993881226
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 201.4095981915792,
+      "repetitions_us": [
+        201.39936606089273,
+        201.4095981915792,
+        201.43250624338785
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 184.04016892115274,
+      "repetitions_us": [
+        184.04016892115274,
+        184.14912621180216,
+        183.96496772766113
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 164.4778549671173,
+      "repetitions_us": [
+        164.4778549671173,
+        164.61973388989767,
+        164.47368264198303
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 112.98271020253499,
+      "repetitions_us": [
+        112.98271020253499,
+        112.93750007947285,
+        113.04791768391927
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 157.66104062398276,
+      "repetitions_us": [
+        157.66104062398276,
+        157.65062967936197,
+        157.6741635799408
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 105.97152511278789,
+      "repetitions_us": [
+        105.97152511278789,
+        105.91068863868713,
+        106.00777467091878
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 158.9249869187673,
+      "repetitions_us": [
+        158.97164742151895,
+        158.9249869187673,
+        158.91310572624207
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 214.5694692929586,
+      "repetitions_us": [
+        214.66445922851562,
+        214.5694692929586,
+        214.3707275390625
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 213.85822693506876,
+      "repetitions_us": [
+        213.90740076700845,
+        213.75719706217447,
+        213.85822693506876
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 146.16864919662476,
+      "repetitions_us": [
+        146.15739385286966,
+        146.219273408254,
+        146.16864919662476
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 211.5276257197062,
+      "repetitions_us": [
+        211.56013011932373,
+        211.52575810750326,
+        211.5276257197062
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 147.29010065396628,
+      "repetitions_us": [
+        147.29010065396628,
+        147.2521722316742,
+        147.36072222391763
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 213.55615059534708,
+      "repetitions_us": [
+        213.55615059534708,
+        213.56346209843954,
+        213.55156103769937
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 112.44416236877441,
+      "repetitions_us": [
+        112.71708210309346,
+        112.44416236877441,
+        112.33166853586833
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 73.04578026135762,
+      "repetitions_us": [
+        73.01224271456401,
+        73.04578026135762,
+        73.08411598205566
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 3.0517578125e-05,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 117.94620752334595,
+      "repetitions_us": [
+        117.94620752334595,
+        117.88766582806905,
+        117.94890960057576
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 124.369482199351,
+      "repetitions_us": [
+        124.369482199351,
+        124.42844112714131,
+        124.3492563565572
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 96.0643192132314,
+      "repetitions_us": [
+        96.0643192132314,
+        96.09284996986389,
+        95.97057104110718
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 139.68495527903238,
+      "repetitions_us": [
+        139.6980881690979,
+        139.68495527903238,
+        139.6657923857371
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 112.36041784286499,
+      "repetitions_us": [
+        112.64042059580485,
+        112.33478784561157,
+        112.36041784286499
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 16,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 195.20151615142822,
+      "repetitions_us": [
+        195.48173745473227,
+        195.17693916956583,
+        195.20151615142822
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 140.8189038435618,
+      "repetitions_us": [
+        140.81181089083353,
+        140.8189038435618,
+        140.8405601978302
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 138.8345460096995,
+      "repetitions_us": [
+        138.79642883936563,
+        138.8345460096995,
+        138.8957997163137
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 93.83163849512736,
+      "repetitions_us": [
+        93.83163849512736,
+        93.83641680081685,
+        93.8305954138438
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 139.0226682027181,
+      "repetitions_us": [
+        139.02766505877176,
+        138.9870544274648,
+        139.0226682027181
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 96.43743435541789,
+      "repetitions_us": [
+        96.38410806655884,
+        96.43743435541789,
+        96.45785888036092
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 32,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 141.62827531496683,
+      "repetitions_us": [
+        141.62827531496683,
+        141.58722758293152,
+        146.65764570236206
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 1,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 252.5585095087687,
+      "repetitions_us": [
+        257.46776660283405,
+        252.4505853652954,
+        252.5585095087687
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 1,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 217.2592282295227,
+      "repetitions_us": [
+        217.25964546203613,
+        217.2592282295227,
+        217.07258621851602
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 2,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 143.57679088910422,
+      "repetitions_us": [
+        143.5213883717855,
+        143.62033208211264,
+        143.57679088910422
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 2,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 192.6036278406779,
+      "repetitions_us": [
+        192.67821311950684,
+        192.6036278406779,
+        192.59862105051675
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 4,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 134.12979245185852,
+      "repetitions_us": [
+        134.07771786053976,
+        134.12979245185852,
+        134.13625955581665
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "frontier",
+      "tile": 64,
+      "splits": 4,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 194.16570663452148,
+      "repetitions_us": [
+        194.16570663452148,
+        194.1286325454712,
+        194.1936214764913
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {}
+    }
+  ],
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=62333065-6362-3361-3962-336138653265, pci_bus_id=21, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "f107d19bd16414bfc6d0e69376626747d13b48420dbdf9154f508f9020e801e3",
+      "source_file_count": 221
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

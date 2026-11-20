@@ -1,0 +1,134 @@
+{
+  "region-32k": {
+    "prior_ms": 7.81662271093353,
+    "optimized_ms": 7.541241969242662,
+    "reduction_pct": 3.523014374298472,
+    "update_events": [
+      128,
+      128
+    ],
+    "settings": {
+      "implementation": "indexed",
+      "rule": "region",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "selected_region_cap": null
+    },
+    "predicted_token_disagreements_per_repetition": [
+      0,
+      0,
+      0
+    ],
+    "prior_repetitions_ms": [
+      7.815043552739098,
+      7.818201869127961
+    ],
+    "optimized_repetitions_ms": [
+      7.547053797850367,
+      7.535430140634958
+    ]
+  },
+  "entry-32k": {
+    "prior_ms": 7.9941925937490055,
+    "optimized_ms": 7.57261932324127,
+    "reduction_pct": 5.2734940466330755,
+    "update_events": [
+      128,
+      128
+    ],
+    "settings": {
+      "implementation": "combined",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "tile": 64,
+      "splits": 16,
+      "entry_block": 32,
+      "selected_region_cap": null
+    },
+    "predicted_token_disagreements_per_repetition": [
+      0,
+      0,
+      0
+    ],
+    "prior_repetitions_ms": [
+      7.993460338866498,
+      7.994924848631513
+    ],
+    "optimized_repetitions_ms": [
+      7.564533589842881,
+      7.580705056639658
+    ]
+  },
+  "region-64k": {
+    "prior_ms": 8.29675064844082,
+    "optimized_ms": 7.952175617191415,
+    "reduction_pct": 4.153132302634166,
+    "update_events": [
+      128,
+      128
+    ],
+    "settings": {
+      "implementation": "indexed",
+      "rule": "region",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "selected_region_cap": null
+    },
+    "predicted_token_disagreements_per_repetition": [
+      1,
+      1,
+      0
+    ],
+    "prior_repetitions_ms": [
+      8.297866704111811,
+      8.29563459276983
+    ],
+    "optimized_repetitions_ms": [
+      7.9526294697274125,
+      7.951721764655417
+    ]
+  },
+  "entry-64k": {
+    "prior_ms": 8.251114324224318,
+    "optimized_ms": 7.960391376471421,
+    "reduction_pct": 3.523438608763041,
+    "update_events": [
+      128,
+      128
+    ],
+    "settings": {
+      "implementation": "indexed",
+      "rule": "entry",
+      "multiplier": 16.0,
+      "entry_bound": 16,
+      "work_bound": 16,
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 32,
+      "selected_region_cap": null
+    },
+    "predicted_token_disagreements_per_repetition": [
+      0,
+      0,
+      0
+    ],
+    "prior_repetitions_ms": [
+      8.247763377937645,
+      8.254465270510991
+    ],
+    "optimized_repetitions_ms": [
+      7.957726076185168,
+      7.963056676757674
+    ]
+  }
+}

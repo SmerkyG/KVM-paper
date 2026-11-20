@@ -1,0 +1,153 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 64,
+      "source_sha256": "321bbc88ee09ebced164ea81e4a3e9f5db48a6ee724d413c504449ea3d61c739"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 66577,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 66577,
+  "measurements": {
+    "32768": {
+      "decode_ms_per_batch_step": 10.533715956054124,
+      "prefill_seconds": 1.2156762020003953,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "745893b9a405926f3aff351d3af7d43c12364b0a497af5ff7a11ea002d32f198",
+          "unique_16_token_block_ratio": 0.998046875
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 10.506962610351778,
+          "decode_seconds": 10.75912971300022,
+          "elapsed_seconds": 12.051532329998736,
+          "output_token_sha256": [
+            "a096b4884312e0936bc33be13ea9aef5c8d7d59e5e43639954170740f2f37e54"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 1.2836768689994642
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 10.509145118165364,
+          "decode_seconds": 10.761364601001333,
+          "elapsed_seconds": 11.969282812000529,
+          "output_token_sha256": [
+            "a096b4884312e0936bc33be13ea9aef5c8d7d59e5e43639954170740f2f37e54"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 1.2051589759994386
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 10.532971888672193,
+          "decode_seconds": 10.785763214000326,
+          "elapsed_seconds": 11.99736166799994,
+          "output_token_sha256": [
+            "a096b4884312e0936bc33be13ea9aef5c8d7d59e5e43639954170740f2f37e54"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.2087721589996363
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 10.534079485351455,
+          "decode_seconds": 10.78689739299989,
+          "elapsed_seconds": 12.005004311000448,
+          "output_token_sha256": [
+            "a096b4884312e0936bc33be13ea9aef5c8d7d59e5e43639954170740f2f37e54"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.2156762020003953
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 10.533715956054124,
+          "decode_seconds": 10.786525138999423,
+          "elapsed_seconds": 12.00627310100026,
+          "output_token_sha256": [
+            "a096b4884312e0936bc33be13ea9aef5c8d7d59e5e43639954170740f2f37e54"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.217374813000788
+        }
+      ]
+    }
+  },
+  "mode": "quest-bf16",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "7f4b667f0a77edffe0cff8a599834afcccff77a8f596b94d69bccaaa186adeeb",
+  "prompt_source": {
+    "batch_size": 1,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "quest_budget_tokens": 8192,
+  "repeats": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 30.778923391000717,
+  "warmups": 2,
+  "worker_state": [
+    []
+  ]
+}

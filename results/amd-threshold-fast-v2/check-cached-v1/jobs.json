@@ -1,0 +1,37 @@
+{
+  "phase": "check",
+  "source": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-cached-v1/source",
+  "jobs": [
+    {
+      "id": "24521-amd-fast-check-cached-v1-cached",
+      "name": "amd-fast-check-cached-v1-cached",
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-cached-v1/amd-fast-check-cached-v1-cached.json",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--name",
+        "amd-fast-check-cached-v1-cached",
+        "--num-gpus",
+        "1",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-cached-v1/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-cached-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION=cached",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS=2",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_synthetic_check",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/check-cached-v1/amd-fast-check-cached-v1-cached.json"
+      ]
+    }
+  ]
+}

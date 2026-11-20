@@ -1,0 +1,82 @@
+{
+  "stage": "running",
+  "model": "k2",
+  "mode": "three-tier-bf16",
+  "serial": true,
+  "jobs": [
+    {
+      "variant": "top8",
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.prolong",
+        "--checkpoint",
+        "IFM/K2-Horizon-32B-FP8",
+        "--mode",
+        "three-tier-bf16",
+        "--measure",
+        "speed",
+        "--lengths",
+        "65536",
+        "--batch-size",
+        "1",
+        "--decode-tokens",
+        "1025",
+        "--repeats",
+        "2",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/serving-v1/amd-3t-k2-three-tier-bf16-speed-top8.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/serving-v1/amd-3t-k2-three-tier-bf16-speed-top8.json",
+      "settings": {},
+      "exit_code": 0
+    },
+    {
+      "variant": "fast",
+      "command": [
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.prolong",
+        "--checkpoint",
+        "IFM/K2-Horizon-32B-FP8",
+        "--mode",
+        "three-tier-bf16",
+        "--measure",
+        "speed",
+        "--lengths",
+        "65536",
+        "--batch-size",
+        "1",
+        "--decode-tokens",
+        "1025",
+        "--repeats",
+        "2",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/serving-v1/amd-3t-k2-three-tier-bf16-speed-fast.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/serving-v1/amd-3t-k2-three-tier-bf16-speed-fast.json",
+      "settings": {
+        "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "three-tier",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "8",
+        "LOD_AMD_THRESHOLD_PAGE_WORKERS": "8",
+        "LOD_AMD_THRESHOLD_PAGE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    }
+  ]
+}

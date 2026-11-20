@@ -1,0 +1,166 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d73f1560bb9f95e71d89711e04e19ab45895d385d248724e3a37773fdf236598",
+      "source_file_count": 238
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=37396363-3938-6565-6133-353363656635, pci_bus_id=229, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "scope": "fixed real query/cache attention plus same local-length rollback; excludes model and cache catch-up",
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 111.87063157558441,
+      "repetitions_us": [
+        111.75735294818878,
+        111.87063157558441,
+        111.92735284566879
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 26.96875,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 128,
+      "query_heads": 64,
+      "kv_heads": 8,
+      "page_workers": 64,
+      "page_warps": 1,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 5394.0,
+      "mean_selected_region_union_entries_per_kv": 14477.125,
+      "mean_exact_remote_entry_bound": 863.0
+    },
+    {
+      "layer": 0,
+      "implementation": "native-top8",
+      "microseconds": 67.73118674755096,
+      "repetitions_us": [
+        67.73118674755096,
+        67.8132176399231,
+        67.70868599414825
+      ],
+      "pre_change_page_output_identical": true,
+      "max_abs_vs_pre_change_pages": 0.0
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 94.94318813085556,
+      "repetitions_us": [
+        95.0305312871933,
+        94.94318813085556,
+        94.79209035634995
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 37.0625,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 128,
+      "query_heads": 64,
+      "kv_heads": 8,
+      "page_workers": 64,
+      "page_warps": 1,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 1605.171875,
+      "mean_selected_region_union_entries_per_kv": 4415.625,
+      "mean_exact_remote_entry_bound": 1186.0
+    },
+    {
+      "layer": 32,
+      "implementation": "native-top8",
+      "microseconds": 53.50605025887489,
+      "repetitions_us": [
+        53.51855233311653,
+        53.50605025887489,
+        53.49292233586311
+      ],
+      "pre_change_page_output_identical": true,
+      "max_abs_vs_pre_change_pages": 0.0
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "three-tier",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 89.55715596675873,
+      "repetitions_us": [
+        89.5988792181015,
+        89.50106799602509,
+        89.55715596675873
+      ],
+      "selection_mismatches": 0,
+      "mean_opened_regions": 22.71875,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 128,
+      "query_heads": 64,
+      "kv_heads": 8,
+      "page_workers": 64,
+      "page_warps": 1,
+      "max_abs_vs_reference_config": 0.0,
+      "mean_selected_region_entries": 2055.25,
+      "mean_selected_region_union_entries_per_kv": 4854.25,
+      "mean_exact_remote_entry_bound": 727.0
+    },
+    {
+      "layer": 63,
+      "implementation": "native-top8",
+      "microseconds": 62.15391308069229,
+      "repetitions_us": [
+        62.15391308069229,
+        62.12938204407692,
+        62.19968572258949
+      ],
+      "pre_change_page_output_identical": true,
+      "max_abs_vs_pre_change_pages": 0.0
+    }
+  ],
+  "model": "k2",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "three-tier-int4",
+  "context": 65536,
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

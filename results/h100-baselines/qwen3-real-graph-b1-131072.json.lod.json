@@ -1,0 +1,163 @@
+{
+  "metadata": {
+    "model": "Qwen/Qwen3-8B",
+    "layer": 18,
+    "length": 131072,
+    "batch": 1,
+    "prompt_sha256": "a3a1cda22b592c1853bbac5bf4ccecddb00d7710374a2b121eeeadeb9395c6f3",
+    "dataset_parquet": "/home/ubuntu/.cache/huggingface/hub/datasets--Seerkfang--prolong-64k-512-new/snapshots/97295b7d7fe48dc0aa6ba373af3a8b9d945e505b/train_00000.parquet",
+    "dataset_domains": [
+      "thestackv1_concat_by_repo-long/65536-65536",
+      "thestackv1_concat_by_repo-long/65536-65536"
+    ],
+    "query_position": 131072,
+    "teacher_forced_next_token": true,
+    "yarn": true,
+    "rope_scaling": {
+      "rope_type": "yarn",
+      "factor": 4.0,
+      "original_max_position_embeddings": 32768
+    },
+    "chunk_size": 4096,
+    "prefill_attention": "flash_attention_2",
+    "transformers": "4.51.3",
+    "sampled_live_cache_key_max_abs": 0.0,
+    "sampled_live_cache_value_max_abs": 0.0
+  },
+  "kind": "lod",
+  "measurement_scope": "one layer, fixed model-produced Q/K/V; graph-only",
+  "records": [
+    {
+      "mode": "two-tier",
+      "scope": "remote",
+      "local_sink_perturbation": {
+        "recent_v": 0.0,
+        "sink_v": 0.0
+      },
+      "median_ms": 0.07697102832082692,
+      "samples": [
+        {
+          "wall_ms": 0.0769713242192438,
+          "gpu_ms": 0.07690681517124176
+        },
+        {
+          "wall_ms": 0.07697073242241004,
+          "gpu_ms": 0.07692906260490417
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 37323407360
+    },
+    {
+      "mode": "two-tier",
+      "scope": "local",
+      "local_sink_perturbation": {
+        "recent_v": 9.80078125,
+        "sink_v": 0.068359375
+      },
+      "median_ms": 0.07741771874769654,
+      "samples": [
+        {
+          "wall_ms": 0.0773879746063244,
+          "gpu_ms": 0.0773313120007515
+        },
+        {
+          "wall_ms": 0.07744746288906867,
+          "gpu_ms": 0.07740437239408493
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 37323407360
+    },
+    {
+      "mode": "three-tier-bf16",
+      "scope": "remote",
+      "local_sink_perturbation": {
+        "recent_v": 0.0,
+        "sink_v": 0.0
+      },
+      "median_ms": 0.06472868847673396,
+      "samples": [
+        {
+          "wall_ms": 0.0649278222653038,
+          "gpu_ms": 0.06486675143241882
+        },
+        {
+          "wall_ms": 0.06452955468816413,
+          "gpu_ms": 0.06448612362146378
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 37283561472
+    },
+    {
+      "mode": "three-tier-bf16",
+      "scope": "local",
+      "local_sink_perturbation": {
+        "recent_v": 9.80078125,
+        "sink_v": 0.068359375
+      },
+      "median_ms": 0.06677506542906997,
+      "samples": [
+        {
+          "wall_ms": 0.06677229296769838,
+          "gpu_ms": 0.06671318411827087
+        },
+        {
+          "wall_ms": 0.06677783789044156,
+          "gpu_ms": 0.06673618406057358
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 37283561472
+    },
+    {
+      "mode": "three-tier-int4",
+      "scope": "remote",
+      "local_sink_perturbation": {
+        "recent_v": 0.0,
+        "sink_v": 0.0
+      },
+      "median_ms": 0.06198481933594735,
+      "samples": [
+        {
+          "wall_ms": 0.0621626015622212,
+          "gpu_ms": 0.06209906190633774
+        },
+        {
+          "wall_ms": 0.0618070371096735,
+          "gpu_ms": 0.06176431104540825
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 36872519680
+    },
+    {
+      "mode": "three-tier-int4",
+      "scope": "local",
+      "local_sink_perturbation": {
+        "recent_v": 9.8037109375,
+        "sink_v": 0.0703125
+      },
+      "median_ms": 0.06230281250019232,
+      "samples": [
+        {
+          "wall_ms": 0.062264607421980145,
+          "gpu_ms": 0.06220231205224991
+        },
+        {
+          "wall_ms": 0.06234101757840449,
+          "gpu_ms": 0.062300000339746475
+        }
+      ],
+      "graph_eager_max_abs": 0.0,
+      "replay_max_abs": 0.0,
+      "device_used_bytes_at_graph_setup": 36872519680
+    }
+  ]
+}

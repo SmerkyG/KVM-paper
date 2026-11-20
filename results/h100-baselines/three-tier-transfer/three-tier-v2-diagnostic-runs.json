@@ -1,0 +1,119 @@
+{
+  "stage": "submitted",
+  "jobs": [
+    {
+      "name": "three-tier-v2-three-tier-bf16-32k-quality-uncached-misses",
+      "id": "1794271208095803565-three-tier-v2-three-tier-bf16-32k-quality-uncached-misses",
+      "command": [
+        "env",
+        "CUDA_HOME=/usr/local/cuda-12.4",
+        "LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64",
+        "HF_HUB_OFFLINE=1",
+        "LOD_TRACK_UPDATES=1",
+        "PYTHONPATH=/home/ubuntu/comparison/RetroInfer:.",
+        "LOD_H100_THRESHOLD_MULTIPLIER=16",
+        "LOD_H100_THRESHOLD_IMPLEMENTATION=three-tier",
+        "LOD_H100_THRESHOLD_TILE=64",
+        "LOD_H100_THREE_TIER_WORKERS=64",
+        "LOD_H100_THREE_TIER_PAGE_WARPS=2",
+        "LOD_H100_THRESHOLD_MERGE_BLOCK=32",
+        "LOD_H100_THREE_TIER_CACHED_MEANS=0",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "triton==3.7.1",
+        "python",
+        "-m",
+        "benchmarks.h100_checked_run",
+        "--require-run",
+        "/home/ubuntu/.local/state/lod-cluster-run/1794269323525112292-three-tier-h100-frontier-v2/run.json",
+        "--",
+        "python",
+        "-m",
+        "benchmarks.retro_ruler_run",
+        "--input",
+        "/home/ubuntu/comparison/results/three-tier-miss-cohort.json",
+        "--mode",
+        "three-tier-bf16",
+        "--check-graph",
+        "--output",
+        "/home/ubuntu/comparison/results/three-tier-v2-three-tier-bf16-32k-quality-uncached-misses.json"
+      ],
+      "output": "/home/ubuntu/comparison/results/three-tier-v2-three-tier-bf16-32k-quality-uncached-misses.json"
+    },
+    {
+      "name": "three-tier-v2-three-tier-int4-32k-quality-uncached-misses",
+      "id": "1794271208151304289-three-tier-v2-three-tier-int4-32k-quality-uncached-misses",
+      "command": [
+        "env",
+        "CUDA_HOME=/usr/local/cuda-12.4",
+        "LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64",
+        "HF_HUB_OFFLINE=1",
+        "LOD_TRACK_UPDATES=1",
+        "PYTHONPATH=/home/ubuntu/comparison/RetroInfer:.",
+        "LOD_H100_THRESHOLD_MULTIPLIER=16",
+        "LOD_H100_THRESHOLD_IMPLEMENTATION=three-tier",
+        "LOD_H100_THRESHOLD_TILE=64",
+        "LOD_H100_THREE_TIER_WORKERS=64",
+        "LOD_H100_THREE_TIER_PAGE_WARPS=1",
+        "LOD_H100_THRESHOLD_MERGE_BLOCK=32",
+        "LOD_H100_THREE_TIER_CACHED_MEANS=0",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "triton==3.7.1",
+        "python",
+        "-m",
+        "benchmarks.h100_checked_run",
+        "--require-run",
+        "/home/ubuntu/.local/state/lod-cluster-run/1794269323525112292-three-tier-h100-frontier-v2/run.json",
+        "--",
+        "python",
+        "-m",
+        "benchmarks.retro_ruler_run",
+        "--input",
+        "/home/ubuntu/comparison/results/three-tier-miss-cohort.json",
+        "--mode",
+        "three-tier-int4",
+        "--check-graph",
+        "--output",
+        "/home/ubuntu/comparison/results/three-tier-v2-three-tier-int4-32k-quality-uncached-misses.json"
+      ],
+      "output": "/home/ubuntu/comparison/results/three-tier-v2-three-tier-int4-32k-quality-uncached-misses.json"
+    }
+  ],
+  "chosen": {
+    "three-tier-bf16/32768": {
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 2,
+      "merge_block": 32
+    },
+    "three-tier-int4/32768": {
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32
+    },
+    "three-tier-bf16/65536": {
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32
+    },
+    "three-tier-int4/65536": {
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32
+    }
+  }
+}

@@ -1,0 +1,1662 @@
+{
+  "stage": "complete",
+  "scope": "Tune attention using frozen real-model queries and semantic KV snapshots.\n\nThe model itself and cache catch-up are excluded. Every measured invocation\nincludes the complete attention pipeline and identical local-length rollback.\n",
+  "inputs": [
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2/layer-00.pt",
+      "sha256": "220af25aa7b6ec4f5b41f24ec891c16976410f36f21393f69718fe15963bea0f"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2/layer-32.pt",
+      "sha256": "28b4dedd3945999928576638da771c375ca7f3d4324eb25913c951f4f6715bcb"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2/layer-63.pt",
+      "sha256": "b329c46cea0b57c31e9985e0eb1fb9932550dc288e9931762baa66ea94e4ce49"
+    }
+  ],
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 177.93013652165732,
+      "repetitions_us": [
+        178.0948837598165,
+        177.92238791783652,
+        177.93013652165732
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 5.808999999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold",
+          "device_us": 101.22287499999997,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.729,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 5.32387499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_pack_selected",
+          "device_us": 4.643999999999984,
+          "calls": 1.0
+        },
+        {
+          "name": "_expand_pages",
+          "device_us": 7.38387500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "_leaves",
+          "device_us": 20.453625000000024,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 26.588750000000033,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 5.218999999999959,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.668999999999954,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 107.91229208310445,
+      "repetitions_us": [
+        108.12976956367493,
+        107.83229271570842,
+        107.91229208310445
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 1.1920928955078125e-07,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 7.298874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold_pack",
+          "device_us": 12.35874999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.699000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "_compact_leaves",
+          "device_us": 65.00349999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 6.8238749999999975,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 4.969000000000015,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.338874999999987,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 129.8658549785614,
+      "repetitions_us": [
+        129.64335083961487,
+        129.91919120152792,
+        129.8658549785614
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.948875000000017,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.118999999999986,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.308999999999974,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 8.159,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 103.91799999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.0288750000000135,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.043999999999993,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 99.40031170845032,
+      "repetitions_us": [
+        99.39051667849223,
+        99.40031170845032,
+        99.51821962992351
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.893999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.17400000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.278999999999982,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 8.183999999999989,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 73.96799999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.068999999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.0190000000000055,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 82.92525509993236,
+      "repetitions_us": [
+        82.92338252067566,
+        82.92525509993236,
+        82.9671323299408
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.00400000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.213999999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.318750000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 8.159000000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 56.88362499999998,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.008999999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.153875000000003,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 77.69759992758433,
+      "repetitions_us": [
+        77.56884892781575,
+        77.69759992758433,
+        77.7990569670995
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.993875000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.21399999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.328874999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 8.173875000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 51.68349999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.0090000000000074,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.174000000000003,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 32,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 132.68478711446127,
+      "repetitions_us": [
+        132.47896234194437,
+        132.68478711446127,
+        132.69832730293274
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.388999999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 4.928875000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.374000000000015,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 11.10399999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 104.288,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.038999999999991,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.053875000000012,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 32,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 102.29695836702983,
+      "repetitions_us": [
+        102.29695836702983,
+        102.29611396789551,
+        102.31841603914897
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.419000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 4.923999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.363999999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 10.994000000000016,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 74.13799999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.018999999999984,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.019000000000009,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 64,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 85.62127749125163,
+      "repetitions_us": [
+        85.6191913286845,
+        85.67230900128682,
+        85.62127749125163
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.479000000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.078875000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.4239999999999835,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 10.863875000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 56.8785,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.03887499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.158999999999999,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "model.layers.0.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 64,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 80.34610748291016,
+      "repetitions_us": [
+        80.36695420742035,
+        80.34610748291016,
+        80.30653496583302
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00048828125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.433875000000028,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.089000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.434000000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 10.928875000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 51.683625,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.038999999999984,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.153874999999989,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 94.79681650797527,
+      "repetitions_us": [
+        94.79681650797527,
+        94.97265021006267,
+        94.75285808245341
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": []
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 67.08728273709615,
+      "repetitions_us": [
+        67.0899897813797,
+        67.06478695074718,
+        67.08728273709615
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 7.3740000000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold_pack",
+          "device_us": 12.363750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.693999999999976,
+          "calls": 1.0
+        },
+        {
+          "name": "_compact_leaves",
+          "device_us": 24.233749999999986,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 6.598874999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 5.058999999999983,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.323999999999998,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 87.20750610033672,
+      "repetitions_us": [
+        87.1487557888031,
+        87.20750610033672,
+        87.27666735649109
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.889000000000012,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.139000000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.283875000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 16.368875,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 53.62350000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.064000000000014,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.043875000000007,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 76.50135954221089,
+      "repetitions_us": [
+        76.41344269116719,
+        76.50135954221089,
+        76.54177645842235
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.899000000000018,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.153875000000012,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.269000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 16.32375000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 42.873625000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.079000000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.043874999999996,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 68.29456984996796,
+      "repetitions_us": [
+        68.3081050713857,
+        68.0787314971288,
+        68.29456984996796
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.934000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.0990000000000055,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.423999999999985,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 16.778624999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 33.863625000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.059000000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.044000000000008,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 61.01671357949575,
+      "repetitions_us": [
+        61.11858785152435,
+        60.992345213890076,
+        61.01671357949575
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.933999999999978,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.118999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.963875000000021,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 16.68887500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 26.618749999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.058875000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.054000000000007,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 32,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 93.28016638755798,
+      "repetitions_us": [
+        93.27516953150432,
+        93.28016638755798,
+        93.29224626223247
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.444000000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 4.9439999999999955,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.249000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 22.314,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 53.62312500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.059000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.028875000000003,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 32,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 82.35922455787659,
+      "repetitions_us": [
+        82.34068254629771,
+        82.36630757649739,
+        82.35922455787659
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.4688749999999935,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 4.9190000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.228999999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 22.273749999999986,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 42.90350000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.083999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.029000000000007,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 64,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 73.02410403887431,
+      "repetitions_us": [
+        73.0522225300471,
+        73.01681240399678,
+        73.02410403887431
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.369000000000015,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 4.944000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.324000000000018,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 21.88875,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 33.77862499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.078875000000014,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.048999999999992,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "layer_name": "model.layers.32.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 64,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 65.80979128678639,
+      "repetitions_us": [
+        65.82500537236531,
+        65.80979128678639,
+        65.79021116097768
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0078125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.363625000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 4.969000000000014,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.308999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 21.878874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 26.69375000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.064000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.058999999999987,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 113.48268389701843,
+      "repetitions_us": [
+        113.50518465042114,
+        113.48268389701843,
+        113.30788334210713
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": []
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 72.60723412036896,
+      "repetitions_us": [
+        72.63952493667603,
+        72.56827255090077,
+        72.60723412036896
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 3.0517578125e-05,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 7.378875000000011,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold_pack",
+          "device_us": 12.383874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.418875000000012,
+          "calls": 1.0
+        },
+        {
+          "name": "_compact_leaves",
+          "device_us": 29.68374999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 6.764000000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 5.09887500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.3189999999999955,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 79.5552929242452,
+      "repetitions_us": [
+        79.5621673266093,
+        79.5552929242452,
+        79.39237356185913
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.918999999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.133875000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.239000000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 15.27387500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 46.833375000000025,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.0789999999999935,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.138999999999982,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 32,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 66.05541706085205,
+      "repetitions_us": [
+        66.06729328632355,
+        65.95813234647115,
+        66.05541706085205
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 4.964000000000018,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.138999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.279000000000011,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 15.293624999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 33.39375000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.088999999999988,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.104000000000017,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 61.067551374435425,
+      "repetitions_us": [
+        61.067551374435425,
+        61.09983225663503,
+        60.92609465122223
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.02400000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.1789999999999985,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.513874999999986,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 15.698874999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 27.42375,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.079000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.138875000000013,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 60.460264484087624,
+      "repetitions_us": [
+        60.47818064689636,
+        60.397133231163025,
+        60.460264484087624
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.013999999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.124000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.48900000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 15.603750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 27.06374999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.088999999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.138874999999988,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 32,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 81.48110409577687,
+      "repetitions_us": [
+        81.47465189297994,
+        81.48110409577687,
+        81.50465289751689
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.353874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.024000000000013,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.473999999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 17.528874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 46.793499999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.109000000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.129000000000019,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 32,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 68.19165249665578,
+      "repetitions_us": [
+        68.18706293900807,
+        68.1943545738856,
+        68.19165249665578
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.423874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.048999999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.518874999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 17.433875,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 33.51375,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.144000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.133999999999993,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 64,
+      "entry_block": 64,
+      "entry_warps": 2,
+      "microseconds": 62.5964899857839,
+      "repetitions_us": [
+        62.600662310918175,
+        62.5964899857839,
+        62.563578287760414
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.343999999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.048875000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.398999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 17.608874999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 27.308625,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.109,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.148999999999994,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "layer_name": "model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "flat",
+      "tile": 128,
+      "splits": 64,
+      "entry_block": 128,
+      "entry_warps": 2,
+      "microseconds": 62.325452764829,
+      "repetitions_us": [
+        62.36211955547333,
+        62.32065955797831,
+        62.325452764829
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.359000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "select_tiles",
+          "device_us": 5.008874999999991,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 4.418999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "expand_tiles",
+          "device_us": 17.55887499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "attention",
+          "device_us": 27.088749999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "reduce_page1_segments_advance_local",
+          "device_us": 4.093874999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.159000000000001,
+          "calls": 1.0
+        }
+      ]
+    }
+  ],
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=62333065-6362-3361-3962-336138653265, pci_bus_id=21, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a985133b2f453d2451c7402cd83415e0214476791abfbfb39e58ce6226ffaaf7",
+      "source_file_count": 222
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

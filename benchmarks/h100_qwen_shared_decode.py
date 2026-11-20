@@ -1,7 +1,6 @@
-"""Use one optimized LoD prefill for multiple connected decoders.
+"""Run connected decoders on a dense prompt pass, with separate LoD prefill.
 
-Dense decode reconstructs its native cache from the GPU-resident LoD cache.
-Multipole can share CUDA tensors with an author-compatible worker.
+Multipole can share the dense KV tensors with an author-compatible worker.
 """
 import argparse
 import atexit
@@ -38,10 +37,17 @@ LLAMA = 'meta-llama/Llama-3.1-8B-Instruct'
 YARN = {'rope_type': 'yarn', 'factor': 4.0, 'original_max_position_embeddings': 32768}
 OBS = 100
 MULTIPOLE_P90 = 'multipole-p90'
+GPU_SQUEEZED_P80 = 'gpu-squeezed-p80'
+GPU_SQUEEZED_5PCT_P80 = 'gpu-squeezed-5pct-p80'
+GPU_SQUEEZED_METHODS = (GPU_SQUEEZED_P80, GPU_SQUEEZED_5PCT_P80)
+SQUEEZED_WORKER_METHODS = (MULTIPOLE_P90, *GPU_SQUEEZED_METHODS)
 MULTIPOLE_ROUTING_POSITION = 2048
 MULTIPOLE_METHOD_PREFIXES = ('subset-', 'multipole-')
+WORKER_METHOD_PREFIXES = (*MULTIPOLE_METHOD_PREFIXES, 'gpu-squeezed-')
+MULTIPOLE_BUDGET_ARMS = ('multipole-512', 'multipole-12000')
 METHODS = ('lod', 'dense', 'squeezed-p90', 'squeezed-p80', 'subset-512', 'subset-2048',
-           'subset-squeezed-512', 'multipole-512', MULTIPOLE_P90, 'squeezed-1531-p90', 'squeezed-2900-p90')
+           'subset-squeezed-512', *MULTIPOLE_BUDGET_ARMS, *SQUEEZED_WORKER_METHODS,
+           'squeezed-1531-p90', 'squeezed-2900-p90')
 
 
 def load_shared_model(model_name, max_length, tokenizer, rope):
@@ -66,7 +72,10 @@ def read_cases(args, tokenizer):
             continue
         if hashlib.sha256(row['prompt'].encode()).hexdigest() != row['prompt_sha256']:
             raise ValueError('cohort prompt hash differs')
+        shard = counts[task] % args.cohort_shards
         counts[task] += 1
+        if shard != args.cohort_shard:
+            continue
         yield {**{k: row[k] for k in ('task', 'source_row', 'index', 'answers', 'prompt_sha256')},
                'ids': tokenizer(row['prompt'])['input_ids']}
     if any(counts[task] != args.limit_per_task for task in args.tasks):
@@ -115,10 +124,15 @@ def shareable_cuda_allocations():
 
 
 def capture_prefill(model, inputs, capture_host, need_index, need_raw, profile, gpu_ipc=False,
-                    capture_routing_observations=False):
+                    capture_routing_observations=False, *, capture_native_observations=False, lod=False):
     start = time.perf_counter()
-    attach_lod(model, 'two-tier')
-    model.attention_type = 'LoD'
+    if lod:
+        if capture_host or need_index or need_raw or gpu_ipc or capture_routing_observations or capture_native_observations:
+            raise ValueError('LoD prefill is reserved for LoD decoding')
+        attach_lod(model, 'two-tier')
+        model.attention_type = 'LoD'
+    else:
+        model.attention_type = 'Full_Flash_Attn'
     model.init_kv_cache(np.zeros(1, dtype=int), {})
     layers = []
     routing_observations = []
@@ -142,6 +156,9 @@ def capture_prefill(model, inputs, capture_host, need_index, need_raw, profile, 
     def to_host(x):
         return x.transpose(1, 2).contiguous().cpu()
 
+    def share(x):
+        return x.transpose(1, 2).clone(memory_format=torch.contiguous_format)
+
     def capture_position(this, q, k):
         nonlocal current_raw
         if capture_routing_observations:
@@ -153,13 +170,14 @@ def capture_prefill(model, inputs, capture_host, need_index, need_raw, profile, 
         keys = k.reshape(1, inputs.shape[1], model.num_key_value_heads, model.head_dim)
         if gpu_ipc:
             with shareable_cuda_allocations():
-                current_raw = keys.transpose(1, 2).clone(memory_format=torch.contiguous_format)
+                current_raw = share(keys)
         else:
             current_raw = timed_call(capture_events, to_host, keys)
         return position(q, k)
 
     def capture_layer(q, k, v):
-        layers.append((to_host(k), to_host(v), to_host(q[:, -OBS:]) if need_index else None, current_raw))
+        observations = to_host(q[:, -OBS:]) if need_index or capture_native_observations else None
+        layers.append((to_host(k), to_host(v), observations, current_raw))
 
     def capture(this, q, k, v, layer):
         if capture_host:
@@ -167,7 +185,9 @@ def capture_prefill(model, inputs, capture_host, need_index, need_raw, profile, 
                 raise RuntimeError('unexpected layer capture order')
             timed_call(capture_events, capture_layer, q, k, v)
         elif gpu_ipc:
-            layers.append((None, None, None, current_raw))
+            with shareable_cuda_allocations():
+                observations = share(q[:, -OBS:]) if capture_native_observations else None
+                layers.append((share(k), share(v), observations, current_raw))
         return timed_call(attention_events, prefill, q, k, v, layer)
 
     if need_raw:
@@ -189,58 +209,15 @@ def capture_prefill(model, inputs, capture_host, need_index, need_raw, profile, 
         profile['prefill_and_capture_s'] = completion_start - prefill_start
         profile['prefill_capture_s'] = sum(begin.elapsed_time(end) for begin, end in capture_events) / 1000
         profile['prefill_attention_and_state_s'] = sum(begin.elapsed_time(end) for begin, end in attention_events) / 1000
-    for pool in model.kv_cache.pools:
-        pool.catch_up(0, model.kv_cache.context)
+    if lod:
+        for pool in model.kv_cache.pools:
+            pool.catch_up(0, model.kv_cache.context)
     torch.cuda.synchronize()
     if profile is not None:
-        profile['lod_cache_completion_s'] = time.perf_counter() - completion_start
+        profile['prefill_cache_completion_s'] = time.perf_counter() - completion_start
+        if lod:
+            profile['lod_cache_completion_s'] = profile['prefill_cache_completion_s']
     return token, layers, routing_observations
-
-
-def lod_prefix_parts(cache, length, *, slot=0):
-    """Return GPU views of the original prefix, even after LoD has decoded."""
-    layers = []
-    for pool in cache.pools:
-        state = pool.state
-        page = state['page_cache']
-        metadata = pool.metadata[slot]
-        sink_length = state['sink_k'].size(2) if 'sink_k' in state else 0
-        coverage = metadata['coverage']
-        archived = min(length, coverage) - sink_length
-        recent = max(length - coverage, 0)
-        if (not page['dense_leaf_storage'] or pool.settings.kv_bits != 0
-                or metadata['leaf_count'] != coverage - sink_length
-                or archived < 0 or length > cache.context
-                or recent > state['recent_k'].size(2)):
-            raise RuntimeError('LoD cache does not contain the complete exact BF16 prefix')
-        parts = []
-        for name in ('k', 'v'):
-            sink = (state[f'sink_{name}'][slot:slot+1],) if sink_length else ()
-            leaf = page[f'leaf_{name}'][slot:slot+1, :, :archived]
-            tail = state[f'recent_{name}'][slot:slot+1, :, :recent]
-            parts.append(tuple(x.transpose(1, 2) for x in (*sink, leaf, tail)))
-        layers.append(tuple(parts))
-    return layers
-
-
-def install_resident_dense(model, prefix, reference):
-    model.attention_type = 'Full_Flash_Attn'
-    model.init_kv_cache(np.zeros(1, dtype=int), {})
-    cache = model.kv_cache
-    if not cache.allocated:
-        raise RuntimeError('GPU-resident dense handoff requires an on-device native cache')
-    for layer, (key_parts, value_parts) in enumerate(prefix):
-        k = torch.cat(key_parts, dim=1)
-        v = torch.cat(value_parts, dim=1)
-        if reference is not None:
-            ref_k, ref_v, _, _ = reference[layer]
-            if not (torch.equal(k, ref_k.transpose(1, 2).to(k.device))
-                    and torch.equal(v, ref_v.transpose(1, 2).to(v.device))):
-                raise RuntimeError(f'GPU-resident prefix differs from original activations at layer {layer}')
-        cache.prefill_update_kv_cache(None, k, v, layer, 0)
-        cache.sync(layer, 0)
-    if cache.context != model.input_length:
-        raise RuntimeError('dense cache did not receive the complete LoD prefix')
 
 
 def install_decode(model, method, layers, index, *, multipole_centroids=None, initial_clusters=None):
@@ -248,7 +225,7 @@ def install_decode(model, method, layers, index, *, multipole_centroids=None, in
         return
     if method == 'dense':
         model.attention_type = 'Full_Flash_Attn'
-    elif method.startswith('squeezed-') or method == MULTIPOLE_P90:
+    elif method.startswith('squeezed-') or method in SQUEEZED_WORKER_METHODS:
         from benchmarks.retro_squeezed_adapter import attach_squeezed
         attach_squeezed(model, index, int(method[-2:]) / 100)
         model.attention_type = 'RetroSqueezed'
@@ -292,21 +269,37 @@ def run_decode(model, method, first, inputs, task, args):
     if args.cohort:
         generated = [first.clone(), token.clone()]
         stop_tokens = getattr(args, 'stop_tokens', ())
+        audit = getattr(args, 'audit_squeezed_selections', False) and method in GPU_SQUEEZED_METHODS
+        if audit:
+            if cache.selection_counts is None:
+                raise RuntimeError('selection auditing requires SQUEEZED_REPORT_SELECTION=1')
+            selections = [(1, cache.selection_counts.clone())]
         for _ in range(LIMITS[task] - 2):
             token = step(token)
             generated.append(token.clone())
+            if audit and (len(generated) - 1) % 8 == 0:
+                selections.append((len(generated) - 1, cache.selection_counts.clone()))
             if stop_tokens and len(generated) % 8 == 0:
                 recent = torch.cat(generated[-8:], dim=-1)[0].tolist()
                 if any(t in stop_tokens for t in recent):
                     break
         result['output_token_ids'] = torch.cat(generated, dim=-1)[0].tolist()
+        if audit:
+            result['squeezed_selection_samples'] = [
+                {'output_index': i, 'mean_prefix_tokens': counts.float().mean().item()}
+                for i, counts in selections
+            ]
         if args.profile_quality:
             result['quality_profile'] = dict(graph_and_check_s=generation_start - start,
                                              generation_s=time.perf_counter() - generation_start)
     else:
         start = inputs.shape[1] - args.total_steps
+        capture_tokens = getattr(args, 'matched_full_model_timing', False)
+        token_ids = [first, token.clone()] if capture_tokens else None
         for i in range(1, args.warmup_steps):
-            step(inputs[:, start + i:start + i + 1])
+            token = step(inputs[:, start + i:start + i + 1])
+            if token_ids is not None:
+                token_ids.append(token.clone())
         samples = []
         def updates():
             if method == 'lod' and model.batch_size > 1:
@@ -318,13 +311,13 @@ def run_decode(model, method, first, inputs, task, args):
                 if min(lengths) != max(lengths):
                     raise RuntimeError('repeated prompt produced different centroid counts')
                 return lengths[0]
-            if method.startswith('squeezed-') or method == MULTIPOLE_P90:
+            if method.startswith('squeezed-') or method in SQUEEZED_WORKER_METHODS:
                 return cache.clusters
             if method.startswith(MULTIPOLE_METHOD_PREFIXES):
-                return cache.max_clusters if cache.fixed_centroids is not None else cache.cluster_state[-1][0].shape[2]
+                return cache.max_clusters if cache.fixed_centroids is not None else cache.clustered // cache.tokens_per_centroid
             return None
 
-        is_squeezed = method.startswith('squeezed-') or method == MULTIPOLE_P90
+        is_squeezed = method.startswith('squeezed-') or method in SQUEEZED_WORKER_METHODS
         for i in range(args.windows):
             begin = start + args.warmup_steps + i * args.steps_per_window
             torch.cuda.synchronize()
@@ -334,7 +327,9 @@ def run_decode(model, method, first, inputs, task, args):
             time_index = len(update_times)
             t0 = time.perf_counter()
             for j in range(begin, begin + args.steps_per_window):
-                step(inputs[:, j:j + 1])
+                token = step(inputs[:, j:j + 1])
+                if token_ids is not None:
+                    token_ids.append(token.clone())
             torch.cuda.synchronize()
             elapsed = time.perf_counter() - t0
             samples.append(dict(seconds=elapsed, steps=args.steps_per_window,
@@ -348,6 +343,9 @@ def run_decode(model, method, first, inputs, task, args):
                 samples[-1]['selected_prefix_tokens_per_query_head'] = dict(
                     mean=float(counts.float().mean()), min=int(counts.min()), max=int(counts.max()))
         result.update(windows=samples, median_decode_ms=statistics.median(1000 * s['seconds'] / s['steps'] for s in samples))
+        if token_ids is not None:
+            by_request = torch.cat(token_ids, dim=-1).tolist()
+            result['output_token_ids'] = by_request[0] if model.batch_size == 1 else by_request
     if method.startswith(('squeezed-', *MULTIPOLE_METHOD_PREFIXES)):
         result['last_layer_selected_prefix_counts'] = cache.head_count.flatten().tolist()
     expected = model.input_length + (len(generated) - 1 if args.cohort else args.total_steps)
@@ -448,45 +446,97 @@ def decode_multipole_payload(data, start):
     first = torch.tensor([[data['first']]], device='cuda', dtype=torch.long)
     torch.cuda.synchronize()
     worker_setup_s = time.perf_counter() - start
+    def run_arms():
+        return decode_multipole_arms(model, data, args, original, inputs, first, worker_setup_s)
+
+    if getattr(args, 'matched_full_model_timing', False):
+        return repeat_decode_arms(data['methods'], run_arms)
+    return run_arms()
+
+
+def repeat_decode_arms(methods, run_arms):
+    repetitions = {method: [] for method in methods}
+    for iteration in range(3):
+        torch.manual_seed(0)
+        for method, arm in run_arms().items():
+            arm.update(iteration=iteration, warmup=iteration == 0)
+            repetitions[method].append(arm)
+            print(json.dumps(dict(method=method, iteration=iteration, warmup=arm['warmup'],
+                                  decode_ms=arm['median_decode_ms'])), flush=True)
+    return {method: dict(repetitions=rows,
+                         median_decode_ms=statistics.median(r['median_decode_ms'] for r in rows[1:]))
+            for method, rows in repetitions.items()}
+
+
+def decode_multipole_arms(model, data, args, original, inputs, first, worker_setup_s):
     out = {}
-    initial_clusters = None
-    paired_subset = 'subset-squeezed-512' in data['methods'] and 'subset-512' in data['methods']
+    initial_indexes = {}
+    methods = data['methods']
+    paired_subset = 'subset-squeezed-512' in methods and 'subset-512' in methods
+    paired_budgets = all(method in methods for method in MULTIPOLE_BUDGET_ARMS)
+    fit_only = MULTIPOLE_P90 in methods and 'multipole-512' not in methods
+    # Calibrate on the same initial index even when only Squeezed decodes.
+    run_order = ['multipole-512', *methods] if fit_only else methods
     p90_index = None
-    for method in data['methods']:
+    for method in run_order:
         for k, v in original.items():
             setattr(model, k, v)
         start = time.perf_counter()
-        share_index = paired_subset and method in ('subset-512', 'subset-squeezed-512')
-        reused = share_index and initial_clusters is not None
+        index_pair = None
+        if paired_subset and method in ('subset-512', 'subset-squeezed-512'):
+            index_pair = 'subset'
+        elif paired_budgets and method in MULTIPOLE_BUDGET_ARMS:
+            index_pair = 'budget'
+        initial_clusters = initial_indexes.get(index_pair)
+        reused = initial_clusters is not None
         if method == MULTIPOLE_P90 and p90_index is None:
             raise RuntimeError('Multipole must supply the initial index before p90 decode')
-        install_decode(model, method, data['layers'], p90_index, multipole_centroids=args.multipole_centroids,
+        index = p90_index if method == MULTIPOLE_P90 else None
+        if method in GPU_SQUEEZED_METHODS:
+            from benchmarks.h100_squeezed_index import build_batched_gpu
+
+            fit_seed = getattr(args, 'squeezed_fit_seed', None)
+            if fit_seed is not None:
+                torch.manual_seed(fit_seed)
+            count = args.squeezed_centroids if method == GPU_SQUEEZED_P80 else None
+            index = build_batched_gpu(data['layers'], OBS, requested_clusters=count)
+        install_decode(model, method, data['layers'], index, multipole_centroids=args.multipole_centroids,
                        initial_clusters=initial_clusters if reused else None)
-        if share_index and initial_clusters is None:
-            initial_clusters = tuple(model.kv_cache.cluster_state)
+        if index_pair is not None and not reused:
+            initial_indexes[index_pair] = tuple(model.kv_cache.cluster_state)
         torch.cuda.synchronize()
         cache_setup_s = time.perf_counter() - start
-        if method == 'multipole-512' and MULTIPOLE_P90 in data['methods']:
+        if method == 'multipole-512' and MULTIPOLE_P90 in methods:
             p90_index = calibrate_multipole_index(model.kv_cache, data['routing_observations'])
-        if share_index:
+            if fit_only:
+                model.kv_cache = None
+                gc.collect()
+                torch.cuda.empty_cache()
+                continue
+        if index_pair is not None:
             torch.manual_seed(0)
+        if method in MULTIPOLE_BUDGET_ARMS:
+            initial_centroids = model.kv_cache.cluster_state[-1][0].size(2)
+            initial_indexed_tokens = model.kv_cache.clustered
         model.kv_cache.profile_decode = args.profile_subset_kernels and method.startswith('subset-')
         decode_start = time.perf_counter()
         out[method] = run_decode(model, method, first, inputs, data['task'], args)
         if MULTIPOLE_P90 in data['methods']:
             out[method]['decode_and_graph_s'] = time.perf_counter() - decode_start
-        if share_index:
+        if index_pair is not None:
             out[method]['reused_initial_clusters'] = reused
         if model.kv_cache.profile_decode:
             from benchmarks.multipole_subset_profile import profile
             out[method]['kernel_profile'] = profile(model.kv_cache)
         out[method]['cache_setup_s'] = cache_setup_s
-        if method == MULTIPOLE_P90:
-            out[method]['reused_initial_clusters'] = True
-            out[method]['squeezed_index'] = {k: p90_index[k] for k in (
+        if method in SQUEEZED_WORKER_METHODS:
+            out[method]['reused_initial_clusters'] = method == MULTIPOLE_P90
+            out[method]['squeezed_index'] = {k: index[k] for k in (
                 'clusters', 'threshold', 'seconds', 'calibration_tokens', 'observation_window',
-                'exact_sink_tokens', 'routing_position')}
-        elif method == 'multipole-512' and p90_index is not None:
+                'exact_sink_tokens', 'routing_position', 'indexed_tokens', 'fit_backend') if k in index}
+        elif method in MULTIPOLE_BUDGET_ARMS:
+            out[method]['initial_centroids_per_kv_head'] = initial_centroids
+            out[method]['clustered_tokens_on_install'] = initial_indexed_tokens
             out[method]['centroids_per_kv_head'] = model.kv_cache.cluster_state[-1][0].size(2)
             out[method]['index_updates'] = model.kv_cache.update_count
         out[method]['worker_pid'] = os.getpid()
@@ -506,11 +556,15 @@ def run_multipole_methods(model, layers, ids, first, task, args, rope, worker_mo
     options = {k: getattr(args, k) for k in ('windows', 'steps_per_window', 'warmup_steps', 'total_steps',
                                            'profile_quality', 'stop_tokens', 'multipole_centroids', 'profile_subset_kernels')}
     options['cohort'] = args.cohort is not None
+    options['matched_full_model_timing'] = getattr(args, 'matched_full_model_timing', False)
+    options['squeezed_centroids'] = getattr(args, 'squeezed_centroids', None)
+    options['squeezed_fit_seed'] = getattr(args, 'squeezed_fit_seed', None)
+    options['audit_squeezed_selections'] = getattr(args, 'audit_squeezed_selections', False)
     with tempfile.TemporaryDirectory(prefix='qwen-multipole-', dir='/dev/shm') as d:
         ipc = layers[0][0].is_cuda
         payload, output = Path(d) / ('prefix.ipc' if ipc else 'prefix.pt'), Path(d) / 'decode.json'
         data = dict(layers=layers, ids=ids, first=int(first[0].item()), task=task,
-            methods=[m for m in args.methods if m.startswith(MULTIPOLE_METHOD_PREFIXES)], options=options,
+            methods=[m for m in args.methods if m.startswith(WORKER_METHOD_PREFIXES)], options=options,
             max_length=model.max_length, max_new_length=model.max_new_length, rope_scaling=rope,
             batch_size=model.batch_size, model_name=model.model_name, model_state=worker_model_state,
             routing_observations=routing_observations)
@@ -587,6 +641,9 @@ def main():
     p.add_argument('--output', type=Path)
     p.add_argument('--methods', nargs='+', choices=METHODS, default=['lod', 'dense', 'squeezed-p90'])
     p.add_argument('--cohort', type=Path)
+    p.add_argument('--cohort-shards', type=int, default=1)
+    p.add_argument('--cohort-shard', type=int, default=0,
+                   help='Select this zero-based shard from each task in the frozen cohort')
     p.add_argument('--resume-from-run', type=Path,
                    help='Read a prior cluster-run run.json and reuse its completed matching quality records')
     p.add_argument('--tasks', nargs='+', choices=tuple(LIMITS), default=['niah_multikey_2', 'niah_multikey_3', 'cwe', 'qa_1'])
@@ -595,10 +652,14 @@ def main():
     p.add_argument('--stop-at-eos', action='store_true',
                    help='Stop quality generation after the first EOS/EOT, checked every eight tokens')
     p.add_argument('--dense-kv-source', choices=('device', 'host', 'verify'),
-                   help='Read exact LoD KV on the GPU, use the legacy host round trip, or verify GPU KV against a host capture')
+                   help='Keep the native dense cache on the GPU, rebuild it from host KV, or check the two routes')
     p.add_argument('--manifest', type=Path, default=Path('/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json'))
     p.add_argument('--timing-prefix-length', type=int, help='Use this many tokens from the timing manifest prefix')
     p.add_argument('--index-dir', type=Path)
+    p.add_argument('--squeezed-centroids', type=int, help='Override the 5% index width for GPU Squeezed')
+    p.add_argument('--squeezed-fit-seed', type=int, help='Reset the random seed before each GPU Squeezed fit')
+    p.add_argument('--audit-squeezed-selections', action='store_true',
+                   help='Record attended prefix counts during quality generation')
     p.add_argument('--profile-subset-kernels', action='store_true',
                    help='Profile lookup, selection, and sparse attention on the final layer after decode timing')
     p.add_argument('--prewarm-multipole-worker', action='store_true',
@@ -608,6 +669,8 @@ def main():
     p.add_argument('--windows', type=int, default=3)
     p.add_argument('--steps-per-window', type=int, default=512)
     p.add_argument('--warmup-steps', type=int, default=8)
+    p.add_argument('--matched-full-model-timing', action='store_true',
+                   help='Repeat Llama Multipole and Squeezed timing from fresh caches and retain token IDs')
     a = p.parse_args()
     if a.multipole_worker_stdin:
         for line in sys.stdin:
@@ -625,6 +688,10 @@ def main():
         p.error('--profile-subset-kernels requires a timing run with a subset method')
     if a.profile_quality and a.cohort is None:
         p.error('--profile-quality requires a quality cohort')
+    if (not 0 <= a.cohort_shard < a.cohort_shards
+            or a.cohort_shards > a.limit_per_task
+            or (a.cohort_shards > 1 and a.cohort is None)):
+        p.error('invalid quality cohort shard')
     if a.stop_at_eos and a.cohort is None:
         p.error('--stop-at-eos requires a quality cohort')
     if a.resume_from_run and (a.cohort is None or a.profile_quality):
@@ -634,6 +701,13 @@ def main():
         p.error('--timing-prefix-length applies to the timing prompt')
     if a.timing_prefix_length is None:
         a.timing_prefix_length = a.length
+    if a.matched_full_model_timing and (
+            a.cohort is not None or a.model_name != LLAMA
+            or not set(a.methods) <= {'multipole-512', *SQUEEZED_WORKER_METHODS}
+            or a.timing_prefix_length != a.length
+            or (a.warmup_steps, a.windows, a.steps_per_window) != (256, 1, 1024)):
+        p.error('--matched-full-model-timing requires supported Llama baselines on the full prompt '
+                'with --warmup-steps 256 --windows 1 --steps-per-window 1024')
     if (min(a.warmup_steps, a.windows, a.steps_per_window, a.limit_per_task) < 1
             or not a.total_steps < a.timing_prefix_length <= a.length):
         p.error('invalid decode window or sample count')
@@ -642,8 +716,9 @@ def main():
     index_widths = {method: int(fields[1]) if len(fields) == 3 else None
                     for method in a.methods if (fields := method.split('-'))[0] == 'squeezed'}
     lookup_widths = sorted({n for n in index_widths.values() if n is not None})
-    if not os.environ.get('LOD_H100_PREFILL_RULE') or os.environ.get('LOD_H100_PREFILL_IMPLEMENTATION') != 'fast':
-        p.error('requires the optimized threshold prefill configuration')
+    if 'lod' in a.methods and (not os.environ.get('LOD_H100_PREFILL_RULE')
+                               or os.environ.get('LOD_H100_PREFILL_IMPLEMENTATION') != 'fast'):
+        p.error('LoD requires the optimized threshold prefill configuration')
     torch.set_grad_enabled(False)
     torch.manual_seed(0)
     tokenizer = AutoTokenizer.from_pretrained(a.model_name)
@@ -651,21 +726,30 @@ def main():
             if a.model_name == MODEL and a.length > 32768 else None)
     need_index = any(k.startswith('squeezed-') for k in a.methods)
     need_raw = any(k.startswith(MULTIPOLE_METHOD_PREFIXES) for k in a.methods)
+    native_squeezed = any(m in GPU_SQUEEZED_METHODS for m in a.methods)
+    if a.squeezed_centroids is not None and (a.squeezed_centroids < 1 or GPU_SQUEEZED_P80 not in a.methods):
+        p.error('--squeezed-centroids requires a positive count and gpu-squeezed-p80')
+    if a.squeezed_fit_seed is not None and (a.squeezed_fit_seed < 0 or not native_squeezed):
+        p.error('--squeezed-fit-seed requires a nonnegative seed and GPU Squeezed')
+    if a.audit_squeezed_selections and (a.cohort is None or not native_squeezed):
+        p.error('--audit-squeezed-selections requires GPU Squeezed and a quality cohort')
+    need_worker = need_raw or native_squeezed
     shared_p90 = MULTIPOLE_P90 in a.methods
-    if shared_p90 and ('multipole-512' not in a.methods or a.methods.index('multipole-512') > a.methods.index(MULTIPOLE_P90)):
-        p.error('multipole-p90 requires multipole-512 first to build the shared index')
+    if (shared_p90 and 'multipole-512' in a.methods
+            and a.methods.index('multipole-512') > a.methods.index(MULTIPOLE_P90)):
+        p.error('when benchmarking both methods, multipole-512 must precede multipole-p90')
     if a.prewarm_multipole_worker:
-        if not need_raw:
-            p.error('--prewarm-multipole-worker requires a Multipole-based method')
+        if not need_worker:
+            p.error('--prewarm-multipole-worker requires an author-compatible decode method')
         a._multipole_worker = None
         atexit.register(lambda: close_multipole_worker(a._multipole_worker) if a._multipole_worker else None)
     if a.multipole_centroids is not None and (a.multipole_centroids < 1 or not need_raw):
         p.error('--multipole-centroids requires a positive count and a Multipole or subset method')
-    gpu_ipc = need_raw and os.environ.get('MULTIPOLE_GPU_IPC') == '1'
+    gpu_ipc = need_worker and os.environ.get('MULTIPOLE_GPU_IPC') == '1'
     share_weights = gpu_ipc and os.environ.get('MULTIPOLE_SHARE_WEIGHTS') == '1'
     if a.dense_kv_source is None:
         a.dense_kv_source = 'host' if need_index or (need_raw and not gpu_ipc) else 'device'
-    capture_host = need_index or (need_raw and not gpu_ipc) or ('dense' in a.methods and a.dense_kv_source != 'device')
+    capture_host = need_index or (need_worker and not gpu_ipc) or ('dense' in a.methods and a.dense_kv_source != 'device')
     if gpu_ipc and capture_host:
         p.error('Multipole GPU IPC requires GPU-resident dense KV and no Squeezed host index')
     with shareable_cuda_allocations() if share_weights else nullcontext():
@@ -675,25 +759,39 @@ def main():
     worker_model_state = {k: v for k, v in vars(model).items() if k != 'tokenizer'} if share_weights else None
     configure_prefill_mlp_chunk(model)
     original = {k: getattr(model, k) for k in ('init_kv_cache', 'prefill_attention', 'decode_attention', 'move', 'position_embedd')}
+    prefill_by_method = {method: ('LoD threshold' if method == 'lod' else 'dense causal')
+                         for method in a.methods}
     result = dict(stage='running', model_name=a.model_name, model_revision=model.config._commit_hash, dtype='bfloat16',
                   rope_max_position_embeddings=model.config.max_position_embeddings,
                   batch_size=1, rope_scaling=rope, context_limit=a.length, methods=a.methods,
-                  prefill='shared optimized two-tier threshold LoD', timing='decode-only; contiguous teacher-forced windows; cache writes and required updates included',
+                  prefill=next(iter(prefill_by_method.values())) if len(set(prefill_by_method.values())) == 1
+                  else 'method-specific',
+                  prefill_by_method=prefill_by_method,
+                  timing='decode-only; contiguous teacher-forced windows; cache writes and required updates included',
                   timing_prefix_length=a.timing_prefix_length if not a.cohort else None,
                   warmup_steps=a.warmup_steps if not a.cohort else None,
                   dense_kv_source=a.dense_kv_source if 'dense' in a.methods else None,
                   captures_host_kv=capture_host,
                   cohort_sha256=hashlib.sha256(a.cohort.read_bytes()).hexdigest() if a.cohort else None,
                   records=[])
-    if need_raw:
+    if need_worker:
         result['multipole_handoff'] = 'cuda-ipc' if gpu_ipc else 'host'
         result['multipole_weights'] = 'cuda-ipc' if share_weights else 'reload'
         if a.prewarm_multipole_worker:
             result['multipole_worker'] = 'prewarmed'
     if a.multipole_centroids is not None:
         result['multipole_fixed_centroids_per_kv_head'] = a.multipole_centroids
+    if a.squeezed_centroids is not None:
+        result['squeezed_fixed_centroids_per_kv_head'] = a.squeezed_centroids
+    if a.squeezed_fit_seed is not None:
+        result['squeezed_fit_seed'] = a.squeezed_fit_seed
+    if a.matched_full_model_timing:
+        result.update(matched_full_model_timing=True, timed_decode_steps=a.steps_per_window,
+                      measurement_warmups=1, measurement_repeats=2)
     if a.stop_at_eos:
         result['stop_at_eos'] = True
+    if a.cohort_shards > 1:
+        result.update(cohort_shards=a.cohort_shards, cohort_shard=a.cohort_shard)
     prior_records = resume_quality(a.resume_from_run, a.output, result) if a.resume_from_run else {}
     stop_text = ('<|eot_id|>', '<|end_of_text|>') if a.model_name == LLAMA else ('<|im_end|>', '<|endoftext|>')
     stops = set(tokenizer.convert_tokens_to_ids(list(stop_text)))
@@ -723,39 +821,46 @@ def main():
             torch.cuda.reset_peak_memory_stats()
         profile = {} if a.profile_quality else None
         prefill_start = time.perf_counter()
+        lod_first = a.methods[0] == 'lod'
         first, layers, routing_observations = capture_prefill(
-            model, inputs, capture_host, need_index, need_raw, profile, gpu_ipc,
-            capture_routing_observations=shared_p90)
+            model, inputs, capture_host and not lod_first, need_index and not lod_first,
+            need_raw and not lod_first, profile, gpu_ipc and not lod_first,
+            capture_routing_observations=shared_p90 and not lod_first,
+            capture_native_observations=native_squeezed and not lod_first, lod=lod_first)
         row = dict(**case, input_tokens=len(ids), prefill_token_id=int(first.item()),
                    input_token_sha256=token_hash, decoders={})
-        if shared_p90:
-            row['prefill_s'] = time.perf_counter() - prefill_start
+        if shared_p90 or native_squeezed:
+            row['lod_prefill_s' if lod_first else 'prefill_s'] = time.perf_counter() - prefill_start
+        if a.matched_full_model_timing:
+            row['teacher_forced_token_sha256'] = hashlib.sha256(
+                json.dumps(ids[-a.total_steps:], separators=(',', ':')).encode()).hexdigest()
         indexes = {}
         multipole_results = None
         if profile is not None:
             row['quality_profile'] = profile
-        dense_prefix = None
+        native_dense_cache = model.kv_cache if not lod_first and 'dense' in a.methods else None
+        dense_prefilled = not lod_first
         for method in a.methods:
             index = None
             setup_start = time.perf_counter()
-            uses_multipole = method.startswith(MULTIPOLE_METHOD_PREFIXES)
+            uses_multipole = method.startswith(WORKER_METHOD_PREFIXES)
             if method != 'lod':
-                if model.attention_type == 'LoD' and (gpu_ipc or ('dense' in a.methods and a.dense_kv_source != 'host')):
-                    dense_prefix = lod_prefix_parts(model.kv_cache, model.input_length)
                 model.kv_cache = None
                 gc.collect()
                 torch.cuda.empty_cache()
-                if gpu_ipc and dense_prefix is not None:
-                    with shareable_cuda_allocations():
-                        layers = [
-                            (torch.cat([x.transpose(1, 2) for x in key_parts], dim=2),
-                             torch.cat([x.transpose(1, 2) for x in value_parts], dim=2),
-                             None, raw)
-                            for (key_parts, value_parts), (_, _, _, raw) in zip(dense_prefix, layers, strict=True)
-                        ]
-                    dense_prefix = None
                 for k, v in original.items():
                     setattr(model, k, v)
+                if not dense_prefilled:
+                    prefill_start = time.perf_counter()
+                    first, layers, routing_observations = capture_prefill(
+                        model, inputs, capture_host, need_index, need_raw, None, gpu_ipc,
+                        capture_routing_observations=shared_p90, capture_native_observations=native_squeezed)
+                    row['prefill_s'] = time.perf_counter() - prefill_start
+                    row['dense_prefill_token_id'] = int(first.item())
+                    if 'dense' in a.methods:
+                        native_dense_cache = model.kv_cache
+                    model.kv_cache = None
+                    dense_prefilled = True
                 if uses_multipole and multipole_results is None:
                     multipole_results = run_multipole_methods(
                         model, layers, ids, first, case['task'], a, rope, worker_model_state, routing_observations)
@@ -764,11 +869,19 @@ def main():
                     if width not in indexes:
                         indexes[width] = index_for(layers, a, width)
                     index, reused = indexes[width]
-                if method == 'dense' and dense_prefix is not None:
-                    install_resident_dense(model, dense_prefix, layers if a.dense_kv_source == 'verify' else None)
-                    dense_prefix = None
+                if method == 'dense' and a.dense_kv_source != 'host':
+                    if a.dense_kv_source == 'verify':
+                        for (k, v, _, _), keys, values in zip(
+                                layers, native_dense_cache.key_cache, native_dense_cache.value_cache, strict=True):
+                            for host, device in ((k, keys), (v, values)):
+                                if not torch.equal(host.transpose(1, 2), device[:, :len(ids)].cpu()):
+                                    raise RuntimeError('native dense cache differs from captured prefill KV')
+                    model.attention_type = 'Full_Flash_Attn'
+                    model.kv_cache = native_dense_cache
                 elif not uses_multipole:
                     install_decode(model, method, layers, index)
+                if method == 'dense':
+                    native_dense_cache = None
             setup_s = time.perf_counter() - setup_start
             measured = multipole_results[method] if uses_multipole else run_decode(model, method, first, inputs, case['task'], a)
             if index is not None:

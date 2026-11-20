@@ -1,0 +1,152 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 65536,
+  "batch_size": 1,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 2.0,
+    "original_max_position_embeddings": 32768
+  },
+  "context_limit": 65536,
+  "methods": [
+    "lod",
+    "dense",
+    "multipole-512"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 63488,
+  "warmup_steps": 512,
+  "dense_kv_source": "device",
+  "captures_host_kv": false,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 63488,
+      "prefill_token_id": 2681,
+      "input_token_sha256": "f4c8626ccfba39cf4ce164f82ae0c0fdcb6768d15e7110435d6ddff6d77baec0",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 4.195590904000028,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.18734622199986,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.211696688000075,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 8.194513484375054
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16,
+            "graph_argmax_by_request": [
+              16
+            ],
+            "eager_argmax_by_request": [
+              16
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 5.507931739000014,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.517952875999981,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.5308614919999854,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 10.777251710937463
+        },
+        "multipole-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 10.8230496770002,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.23268282799995177,
+                0.2437067759999536,
+                0.2427964119999615,
+                0.23466911199989227
+              ]
+            },
+            {
+              "seconds": 10.861735970000154,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.2615928929999427,
+                0.24495375199990121,
+                0.2498479519999819,
+                0.23974991899990528
+              ]
+            },
+            {
+              "seconds": 10.871098824,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.25522438600000896,
+                0.23647256300000663,
+                0.26431139900000744,
+                0.24136945600002946
+              ]
+            }
+          ],
+          "median_decode_ms": 21.21432806640655,
+          "last_layer_selected_prefix_counts": [
+            502,
+            507,
+            510,
+            498,
+            509,
+            487,
+            508,
+            505
+          ],
+          "cache_setup_s": 3.8960915630000272
+        }
+      },
+      "elapsed_s": 98.25275873099986
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc"
+}

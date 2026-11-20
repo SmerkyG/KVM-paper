@@ -1,0 +1,54 @@
+{
+  "cpu_only": true,
+  "commands": [
+    [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/usr/bin/python3",
+      "python",
+      "-m",
+      "benchmarks.h100_three_tier_repair_collect",
+      "--host",
+      "ubuntu@217.18.55.35",
+      "--prefix",
+      "threshold-select64",
+      "--directory",
+      "results/h100-baselines/selectpack-64k"
+    ],
+    [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      ".venv/bin/python",
+      "python",
+      "-m",
+      "benchmarks.h100_prefill_select64_report",
+      "--directory",
+      "results/h100-baselines/selectpack-64k"
+    ]
+  ],
+  "source_sha256": {
+    "benchmarks/h100_threshold_prefill_fast.py": "dac7350726430dfb7d013c7e8b6289a54ffc5b8a0edd28ce6d7c49bcb25b0731",
+    "benchmarks/h100_threshold_prefill_prefix.py": "2d66d1d6323748e2d560261875754f4ccd6b0bdeb93dd3f2503942d7ea4a7ae7",
+    "benchmarks/h100_threshold_prefill_scan.py": "d78c20563184bcf94e17ed3f08321aac0467f141e211c6613a6c846cd13342ed",
+    "benchmarks/h100_threshold_prefill_closed.py": "17c08c5d6d8a489606ab7132109ecb82b2e4927a9dc347f1c79636862c568088",
+    "benchmarks/h100_comparison.py": "e89383096c84eec017f9c4c81612b252502bdb93d64268205d71a1e808ba1067",
+    "benchmarks/retro_ruler_run.py": "3af5ad546527364c3acf207c1ae8c686ee6c331eeff95515e69e9129a83b4bcf"
+  },
+  "analysis_source_sha256": {
+    "benchmarks/h100_prefill_select64_report.py": "1a8072ca060a418962d32907e9ae15ab104475ffb13fbc3ef560e414a2da39b2"
+  },
+  "source_matches_automatic_verification": "1794323939225329868-threshold-select64-auto-v1-auto-65536-verify",
+  "source_objects_integrity_checked": true,
+  "report_sha256": "3145af98ff528d2c73f64233762bf788c65081d8af3824b6789c1064d4a5eb06",
+  "summary_sha256": "14e87ef7b96ffdb8ae7a8615ae3dd88ce9510ef1ec27833c3b1247aade69a742",
+  "gpu_commands": "provenance/*/run.json:command",
+  "raw_result_hashes": "SUMMARY.json:input_sha256",
+  "exclusions": "SUMMARY.json:failed,excluded",
+  "quality_caution": "The direct-closed candidate regresses CWE source row 14 from 0.9 to 0.7; it is not the default."
+}

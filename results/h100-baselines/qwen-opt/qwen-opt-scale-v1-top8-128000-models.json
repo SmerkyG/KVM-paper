@@ -1,0 +1,198 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "Qwen/Qwen3-8B",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+  "qwen_yarn": true,
+  "cache_update_optimizations": {
+    "packed_max": true,
+    "fused_rms": false,
+    "fused_rescale": true
+  },
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": {
+    "implementation": "materialized",
+    "rule": "region",
+    "multiplier": 16.0,
+    "entry_bound": 16,
+    "work_bound": 16,
+    "tile": 64,
+    "splits": 32,
+    "entry_block": 32,
+    "shared_entry_block": 64,
+    "shared_pack_workers": 16,
+    "shared_pack_shards": 4,
+    "shared_precise": true,
+    "merge_block": 0,
+    "three_tier_workers": 32,
+    "three_tier_page_warps": 1,
+    "three_tier_cached_means": true,
+    "three_tier_pages": 2,
+    "page_threshold_multiplier": null,
+    "page_threshold_rule": null,
+    "page_query": null,
+    "page_residual": null,
+    "page_threshold_warps": 4,
+    "selected_region_cap": null
+  },
+  "prefill_threshold": null,
+  "prompt_tokens": 128000,
+  "manifest": "/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json",
+  "manifest_sha256": "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+  "prompt_token_sha256": "9653fd35cb9c62a2cf334ad214384e44a53f00b77401e623b9fc379fb199edb6",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": true,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 19.397725785005605,
+      "decode_s": 0.009465777999139391,
+      "capture_s": 0.27424686300219037,
+      "prefill_cache_completion_s": 0.00018224499945063144,
+      "prefill_before_cache_completion_s": 19.397543540006154,
+      "cache_init_s": 0.26523957500467077,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 64,
+        "warps": 2,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        10091,
+        990
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16449074688,
+        "after_run_before_collection": 42649849856,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 48811315200
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 9.46577799913939,
+      "decode_ms_per_token": 9.46577799913939,
+      "decode_tokens_per_second": 105.64371994472276
+    },
+    {
+      "prefill_s": 10.75445366599888,
+      "decode_s": 0.009475275001022965,
+      "capture_s": 0.17330461098754313,
+      "prefill_cache_completion_s": 0.00018378900131210685,
+      "prefill_before_cache_completion_s": 10.754269876997569,
+      "cache_init_s": 0.012297510998905636,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 64,
+        "warps": 2,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        10091,
+        990
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16516183552,
+        "after_run_before_collection": 42649849856,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 48844869632
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 9.475275001022965,
+      "decode_ms_per_token": 9.475275001022965,
+      "decode_tokens_per_second": 105.53783398287
+    },
+    {
+      "prefill_s": 10.73424634100229,
+      "decode_s": 0.009421923998161219,
+      "capture_s": 0.15858543700596783,
+      "prefill_cache_completion_s": 0.0001956790074473247,
+      "prefill_before_cache_completion_s": 10.734050661994843,
+      "cache_init_s": 0.011896705997060053,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 64,
+        "warps": 2,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        10091,
+        990
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16516183552,
+        "after_run_before_collection": 42649849856,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 48844869632
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 9.421923998161219,
+      "decode_ms_per_token": 9.421923998161219,
+      "decode_tokens_per_second": 106.13543477904936
+    },
+    {
+      "prefill_s": 10.735261836991413,
+      "decode_s": 0.00965631299186498,
+      "capture_s": 0.17311139599769376,
+      "prefill_cache_completion_s": 0.00017309300892520696,
+      "prefill_before_cache_completion_s": 10.735088743982487,
+      "cache_init_s": 0.011865024993312545,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 64,
+        "warps": 2,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        10091,
+        990
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16516183552,
+        "after_run_before_collection": 42649849856,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 48844869632
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 9.65631299186498,
+      "decode_ms_per_token": 9.65631299186498,
+      "decode_tokens_per_second": 103.55919498906634
+    }
+  ],
+  "median_decode_ms_per_batch_step": 9.475275001022965,
+  "median_decode_tokens_per_second": 105.53783398287,
+  "median_decode_ms_per_token": 9.475275001022965,
+  "median_prefill_s": 10.735261836991413
+}

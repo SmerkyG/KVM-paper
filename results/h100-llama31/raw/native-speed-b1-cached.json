@@ -1,0 +1,295 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 56,
+      "source_sha256": "62e7b3267ed35c20fb83c2ae1e0fa15113695d73cf67be6b6c4abb8ddd2f05f6"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "FLASH_ATTN"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 66577,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 66577,
+  "measurements": {
+    "32768": {
+      "decode_ms_per_batch_step": 7.979278446289095,
+      "prefill_seconds": 1.2113699970000198,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "745893b9a405926f3aff351d3af7d43c12364b0a497af5ff7a11ea002d32f198",
+          "unique_16_token_block_ratio": 0.998046875
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.978179567382782,
+          "decode_seconds": 8.169655876999968,
+          "elapsed_seconds": 9.3831685560001,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 1.2101177479999023
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.979897516601664,
+          "decode_seconds": 8.171415057000104,
+          "elapsed_seconds": 9.384375415000022,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 1.2103175949998786
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.979278446289095,
+          "decode_seconds": 8.170781129000034,
+          "elapsed_seconds": 9.384335377999832,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.2113699970000198
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.9788879843749605,
+          "decode_seconds": 8.17038129599996,
+          "elapsed_seconds": 9.385038388000112,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.2122564969999985
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 7.979467947265562,
+          "decode_seconds": 8.170975177999935,
+          "elapsed_seconds": 9.381413306000013,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.2081845489999523
+        }
+      ]
+    },
+    "65536": {
+      "decode_ms_per_batch_step": 9.395423587890583,
+      "prefill_seconds": 3.551557917000082,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "f7cc515045e0c4a607f60b9ec14ccff8ece81d7e5600fa6b638e021bc2715bf9",
+          "unique_16_token_block_ratio": 0.986572265625
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 9.398656000976668,
+          "decode_seconds": 9.624223745000108,
+          "elapsed_seconds": 13.11214244200005,
+          "output_token_sha256": [
+            "36e6d8671d4e539988101c61c083181a44910341f07535a76c43c895b64add46"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 3.4841466919999675
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 9.395999040039182,
+          "decode_seconds": 9.621503017000123,
+          "elapsed_seconds": 13.125240093000002,
+          "output_token_sha256": [
+            "36e6d8671d4e539988101c61c083181a44910341f07535a76c43c895b64add46"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 3.49952098499989
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 9.395423587890583,
+          "decode_seconds": 9.620913753999957,
+          "elapsed_seconds": 13.150641282000151,
+          "output_token_sha256": [
+            "36e6d8671d4e539988101c61c083181a44910341f07535a76c43c895b64add46"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 3.526095863999899
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 9.395394591796835,
+          "decode_seconds": 9.62088406199996,
+          "elapsed_seconds": 13.18071613899997,
+          "output_token_sha256": [
+            "36e6d8671d4e539988101c61c083181a44910341f07535a76c43c895b64add46"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 3.5561712129999705
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 9.397168388671773,
+          "decode_seconds": 9.622700429999895,
+          "elapsed_seconds": 13.17778317300008,
+          "output_token_sha256": [
+            "36e6d8671d4e539988101c61c083181a44910341f07535a76c43c895b64add46"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 3.551557917000082
+        }
+      ]
+    },
+    "8192": {
+      "decode_ms_per_batch_step": 6.88006839941413,
+      "prefill_seconds": 0.2106462819999706,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "fba0e71ae71325b64c46ebb0847da0256886f955147511276926080b4d7b8028",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 6.8797909580078365,
+          "decode_seconds": 7.0449059410000245,
+          "elapsed_seconds": 7.260948985000141,
+          "output_token_sha256": [
+            "e10012647ecb7e32d916c710ce79bcc641e312ce8d5f0d7016a97d0451e7f3bb"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 0.21107819500002734
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 6.87897482421862,
+          "decode_seconds": 7.044070219999867,
+          "elapsed_seconds": 7.257434697000008,
+          "output_token_sha256": [
+            "e10012647ecb7e32d916c710ce79bcc641e312ce8d5f0d7016a97d0451e7f3bb"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 0.2117346219999945
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 6.88006839941413,
+          "decode_seconds": 7.045190041000069,
+          "elapsed_seconds": 7.25464563100013,
+          "output_token_sha256": [
+            "e10012647ecb7e32d916c710ce79bcc641e312ce8d5f0d7016a97d0451e7f3bb"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 0.20797566099986398
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 6.880496988281193,
+          "decode_seconds": 7.0456289159999415,
+          "elapsed_seconds": 7.258399376999932,
+          "output_token_sha256": [
+            "e10012647ecb7e32d916c710ce79bcc641e312ce8d5f0d7016a97d0451e7f3bb"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 0.211375328000031
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 6.879763044921994,
+          "decode_seconds": 7.044877358000122,
+          "elapsed_seconds": 7.25691277299984,
+          "output_token_sha256": [
+            "e10012647ecb7e32d916c710ce79bcc641e312ce8d5f0d7016a97d0451e7f3bb"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 0.2106462819999706
+        }
+      ]
+    }
+  },
+  "mode": "full",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "7f4b667f0a77edffe0cff8a599834afcccff77a8f596b94d69bccaaa186adeeb",
+  "prompt_source": {
+    "batch_size": 1,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "repeats": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 16.173901918999945,
+  "warmups": 2,
+  "worker_state": [
+    []
+  ]
+}

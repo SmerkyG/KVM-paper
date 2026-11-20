@@ -1,0 +1,67 @@
+{
+  "jobs": [
+    {
+      "id": "1794355963608825904-qwen-long-128k-cohort-v1",
+      "name": "qwen-long-128k-cohort-v1",
+      "variant": "cohort",
+      "length": 128000,
+      "command": [
+        "env",
+        "HF_HUB_OFFLINE=1",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "transformers==4.51.3",
+        "python",
+        "-m",
+        "benchmarks.retro_qwen3_prepare",
+        "--max-length",
+        "128000",
+        "--samples",
+        "8",
+        "--output-dir",
+        "/home/ubuntu/comparison/results/qwen-long-128k-source-v1",
+        "--output",
+        "/home/ubuntu/comparison/results/qwen-long-128k-cohort-v1.json"
+      ],
+      "output": "/home/ubuntu/comparison/results/qwen-long-128k-cohort-v1.json"
+    },
+    {
+      "id": "1794356046359017362-qwen-long-128k-cohort-v2",
+      "name": "qwen-long-128k-cohort-v2",
+      "variant": "cohort",
+      "length": 128000,
+      "command": [
+        "env",
+        "HF_HUB_OFFLINE=1",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "transformers==4.51.3",
+        "--with",
+        "wonderwords",
+        "--with",
+        "nltk",
+        "python",
+        "-m",
+        "benchmarks.retro_qwen3_prepare",
+        "--max-length",
+        "128000",
+        "--samples",
+        "8",
+        "--output-dir",
+        "/home/ubuntu/comparison/results/qwen-long-128k-source-v2",
+        "--output",
+        "/home/ubuntu/comparison/results/qwen-long-128k-cohort-v2.json"
+      ],
+      "output": "/home/ubuntu/comparison/results/qwen-long-128k-cohort-v2.json"
+    }
+  ]
+}

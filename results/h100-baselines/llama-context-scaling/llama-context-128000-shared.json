@@ -1,0 +1,263 @@
+{
+  "stage": "complete",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 131072,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 128000,
+  "methods": [
+    "lod",
+    "dense",
+    "multipole-512",
+    "multipole-p90"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 125952,
+  "warmup_steps": 512,
+  "dense_kv_source": "device",
+  "captures_host_kv": false,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 125952,
+      "prefill_token_id": 220,
+      "input_token_sha256": "6bd860b824ae0f19150a8f6d37d4932b8cce35b645c26e82ed118a5cb306b50f",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 15,
+            "eager_argmax": 15
+          },
+          "windows": [
+            {
+              "seconds": 4.398936492998473,
+              "steps": 512,
+              "cache_update_events": 64,
+              "last_layer_centroid_slots_per_kv_head": [
+                5684,
+                5695
+              ]
+            },
+            {
+              "seconds": 4.503222276000088,
+              "steps": 512,
+              "cache_update_events": 64,
+              "last_layer_centroid_slots_per_kv_head": [
+                5695,
+                5707
+              ]
+            },
+            {
+              "seconds": 4.4814080169999215,
+              "steps": 512,
+              "cache_update_events": 64,
+              "last_layer_centroid_slots_per_kv_head": [
+                5707,
+                5718
+              ]
+            }
+          ],
+          "median_decode_ms": 8.752750033202972
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 15,
+            "eager_argmax": 15,
+            "graph_argmax_by_request": [
+              15
+            ],
+            "eager_argmax_by_request": [
+              15
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 6.350263915999676,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.360522300001321,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.37176564299989,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 12.42289511719008
+        },
+        "multipole-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 15,
+            "eager_argmax": 15
+          },
+          "windows": [
+            {
+              "seconds": 9.510200706999967,
+              "steps": 512,
+              "cache_update_events": 4,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ]
+            },
+            {
+              "seconds": 12.971702130000267,
+              "steps": 512,
+              "cache_update_events": 4,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ]
+            },
+            {
+              "seconds": 9.45268341999872,
+              "steps": 512,
+              "cache_update_events": 4,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ]
+            }
+          ],
+          "median_decode_ms": 18.57461075585931,
+          "last_layer_selected_prefix_counts": [
+            497,
+            499,
+            459,
+            489,
+            461,
+            508,
+            512,
+            437
+          ],
+          "decode_and_graph_s": 42.417739520000396,
+          "cache_setup_s": 6.556063353000354,
+          "centroids_per_kv_head": 2900,
+          "index_updates": 16,
+          "worker_pid": 143032
+        },
+        "multipole-p90": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 15,
+            "eager_argmax": 15
+          },
+          "windows": [
+            {
+              "seconds": 6.8782220570010395,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 11559.1533203125,
+                "min": 258,
+                "max": 23688
+              }
+            },
+            {
+              "seconds": 6.889661276998595,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 11874.4033203125,
+                "min": 561,
+                "max": 26894
+              }
+            },
+            {
+              "seconds": 6.90695130200038,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 11959.0439453125,
+                "min": 258,
+                "max": 23231
+              }
+            }
+          ],
+          "median_decode_ms": 13.45636968163788,
+          "last_layer_selected_prefix_counts": [
+            11883,
+            11983,
+            10364,
+            6743,
+            11948,
+            12501,
+            12490,
+            11536,
+            16930,
+            19078,
+            14326,
+            8896,
+            13893,
+            15426,
+            14918,
+            13763,
+            12744,
+            12815,
+            15642,
+            11324,
+            11518,
+            13495,
+            17088,
+            13538,
+            12647,
+            14090,
+            13544,
+            13737,
+            10898,
+            12658,
+            14502,
+            15789
+          ],
+          "decode_and_graph_s": 28.041166710001562,
+          "cache_setup_s": 0.05799953299901972,
+          "reused_initial_clusters": true,
+          "squeezed_index": {
+            "clusters": 2900,
+            "threshold": {
+              "0.9": 1.6717805920052342e-05
+            },
+            "seconds": 1.758609021000666,
+            "calibration_tokens": 100,
+            "observation_window": 246,
+            "exact_sink_tokens": 10,
+            "routing_position": 2048
+          },
+          "worker_pid": 143032
+        }
+      },
+      "prefill_s": 16.672114488999796,
+      "elapsed_s": 145.52861404800024
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc",
+  "multipole_fixed_centroids_per_kv_head": 2900
+}

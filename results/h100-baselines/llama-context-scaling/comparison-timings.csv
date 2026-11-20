@@ -1,0 +1,145 @@
+settings,batch,context_tokens,method,initial_centroids_per_kv_head,configured_token_budget,target_exact_entries_per_query_head,decode_ms_per_batch_step,prefill_s_per_batch,decode_status,prefill_status,decode_source,prefill_source
+paper,1,16384,Dense BF16,,,,7.846299671875556,0.5815471149999212,measured,measured,llama-context-16384-dense.json,llama-context-16384-dense.json
+paper,1,16384,Dense FP16,,,,7.813146728515186,0.7030504364993249,measured,measured,llama-context-16384-dense-fp16.json,llama-context-16384-dense-fp16.json
+paper,1,16384,LoD two-tier,2048,,,7.128674768065224,0.6388586255006885,measured,measured,llama-context-16384-two-tier.json,llama-context-16384-two-tier.json
+paper,1,16384,LoD adaptive three-tier,2048,,,7.705005107422558,0.6749971235003613,measured,measured,llama-context-16384-adaptive.json,llama-context-16384-adaptive.json
+paper,1,16384,RetroInfer,,,,9.513073055175347,0.6347880284993153,measured,measured,llama-context-16384-retro-deferred-index.json,llama-figure-prefill-paper-b1-16384-retro.json
+paper,1,16384,QUEST,,2048,,7.7525553310549,0.6031611989992598,measured,measured,llama-context-16384-quest.json,llama-context-16384-quest.json
+paper,1,16384,ClusterKV,400,1024,,8.794655442870614,0.9278345564998745,measured,measured,llama-context-16384-clusterkv-fixed.json,llama-context-16384-clusterkv-fixed.json
+paper,1,16384,Multipole,1008,512,,15.355121392088833,0.9239184394973563,measured,measured,llama-paperscale-b1-16384-paired.json,llama-figure-prefill-paper-b1-16384-multipole.json
+paper,1,16384,Squeezed,814,,,9.91078591357386,1.002047379501164,measured,measured,llama-paperscale-b1-16384-paired.json,llama-figure-prefill-paper-b1-16384-squeezed.json
+paper,1,32768,Dense BF16,,,,8.732033710937337,1.5848455089999334,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-dense.json,../llama-final-checks/llama32k-b1-final-predecode-dense.json
+paper,1,32768,Dense FP16,,,,8.669483137695,1.5783505115005028,measured,measured,../llama-final-checks/llama32k-b1-quest-matched-dense-fp16.json,../llama-final-checks/llama32k-b1-quest-matched-dense-fp16.json
+paper,1,32768,LoD two-tier,2896,,,7.237000696289186,1.6589019165003265,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-two-tier.json,../llama-final-checks/llama32k-b1-final-predecode-two-tier.json
+paper,1,32768,LoD adaptive three-tier,2896,,,8.076444362792756,1.7524934875000326,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-adaptive.json,../llama-final-checks/llama32k-b1-final-predecode-adaptive.json
+paper,1,32768,RetroInfer,,,,9.790094551269668,1.7954722999998012,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-retro.json,../llama-final-checks/llama32k-b1-final-predecode-retro.json
+paper,1,32768,QUEST,,2048,,8.515822016601504,1.6136286375003692,measured,measured,../llama-final-checks/llama32k-b1-quest-matched-quest.json,../llama-final-checks/llama32k-b1-quest-matched-quest.json
+paper,1,32768,ClusterKV,400,1024,,9.08357246337932,2.228591141999459,measured,measured,llama-context-32768-clusterkv-fixed.json,llama-context-32768-clusterkv-fixed.json
+paper,1,32768,Multipole,2032,512,,16.487251537597558,2.239049932002672,measured,measured,llama-paper-b1-32768-paired.json,llama-figure-prefill-paper-b1-32768-multipole.json
+paper,1,32768,Squeezed,1633,,,10.63424748730668,2.795272733001184,measured,measured,llama-paper-b1-32768-paired.json,llama-figure-prefill-paper-b1-32768-squeezed.json
+paper,1,65536,Dense BF16,,,,10.1181185083008,4.8125168285000655,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-dense.json,../llama-final-checks/llama64k-b1-final-predecode-dense.json
+paper,1,65536,Dense FP16,,,,10.05628534423808,4.790836147499704,measured,measured,../llama-final-checks/llama64k-b1-quest-matched-dense-fp16.json,../llama-final-checks/llama64k-b1-quest-matched-dense-fp16.json
+paper,1,65536,LoD two-tier,4096,,,7.481372035156308,4.527192862000447,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-two-tier.json,../llama-final-checks/llama64k-b1-final-predecode-two-tier.json
+paper,1,65536,LoD adaptive three-tier,4096,,,8.53445036035172,4.879495710500123,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-adaptive.json,../llama-final-checks/llama64k-b1-final-predecode-adaptive.json
+paper,1,65536,RetroInfer,,,,10.677986342773504,5.330664500000694,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-retro.json,../llama-final-checks/llama64k-b1-final-predecode-retro.json
+paper,1,65536,QUEST,,2048,,9.687131724609,4.866356909999922,measured,measured,../llama-final-checks/llama64k-b1-quest-matched-quest.json,../llama-final-checks/llama64k-b1-quest-matched-quest.json
+paper,1,65536,ClusterKV,400,1024,,9.373285103026596,5.911442614000407,measured,measured,llama-context-65536-clusterkv-fixed.json,llama-context-65536-clusterkv-fixed.json
+paper,1,65536,Multipole,4080,512,,20.399013533202393,6.081482974997925,measured,measured,llama-paper-b1-65536-paired.json,llama-figure-prefill-paper-b1-65536-multipole.json
+paper,1,65536,Squeezed,3271,,,12.9189740239255,8.42450335000467,measured,measured,llama-paper-b1-65536-paired.json,llama-figure-prefill-paper-b1-65536-squeezed.json
+paper,1,128000,Dense BF16,,,,12.72267724072318,15.746121299499464,measured,measured,llama-context-128000-dense.json,llama-context-128000-dense.json
+paper,1,128000,Dense FP16,,,,12.66979110302735,15.8660495084996,measured,measured,llama-context-128000-dense-fp16.json,llama-context-128000-dense-fp16.json
+paper,1,128000,LoD two-tier,5724,,,7.783992656738015,11.692634850999639,measured,measured,llama-context-128000-two-tier.json,llama-context-128000-two-tier.json
+paper,1,128000,LoD adaptive three-tier,5724,,,9.150163857909455,13.381614759499826,measured,measured,llama-context-128000-adaptive.json,llama-context-128000-adaptive.json
+paper,1,128000,RetroInfer,,,,12.270681037597875,16.414676227500422,measured,measured,llama-context-128000-retro.json,llama-context-128000-retro.json
+paper,1,128000,QUEST,,2048,,12.036002459961281,15.982023985499836,measured,measured,llama-context-128000-quest.json,llama-context-128000-quest.json
+paper,1,128000,ClusterKV,400,1024,,9.896826567872274,17.496064683500663,measured,measured,llama-context-128000-clusterkv-fixed.json,llama-context-128000-clusterkv-fixed.json
+paper,1,128000,Multipole,7984,512,,24.398659089843733,18.417628444498405,measured,measured,llama-paperscale-b1-128000-paired.json,llama-figure-prefill-paper-b1-128000-multipole.json
+paper,1,128000,Squeezed,6395,,,17.12699818847696,27.03117952500179,measured,measured,llama-paperscale-b1-128000-paired.json,llama-figure-prefill-paper-b1-128000-squeezed.json
+paper,4,8192,Dense BF16,,,,8.72160400048827,0.9976191359983204,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-dense.json,../llama-final-checks/llama8k-b4-final-predecode-dense.json
+paper,4,8192,Dense FP16,,,,8.785726496581603,1.0355101864997778,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama8k-b4-final-predecode-dense-fp16.json
+paper,4,8192,LoD two-tier,1448,,,7.799527791992666,1.1212861590011016,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-two-tier.json,../llama-final-checks/llama8k-b4-final-predecode-two-tier.json
+paper,4,8192,LoD adaptive three-tier,1448,,,8.109981716796888,1.2076554815002964,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-adaptive.json,../llama-final-checks/llama8k-b4-final-predecode-adaptive.json
+paper,4,8192,RetroInfer,,,,,,dense fallback,dense fallback,,
+paper,4,8192,QUEST,,2048,,11.301235239257856,1.0350656375003382,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-quest.json,../llama-final-checks/llama8k-b4-final-predecode-quest.json
+paper,4,8192,ClusterKV,,,,,,batch-one adapter,batch-one adapter,,
+paper,4,8192,Multipole,496,512,,16.5888888603547,1.5723938985011046,measured,measured,llama-paperscale-b4-8192-paired.json,llama-figure-prefill-paper-b4-8192-multipole.json
+paper,4,8192,Squeezed,404,,,9.887900416504891,1.8593425034996471,measured,measured,llama-paperscale-b4-8192-paired.json,llama-figure-prefill-paper-b4-8192-squeezed.json
+paper,4,16384,Dense BF16,,,,9.909053231444531,2.435172514500664,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-dense.json,../llama-final-checks/llama16k-b4-final-predecode-dense.json
+paper,4,16384,Dense FP16,,,,9.937006429199258,2.553057649000948,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama16k-b4-final-predecode-dense-fp16.json
+paper,4,16384,LoD two-tier,2048,,,8.164613950684796,2.6733461980002176,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-two-tier.json,../llama-final-checks/llama16k-b4-final-predecode-two-tier.json
+paper,4,16384,LoD adaptive three-tier,2048,,,8.550307184082229,2.7574173394987156,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-adaptive.json,../llama-final-checks/llama16k-b4-final-predecode-adaptive.json
+paper,4,16384,RetroInfer,,,,9.951479122559448,2.54568764150099,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-retro.json,llama-figure-prefill-paper-b4-16384-retro.json
+paper,4,16384,QUEST,,2048,,12.293340217283344,2.522217672500119,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-quest.json,../llama-final-checks/llama16k-b4-final-predecode-quest.json
+paper,4,16384,ClusterKV,,,,,,batch-one adapter,batch-one adapter,,
+paper,4,16384,Multipole,1008,512,,17.442465935548768,3.7536121494995314,measured,measured,llama-paperscale-b4-16384-paired.json,llama-figure-prefill-paper-b4-16384-multipole.json
+paper,4,16384,Squeezed,814,,,11.241054399903305,4.207319708999421,measured,measured,llama-paperscale-b4-16384-paired.json,llama-figure-prefill-paper-b4-16384-squeezed.json
+paper,4,32768,Dense BF16,,,,12.754716381836673,6.265570551997371,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-dense.json,../llama-final-checks/llama32k-b4-final-predecode-dense.json
+paper,4,32768,Dense FP16,,,,12.856142596192832,6.471895071499603,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama32k-b4-final-predecode-dense-fp16.json
+paper,4,32768,LoD two-tier,2896,,,8.547949561035217,7.26345227299953,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-two-tier.json,../llama-final-checks/llama32k-b4-final-predecode-two-tier.json
+paper,4,32768,LoD adaptive three-tier,2896,,,9.09602408935406,7.789040539999405,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-adaptive.json,../llama-final-checks/llama32k-b4-final-predecode-adaptive.json
+paper,4,32768,RetroInfer,,,,10.52728153027438,7.245476899500318,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-retro.json,../llama-final-checks/llama32k-b4-final-predecode-retro.json
+paper,4,32768,QUEST,,2048,,14.927538748045421,6.442305776501598,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-quest.json,../llama-final-checks/llama32k-b4-final-predecode-quest.json
+paper,4,32768,ClusterKV,,,,,,batch-one adapter,batch-one adapter,,
+paper,4,32768,Multipole,2032,512,,19.33408363915845,8.952613542998733,measured,measured,llama-paperscale-b4-32768-paired.json,llama-figure-prefill-paper-b4-32768-multipole.json
+paper,4,32768,Squeezed,1633,,,13.635877641110739,11.320976138009428,measured,measured,llama-paperscale-b4-32768-paired.json,llama-figure-prefill-paper-b4-32768-squeezed.json
+paper,4,65536,Dense BF16,,,,18.258646261720024,19.332035266500498,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-dense.json,../llama-final-checks/llama64k-b4-final-predecode-dense.json
+paper,4,65536,Dense FP16,,,,18.268371001952666,19.64693886799887,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama64k-b4-final-predecode-dense-fp16.json
+paper,4,65536,LoD two-tier,4096,,,9.201129428711319,19.582920462500624,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-two-tier.json,../llama-final-checks/llama64k-b4-final-predecode-two-tier.json
+paper,4,65536,LoD adaptive three-tier,4096,,,10.015385686035216,22.3675630405005,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-adaptive.json,../llama-final-checks/llama64k-b4-final-predecode-adaptive.json
+paper,4,65536,RetroInfer,,,,11.962250609375502,21.816156846999547,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-retro.json,../llama-final-checks/llama64k-b4-final-predecode-retro.json
+paper,4,65536,QUEST,,2048,,19.753885391113002,20.387480767500165,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-quest.json,../llama-final-checks/llama64k-b4-final-predecode-quest.json
+paper,4,65536,ClusterKV,,,,,,batch-one adapter,batch-one adapter,,
+paper,4,65536,Multipole,4080,512,,25.141181805661716,24.982087340496946,measured,measured,llama-paperscale-b4-65536-paired.json,llama-figure-prefill-paper-b4-65536-multipole.json
+paper,4,65536,Squeezed,3271,,,18.98294667919842,33.917942954503815,measured,measured,llama-paperscale-b4-65536-paired.json,llama-figure-prefill-paper-b4-65536-squeezed.json
+lod-matched,1,16384,Dense BF16,,,,7.846299671875556,0.5815471149999212,measured,measured,llama-context-16384-dense.json,llama-context-16384-dense.json
+lod-matched,1,16384,Dense FP16,,,,7.813146728515186,0.7030504364993249,measured,measured,llama-context-16384-dense-fp16.json,llama-context-16384-dense-fp16.json
+lod-matched,1,16384,LoD two-tier,2048,,,7.128674768065224,0.6388586255006885,measured,measured,llama-context-16384-two-tier.json,llama-context-16384-two-tier.json
+lod-matched,1,16384,LoD adaptive three-tier,2048,,,7.705005107422558,0.6749971235003613,measured,measured,llama-context-16384-adaptive.json,llama-context-16384-adaptive.json
+lod-matched,1,16384,RetroInfer,2048,,,9.859621602540614,0.6661389360015164,measured,measured,llama-lodmatch-b1-16384-retro.json,llama-figure-prefill-matched-b1-16384-retro.json
+lod-matched,1,16384,QUEST,,848,847.2436848958333,7.590347761720295,0.6168282514991006,measured,measured,llama-lodmatch-b1-16384-quest.json,llama-lodmatch-b1-16384-quest.json
+lod-matched,1,16384,ClusterKV,400,664,847.2436848958333,8.705131417485745,0.884725135500048,measured,measured,llama-lodmatch-b1-16384-clusterkv.json,llama-lodmatch-b1-16384-clusterkv.json
+lod-matched,1,16384,Multipole,2048,512,,15.614988017089715,1.048466615502548,measured,measured,llama-lodmatch-b1-16384-paired.json,llama-figure-prefill-matched-b1-16384-multipole.json
+lod-matched,1,16384,Squeezed,2048,,,10.730588464843649,1.1703602380002849,measured,measured,llama-lodmatch-b1-16384-paired.json,llama-figure-prefill-matched-b1-16384-squeezed.json
+lod-matched,1,32768,Dense BF16,,,,8.732033710937337,1.5848455089999334,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-dense.json,../llama-final-checks/llama32k-b1-final-predecode-dense.json
+lod-matched,1,32768,Dense FP16,,,,8.669483137695,1.5783505115005028,measured,measured,../llama-final-checks/llama32k-b1-quest-matched-dense-fp16.json,../llama-final-checks/llama32k-b1-quest-matched-dense-fp16.json
+lod-matched,1,32768,LoD two-tier,2896,,,7.237000696289186,1.6589019165003265,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-two-tier.json,../llama-final-checks/llama32k-b1-final-predecode-two-tier.json
+lod-matched,1,32768,LoD adaptive three-tier,2896,,,8.076444362792756,1.7524934875000326,measured,measured,../llama-final-checks/llama32k-b1-final-predecode-adaptive.json,../llama-final-checks/llama32k-b1-final-predecode-adaptive.json
+lod-matched,1,32768,RetroInfer,2896,,,9.923577445800191,1.817480246500054,measured,measured,llama-lodmatch-b1-32768-retro.json,llama-lodmatch-b1-32768-retro.json
+lod-matched,1,32768,QUEST,,1184,1168.9048828125,8.34835606591966,1.68031692850127,measured,measured,llama-lodmatch-b1-32768-quest.json,llama-lodmatch-b1-32768-quest.json
+lod-matched,1,32768,ClusterKV,400,985,1168.9048828125,8.972353637691555,2.3291271870002674,measured,measured,llama-lodmatch-b1-32768-clusterkv.json,llama-lodmatch-b1-32768-clusterkv.json
+lod-matched,1,32768,Multipole,2896,512,,16.480516158692282,2.504865258000791,measured,measured,llama-lodmatch-b1-32768-paired.json,llama-figure-prefill-matched-b1-32768-multipole.json
+lod-matched,1,32768,Squeezed,2896,,,11.678931119140756,2.905028082001081,measured,measured,llama-lodmatch-b1-32768-paired.json,llama-figure-prefill-matched-b1-32768-squeezed.json
+lod-matched,1,65536,Dense BF16,,,,10.1181185083008,4.8125168285000655,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-dense.json,../llama-final-checks/llama64k-b1-final-predecode-dense.json
+lod-matched,1,65536,Dense FP16,,,,10.05628534423808,4.790836147499704,measured,measured,../llama-final-checks/llama64k-b1-quest-matched-dense-fp16.json,../llama-final-checks/llama64k-b1-quest-matched-dense-fp16.json
+lod-matched,1,65536,LoD two-tier,4096,,,7.481372035156308,4.527192862000447,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-two-tier.json,../llama-final-checks/llama64k-b1-final-predecode-two-tier.json
+lod-matched,1,65536,LoD adaptive three-tier,4096,,,8.53445036035172,4.879495710500123,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-adaptive.json,../llama-final-checks/llama64k-b1-final-predecode-adaptive.json
+lod-matched,1,65536,RetroInfer,4096,,,10.677986342773504,5.330664500000694,measured,measured,../llama-final-checks/llama64k-b1-final-predecode-retro.json,../llama-final-checks/llama64k-b1-final-predecode-retro.json
+lod-matched,1,65536,QUEST,,1888,1885.3131510416667,9.587316539061419,4.8937758920001215,measured,measured,llama-lodmatch-b1-65536-quest.json,llama-lodmatch-b1-65536-quest.json
+lod-matched,1,65536,ClusterKV,400,1702,1885.3131510416667,9.73795374804709,6.0214341595019505,measured,measured,llama-lodmatch-b1-65536-clusterkv.json,llama-lodmatch-b1-65536-clusterkv.json
+lod-matched,1,65536,Multipole,4096,512,,17.517827361327676,6.207819955998275,measured,measured,llama-lodmatch-b1-65536-paired.json,llama-figure-prefill-matched-b1-65536-multipole.json
+lod-matched,1,65536,Squeezed,4096,,,13.470234448242024,8.1511878004967,measured,measured,llama-lodmatch-b1-65536-paired.json,llama-figure-prefill-matched-b1-65536-squeezed.json
+lod-matched,1,128000,Dense BF16,,,,12.72267724072318,15.746121299499464,measured,measured,llama-context-128000-dense.json,llama-context-128000-dense.json
+lod-matched,1,128000,Dense FP16,,,,12.66979110302735,15.8660495084996,measured,measured,llama-context-128000-dense-fp16.json,llama-context-128000-dense-fp16.json
+lod-matched,1,128000,LoD two-tier,5724,,,7.783992656738015,11.692634850999639,measured,measured,llama-context-128000-two-tier.json,llama-context-128000-two-tier.json
+lod-matched,1,128000,LoD adaptive three-tier,5724,,,9.150163857909455,13.381614759499826,measured,measured,llama-context-128000-adaptive.json,llama-context-128000-adaptive.json
+lod-matched,1,128000,RetroInfer,5728,,,11.268726911131566,16.402824725995742,measured,measured,llama-lodmatch-b1-128000-retro.json,llama-lodmatch-b1-128000-retro.json
+lod-matched,1,128000,QUEST,,2896,2888.7869791666667,12.046366190432423,16.104342906997772,measured,measured,llama-lodmatch-b1-128000-quest.json,llama-lodmatch-b1-128000-quest.json
+lod-matched,1,128000,ClusterKV,400,2705,2888.7869791666667,11.089679922363871,17.51612041399858,measured,measured,llama-lodmatch-b1-128000-clusterkv.json,llama-lodmatch-b1-128000-clusterkv.json
+lod-matched,1,128000,Multipole,5724,512,,21.602801729002863,18.504629947503417,measured,measured,llama-lodmatch-b1-128000-paired.json,llama-figure-prefill-matched-b1-128000-multipole.json
+lod-matched,1,128000,Squeezed,5724,,,16.65218407861424,24.51382820299841,measured,measured,llama-lodmatch-b1-128000-paired.json,llama-figure-prefill-matched-b1-128000-squeezed.json
+lod-matched,4,8192,Dense BF16,,,,8.72160400048827,0.9976191359983204,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-dense.json,../llama-final-checks/llama8k-b4-final-predecode-dense.json
+lod-matched,4,8192,Dense FP16,,,,8.785726496581603,1.0355101864997778,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama8k-b4-final-predecode-dense-fp16.json
+lod-matched,4,8192,LoD two-tier,1448,,,7.799527791992666,1.1212861590011016,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-two-tier.json,../llama-final-checks/llama8k-b4-final-predecode-two-tier.json
+lod-matched,4,8192,LoD adaptive three-tier,1448,,,8.109981716796888,1.2076554815002964,measured,measured,../llama-final-checks/llama8k-b4-final-predecode-adaptive.json,../llama-final-checks/llama8k-b4-final-predecode-adaptive.json
+lod-matched,4,8192,RetroInfer,,,,,,dense fallback,dense fallback,,
+lod-matched,4,8192,QUEST,,608,599.7501953125,10.606100626954884,1.0386461619964393,measured,measured,llama-lodmatch-b4-8192-quest.json,llama-lodmatch-b4-8192-quest.json
+lod-matched,4,8192,ClusterKV,,,599.7501953125,,,batch-one adapter,batch-one adapter,,
+lod-matched,4,8192,Multipole,1448,512,,17.946278572754437,1.9288163349992828,measured,measured,llama-lodmatch-b4-8192-paired.json,llama-figure-prefill-matched-b4-8192-multipole.json
+lod-matched,4,8192,Squeezed,1448,,,10.787995521969407,2.1976996299890743,measured,measured,llama-lodmatch-b4-8192-paired.json,llama-figure-prefill-matched-b4-8192-squeezed.json
+lod-matched,4,16384,Dense BF16,,,,9.909053231444531,2.435172514500664,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-dense.json,../llama-final-checks/llama16k-b4-final-predecode-dense.json
+lod-matched,4,16384,Dense FP16,,,,9.937006429199258,2.553057649000948,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama16k-b4-final-predecode-dense-fp16.json
+lod-matched,4,16384,LoD two-tier,2048,,,8.164613950684796,2.6733461980002176,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-two-tier.json,../llama-final-checks/llama16k-b4-final-predecode-two-tier.json
+lod-matched,4,16384,LoD adaptive three-tier,2048,,,8.550307184082229,2.7574173394987156,measured,measured,../llama-final-checks/llama16k-b4-final-predecode-adaptive.json,../llama-final-checks/llama16k-b4-final-predecode-adaptive.json
+lod-matched,4,16384,RetroInfer,2048,,,10.491008340819619,2.665906582999014,measured,measured,llama-lodmatch-b4-16384-retro.json,llama-figure-prefill-matched-b4-16384-retro.json
+lod-matched,4,16384,QUEST,,848,847.2436848958333,11.977870159178394,2.5488476894970518,measured,measured,llama-lodmatch-b4-16384-quest.json,llama-lodmatch-b4-16384-quest.json
+lod-matched,4,16384,ClusterKV,,,847.2436848958333,,,batch-one adapter,batch-one adapter,,
+lod-matched,4,16384,Multipole,2048,512,,17.739281946777652,4.252812126502249,measured,measured,llama-lodmatch-b4-16384-paired.json,llama-figure-prefill-matched-b4-16384-multipole.json
+lod-matched,4,16384,Squeezed,2048,,,12.039134500486881,4.823793195497274,measured,measured,llama-lodmatch-b4-16384-paired.json,llama-figure-prefill-matched-b4-16384-squeezed.json
+lod-matched,4,32768,Dense BF16,,,,12.754716381836673,6.265570551997371,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-dense.json,../llama-final-checks/llama32k-b4-final-predecode-dense.json
+lod-matched,4,32768,Dense FP16,,,,12.856142596192832,6.471895071499603,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama32k-b4-final-predecode-dense-fp16.json
+lod-matched,4,32768,LoD two-tier,2896,,,8.547949561035217,7.26345227299953,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-two-tier.json,../llama-final-checks/llama32k-b4-final-predecode-two-tier.json
+lod-matched,4,32768,LoD adaptive three-tier,2896,,,9.09602408935406,7.789040539999405,measured,measured,../llama-final-checks/llama32k-b4-final-predecode-adaptive.json,../llama-final-checks/llama32k-b4-final-predecode-adaptive.json
+lod-matched,4,32768,RetroInfer,2896,,,11.002710839356666,7.301950111497717,measured,measured,llama-lodmatch-b4-32768-retro.json,llama-lodmatch-b4-32768-retro.json
+lod-matched,4,32768,QUEST,,1184,1168.9048828125,14.45778904980699,6.464380713998253,measured,measured,llama-lodmatch-b4-32768-quest.json,llama-lodmatch-b4-32768-quest.json
+lod-matched,4,32768,ClusterKV,,,1168.9048828125,,,batch-one adapter,batch-one adapter,,
+lod-matched,4,32768,Multipole,2896,512,,19.29786525585797,10.02683425899886,measured,measured,llama-lodmatch-b4-32768-paired.json,llama-figure-prefill-matched-b4-32768-multipole.json
+lod-matched,4,32768,Squeezed,2896,,,14.507857720218453,11.769360914498975,measured,measured,llama-lodmatch-b4-32768-paired.json,llama-figure-prefill-matched-b4-32768-squeezed.json
+lod-matched,4,65536,Dense BF16,,,,18.258646261720024,19.332035266500498,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-dense.json,../llama-final-checks/llama64k-b4-final-predecode-dense.json
+lod-matched,4,65536,Dense FP16,,,,18.268371001952666,19.64693886799887,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-dense-fp16.json,../llama-final-checks/llama64k-b4-final-predecode-dense-fp16.json
+lod-matched,4,65536,LoD two-tier,4096,,,9.201129428711319,19.582920462500624,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-two-tier.json,../llama-final-checks/llama64k-b4-final-predecode-two-tier.json
+lod-matched,4,65536,LoD adaptive three-tier,4096,,,10.015385686035216,22.3675630405005,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-adaptive.json,../llama-final-checks/llama64k-b4-final-predecode-adaptive.json
+lod-matched,4,65536,RetroInfer,4096,,,11.962250609375502,21.816156846999547,measured,measured,../llama-final-checks/llama64k-b4-final-predecode-retro.json,../llama-final-checks/llama64k-b4-final-predecode-retro.json
+lod-matched,4,65536,QUEST,,1888,1885.3131510416667,19.733611222655156,19.339005481997447,measured,measured,llama-lodmatch-b4-65536-quest.json,llama-lodmatch-b4-65536-quest.json
+lod-matched,4,65536,ClusterKV,,,1885.3131510416667,,,batch-one adapter,batch-one adapter,,
+lod-matched,4,65536,Multipole,4096,512,,20.209211498041668,24.855538767500548,measured,measured,llama-lodmatch-b4-65536-paired.json,llama-figure-prefill-matched-b4-65536-multipole.json
+lod-matched,4,65536,Squeezed,4096,,,19.38989352343512,32.803269220497896,measured,measured,llama-lodmatch-b4-65536-paired.json,llama-figure-prefill-matched-b4-65536-squeezed.json

@@ -1,0 +1,49 @@
+{
+  "measurement_scope": "synthetic single-layer complete cache update",
+  "implementation": "RetroInfer Multipole adapter using author online cluster update",
+  "batch": 1,
+  "prefix_tokens": 131072,
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "update_interval_tokens": 128,
+  "initial_clusters": "author clustering",
+  "warmup_updates": 2,
+  "samples": [
+    {
+      "wall_ms": 99.34994499963068,
+      "gpu_timeline_ms": 99.32672119140625,
+      "context": 131337
+    },
+    {
+      "wall_ms": 97.81937899970217,
+      "gpu_timeline_ms": 97.79631805419922,
+      "context": 131465
+    },
+    {
+      "wall_ms": 98.0155620000005,
+      "gpu_timeline_ms": 97.99359893798828,
+      "context": 131593
+    },
+    {
+      "wall_ms": 99.7637880000184,
+      "gpu_timeline_ms": 99.74044799804688,
+      "context": 131721
+    }
+  ],
+  "median_wall_ms": 98.68275349981559,
+  "amortized_wall_ms_per_token": 0.7709590117173093,
+  "count_coverage_checked_all_kv_heads": true,
+  "value_summary_max_abs_error_one_kv_head": 1.9073486328125e-06,
+  "includes": [
+    "cluster update",
+    "label and count installation",
+    "value summary recomputation",
+    "local-cache movement",
+    "host metadata"
+  ],
+  "excludes": [
+    "per-token KV append",
+    "attention",
+    "model execution"
+  ]
+}

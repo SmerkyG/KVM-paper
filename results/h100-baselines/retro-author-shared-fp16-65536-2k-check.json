@@ -1,0 +1,164 @@
+{
+  "method": "retro-quest-author",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": true,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "float16",
+  "prompt_tokens": 65536,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 66,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": 2048,
+  "quest_shared_kv": true,
+  "records": [
+    {
+      "prefill_s": 5.450505206998059,
+      "decode_s": 0.7510910100027104,
+      "capture_s": 1.697941278001963,
+      "output_token_ids": [
+        2628,
+        25855,
+        320,
+        1378,
+        384,
+        8,
+        341,
+        310,
+        471,
+        220,
+        15,
+        69,
+        280,
+        286,
+        457,
+        262,
+        557,
+        262,
+        586,
+        1118,
+        2033,
+        636,
+        7530,
+        2292,
+        610,
+        12427,
+        11,
+        341,
+        286,
+        610,
+        636,
+        7530,
+        4293,
+        12427,
+        11,
+        220,
+        15,
+        4521,
+        46111,
+        5421,
+        52406,
+        58113,
+        1198,
+        10669,
+        26309,
+        25,
+        5438,
+        67592,
+        677,
+        1302,
+        7682,
+        75,
+        22,
+        2808,
+        271,
+        1547,
+        54337,
+        2958,
+        25,
+        2816,
+        25697,
+        307,
+        14460,
+        9199,
+        23148,
+        335
+      ],
+      "graph_same_cache_checks": {
+        "0": {
+          "max_abs": 0.3828125,
+          "mean_abs": 0.045030586421489716,
+          "graph_argmax": 25855,
+          "eager_argmax": 25855
+        },
+        "1": {
+          "max_abs": 0.55078125,
+          "mean_abs": 0.03958681970834732,
+          "graph_argmax": 320,
+          "eager_argmax": 320
+        },
+        "14": {
+          "max_abs": 0.046875,
+          "mean_abs": 0.009774588979780674,
+          "graph_argmax": 262,
+          "eager_argmax": 262
+        },
+        "15": {
+          "max_abs": 0.029296875,
+          "mean_abs": 0.005348514299839735,
+          "graph_argmax": 557,
+          "eager_argmax": 557
+        },
+        "16": {
+          "max_abs": 0.037109375,
+          "mean_abs": 0.006540329661220312,
+          "graph_argmax": 262,
+          "eager_argmax": 262
+        },
+        "17": {
+          "max_abs": 0.046875,
+          "mean_abs": 0.004644661210477352,
+          "graph_argmax": 586,
+          "eager_argmax": 586
+        },
+        "30": {
+          "max_abs": 0.02734375,
+          "mean_abs": 0.0025741311255842447,
+          "graph_argmax": 7530,
+          "eager_argmax": 7530
+        },
+        "31": {
+          "max_abs": 0.05126953125,
+          "mean_abs": 0.005561349913477898,
+          "graph_argmax": 4293,
+          "eager_argmax": 4293
+        },
+        "32": {
+          "max_abs": 0.063232421875,
+          "mean_abs": 0.007621026132255793,
+          "graph_argmax": 12427,
+          "eager_argmax": 12427
+        },
+        "33": {
+          "max_abs": 0.05078125,
+          "mean_abs": 0.007256507873535156,
+          "graph_argmax": 11,
+          "eager_argmax": 11
+        },
+        "64": {
+          "max_abs": 0.02734375,
+          "mean_abs": 0.00465115811675787,
+          "graph_argmax": 335,
+          "eager_argmax": 335
+        }
+      },
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_token": 11.555246307734006
+    }
+  ],
+  "median_decode_ms_per_token": 11.555246307734006,
+  "median_prefill_s": 5.450505206998059
+}

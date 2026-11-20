@@ -1,0 +1,23 @@
+Generating SQLite file clusterkv-llama32k-b8-lod-audit-int4-w1-s64-p16-profile-v1.sqlite from clusterkv-llama32k-b8-lod-audit-int4-w1-s64-p16-profile-v1.nsys-rep
+Processing [clusterkv-llama32k-b8-lod-audit-int4-w1-s64-p16-profile-v1.sqlite] with [/opt/nvidia/nsight-systems/2025.6.3/host-linux-x64/reports/cuda_gpu_kern_sum.py](base)... 
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+27.0,811347152,8448,96040.1,87456.0,84672,370879,47706.0,sm90_xmma_gemm_bf16bf16_bf16f32_f32_tn_n_tilesize64x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas
+18.8,563543366,8192,68791.9,67680.0,23904,145696,21658.9,_query_major_residual_page_attention_kernel
+18.2,544995159,16384,33263.9,34127.5,21184,46270,11413.1,sm90_xmma_gemm_bf16bf16_bf16f32_f32_tn_n_tilesize64x64x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas
+7.8,235276086,8192,28720.2,28576.0,27712,30976,506.9,coarse_pack
+6.5,195518575,8192,23867.0,23871.5,22976,24992,341.4,_local
+6.0,181305013,8192,22132.0,22048.0,21216,26496,488.3,scores
+4.8,143229208,8192,17484.0,17439.0,16576,19040,360.5,Kernel2
+2.3,67693722,8192,8263.4,8256.0,8191,8640,38.1,pack
+1.8,54620173,24832,2199.6,2144.0,1408,2880,155.2,elementwise_kernel
+1.6,48235158,8192,5888.1,5856.0,5024,7392,350.9,merge_split_d
+1.2,34717558,16640,2086.4,2080.0,1888,2848,97.3,RMSNormKernel
+1.0,31196098,8192,3808.1,3776.0,3616,4703,104.4,act_and_mul_kernel
+0.9,26035412,17152,1517.9,1535.0,896,2560,166.0,vectorized_elementwise_kernel
+0.5,15320459,8192,1870.2,1856.0,1727,3008,101.3,BatchQKApplyRotaryPosIdsCosSinCacheHeadParallelismKernel
+0.5,14388452,8192,1756.4,1760.0,1568,2528,96.4,splitKreduce_kernel
+0.4,12588433,8192,1536.7,1504.0,1344,2336,89.7,prefix
+0.4,12397247,8448,1467.5,1344.0,992,5504,559.3,unrolled_elementwise_kernel
+0.2,6672335,256,26063.8,26016.0,25568,27872,299.2,reduce_kernel
+0.0,1183164,256,4621.7,4576.0,4416,5088,119.7,indexSelectSmallIndex
+

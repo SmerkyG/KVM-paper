@@ -1,0 +1,23 @@
+--- a/squeezedattention/kernels.py
++++ b/squeezedattention/kernels.py
+@@ -194,7 +194,8 @@
+     BLOCK_M: tl.constexpr, # will load BLOCK_M queries
+     BLOCK_N: tl.constexpr, # will compute self attention by blocks of BLOCK_N keys
+     BLOCK_KV: tl.constexpr, # will compute this width of keys
+-    BLOCK_DMODEL: tl.constexpr
++    BLOCK_DMODEL: tl.constexpr,
++    GQA_GROUP: tl.constexpr = 1
+ ):
+     start_m = tl.program_id(0).to(tl.int64) # idx of sequence length chunk of size 128 (BLOCK_N)
+     kv_block_id = tl.program_id(1).to(tl.int64) # idx of KV block
+@@ -226,8 +227,8 @@
+     offs_kidx = head_id * skih + offs_n * skin
+ 
+     # key / value indices
+-    offs_k_base = head_id * skh + offs_d[:, None] * skd
+-    offs_v_base = head_id * svh + offs_d[None, :] * svd
++    offs_k_base = (head_id // GQA_GROUP) * skh + offs_d[:, None] * skd
++    offs_v_base = (head_id // GQA_GROUP) * svh + offs_d[None, :] * svd
+ 
+     # pointers to m and l
+     m_prev = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")

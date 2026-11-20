@@ -1,0 +1,27 @@
+
+NOTICE: Existing SQLite export found: clusterkv-llama32k-b8-lod-audit-bf16-w1-s64-p16-profile-v1.sqlite
+        It is assumed file was previously exported from: clusterkv-llama32k-b8-lod-audit-bf16-w1-s64-p16-profile-v1.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [clusterkv-llama32k-b8-lod-audit-bf16-w1-s64-p16-profile-v1.sqlite] with [/opt/nvidia/nsight-systems/2025.6.3/host-linux-x64/reports/cuda_gpu_kern_sum.py](base)... 
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+27.5,811505267,8448,96058.9,87456.0,84831,369567,47749.5,sm90_xmma_gemm_bf16bf16_bf16f32_f32_tn_n_tilesize64x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas
+18.4,544440805,16384,33230.0,33871.5,21152,46655,11430.1,sm90_xmma_gemm_bf16bf16_bf16f32_f32_tn_n_tilesize64x64x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas
+17.6,521107528,8192,63611.8,62976.0,22592,134208,18581.3,_query_major_residual_page_attention_kernel
+7.9,234908464,8192,28675.3,28544.0,27456,30816,497.0,coarse_pack
+6.6,194853804,8192,23785.9,23775.0,23040,25088,319.5,_local
+6.1,181179839,8192,22116.7,22016.0,21120,26016,496.5,scores
+4.8,141909111,8192,17322.9,17279.0,16543,18943,344.1,Kernel2
+2.3,67675351,8192,8261.2,8256.0,8191,8671,37.7,pack
+1.8,54569121,24832,2197.5,2144.0,1440,2976,151.8,elementwise_kernel
+1.7,49873825,8192,6088.1,6048.0,5152,7712,355.0,merge_split_d
+1.2,34699445,16640,2085.3,2080.0,1856,2880,98.0,RMSNormKernel
+1.1,31166647,8192,3804.5,3776.0,3616,4608,106.2,act_and_mul_kernel
+0.9,26036939,17152,1518.0,1504.0,896,2528,167.5,vectorized_elementwise_kernel
+0.5,14471744,8192,1766.6,1760.0,1599,2400,90.9,splitKreduce_kernel
+0.5,14095906,8192,1720.7,1696.0,1568,2880,127.3,BatchQKApplyRotaryPosIdsCosSinCacheHeadParallelismKernel
+0.4,12593821,8192,1537.3,1504.0,1312,2368,93.4,prefix
+0.4,12173362,8448,1441.0,1344.0,960,5504,535.2,unrolled_elementwise_kernel
+0.2,6669320,256,26052.0,25984.0,25408,27647,333.6,reduce_kernel
+0.0,1178554,256,4603.7,4576.0,4480,5120,124.9,indexSelectSmallIndex
+
