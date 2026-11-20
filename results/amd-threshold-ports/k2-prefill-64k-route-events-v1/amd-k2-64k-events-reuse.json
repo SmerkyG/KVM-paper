@@ -1,0 +1,156 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 17.380179338157177,
+  "prefill_seconds": 16.57684986293316,
+  "stages": {
+    "route_means": {
+      "seconds": 0.005335170008242128,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.0014001350030303,
+        "2896": 0.0018225780054926873,
+        "3547": 0.002112456999719143
+      }
+    },
+    "route_blas_qk": {
+      "seconds": 1.0900426201820377,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.34698961544036866,
+        "2896": 0.3452637906074524,
+        "3547": 0.3977892141342163
+      }
+    },
+    "route_prepare_live_count": {
+      "seconds": 0.0015811799960210907,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.00048747399961575875,
+        "2896": 0.000619070997927338,
+        "3547": 0.00047463499847799547
+      }
+    },
+    "route_select_grouped": {
+      "seconds": 1.7163909888267512,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.3399314188957216,
+        "2896": 0.6184963579177857,
+        "3547": 0.7579632120132443
+      }
+    },
+    "route_compact_bits": {
+      "seconds": 0.1682749518156051,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.047350652873516086,
+        "2896": 0.05979021507501603,
+        "3547": 0.061134083867073044
+      }
+    },
+    "route_blas_pv": {
+      "seconds": 0.31635769259929675,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.09284420835971832,
+        "2896": 0.09948203611373903,
+        "3547": 0.12403144812583923
+      }
+    },
+    "route_and_coarse": {
+      "seconds": 3.3840393266677857,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.8505988321304323,
+        "2896": 1.1547908325195315,
+        "3547": 1.3786496620178226
+      }
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 1.728881233930588,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 6.281867410659795,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0012375459996983402,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.2933533508777618,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009852280006743966,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.2965785961151123,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0013687419942580166,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.4287448878288274,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a87b20acc0df70c07d94d1b3041c70d23a81bd17849939b3792b1aeb82af1a06",
+      "source_file_count": 349
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

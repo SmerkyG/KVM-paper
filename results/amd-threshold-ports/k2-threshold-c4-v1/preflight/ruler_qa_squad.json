@@ -1,0 +1,138 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a9386abf966e1d68244cc26d864b2ada5a68b2985d15216cd97c6f2d92ee77f0",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "4096",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "4"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 3,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 3,
+      "prompt_hash": "d6868f5f2540fdcf8f31ed370b1042e614e1814297adb069016c0e017e2facbb",
+      "doc_hash": "fa4c4f1aa21d5c0faff1b9aad1eec37c13c172c9b0e5b5cc94c5947cd8048183",
+      "target_hash": "2b7fc982b187713cfa0cd6674e027ee1718f022d140a8a93a206ca918c3ec4cf",
+      "input_tokens": 65373,
+      "input_token_sha256": "95b64d33628830ba887a38657db0d03b45731bcc49166c0d3521451ec5c32fd4",
+      "targets": [
+        "Rollo",
+        "Rollo",
+        "Rollo",
+        "Rollo"
+      ],
+      "prediction": " Rollo",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 27.327
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 10,
+      "prompt_hash": "fecf18d0e05a20d4dd0292e08c00e8aa063c3436f6fad403bbffb4ea111c93bf",
+      "doc_hash": "230066e8ba2e89a59bb257f09bf028e920c685067e55051e90e35c0633766661",
+      "target_hash": "d6775995196e2e4de454a620b74514316fc7f9d6a46faef48d5f05a0336477f8",
+      "input_tokens": 65378,
+      "input_token_sha256": "2a3bb6767875efb4be09caa40c017c1af5b6b01de1997d4807c30218a5daab6c",
+      "targets": [
+        "911",
+        "911",
+        "911"
+      ],
+      "prediction": " 911",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 25.696
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 30,
+      "prompt_hash": "88f8bdf1703e0af9f2bc0f1fa7c7bb3fb7dd29a991b3c910ff758ee2de3226cc",
+      "doc_hash": "0f14e0e6cdf191be0a3d78071cfe43cce2a63dd0f2c9d3069aaee57972136318",
+      "target_hash": "fd36af0f6cff5e794fb3bf32e2d30c3b5303a525b366a827f2acd221799963e2",
+      "input_tokens": 65496,
+      "input_token_sha256": "334920f2c06639274bfd1aa82e7cbd96c57ca19d356699e09a2509a1c9f101b0",
+      "targets": [
+        "Deabolis",
+        "the river Deabolis",
+        "Deabolis"
+      ],
+      "prediction": " Deabolis",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 25.756
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 88.88888888888887
+  }
+}

@@ -1,0 +1,675 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "ce8dcf994fd650a1005f5cac0f1d96c3c69484032a5d440917bb7cb8bf86a51d",
+      "source_file_count": 342
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 10.94677957388071,
+      "leaves_ms": 7.790008884006077,
+      "remote_attention_ms": 19.178342742919924,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.012553215026855469
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 102.31700000000001
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 102.31700000000001
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 23.198999999999955
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 3732.7160000000003
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 3217.7690000000002
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5467.161000000001
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1281.291000000001
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 586.9869999999992
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 443.15099999999984
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 514.9470000000001
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "variant": "align64",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 9.983141762869698,
+      "leaves_ms": 7.796494717068143,
+      "remote_attention_ms": 18.016176119717684,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.012553215026855469,
+        "max_abs_remote_difference_from_blas": 0.015625
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 100.63900000000001
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 100.63900000000001
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.79699999999997
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1950.156
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1445.567
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5871.191
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1218.6550000000007
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 570.987000000001
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 441.0669999999991
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 504.58899999999994
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "variant": "align256",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 10.003398023332869,
+      "leaves_ms": 7.795597500271267,
+      "remote_attention_ms": 18.010441173206676,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.012553215026855469,
+        "max_abs_remote_difference_from_blas": 0.015625
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 101.83699999999999
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 101.83699999999999
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.358999999999924
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 2094.3520000000008
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1462.2870000000003
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5942.3910000000005
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1219.813
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 569.7849999999999
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 442.3109999999997
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 632.0650000000005
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 11.072813415527344,
+      "leaves_ms": 5.246132659912109,
+      "remote_attention_ms": 16.778843411532314,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 102.435
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 102.435
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 3732.96
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 22.63900000000001
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 3209.611
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5105.649
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1349.4889999999996
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 586.7469999999994
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 484.14899999999943
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 523.3490000000002
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "align64",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 10.005062212262835,
+      "leaves_ms": 5.241894367762974,
+      "remote_attention_ms": 15.650367482503256,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797,
+        "max_abs_remote_difference_from_blas": 0.0078125
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 101.43700000000001
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 101.43700000000001
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.43900000000002
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1930.398000000001
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1437.009
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5868.630999999999
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1300.9710000000005
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 581.6669999999995
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 469.3889999999992
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 493.38900000000103
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "align256",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 10.00461175101144,
+      "leaves_ms": 5.226169150216239,
+      "remote_attention_ms": 15.66750119527181,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797,
+        "max_abs_remote_difference_from_blas": 0.0078125
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 101.99700000000001
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 101.99700000000001
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1991.9959999999999
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.079000000000008
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1479.247
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5706.115
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1312.8509999999997
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 584.5470000000005
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 475.98699999999917
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 512.7489999999998
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 14.484535217285156,
+      "mean_open_entries": 2079.646484375,
+      "route_coarse_ms": 11.034842623197115,
+      "leaves_ms": 4.78324225641066,
+      "remote_attention_ms": 16.283213678995768,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008454322814941406
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 101.03500000000003
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 101.03500000000003
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.759000000000015
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 3769.798
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 3251.531
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5245.5650000000005
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1306.690999999999
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 579.1049999999996
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 461.3909999999996
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 518.2669999999998
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "variant": "align64",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 14.484535217285156,
+      "mean_open_entries": 2079.646484375,
+      "route_coarse_ms": 10.003470611572265,
+      "leaves_ms": 4.786548055013021,
+      "remote_attention_ms": 15.088871647761419,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008454322814941406,
+        "max_abs_remote_difference_from_blas": 0.015625
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 101.75700000000003
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 101.75700000000003
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1991.1139999999998
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 22.678999999999974
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1473.847
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5715.555
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1234.4930000000004
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 569.9069999999992
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 452.02900000000045
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 517.2669999999998
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "variant": "align256",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 14.484535217285156,
+      "mean_open_entries": 2079.646484375,
+      "route_coarse_ms": 10.00590318952288,
+      "leaves_ms": 4.797162455897178,
+      "remote_attention_ms": 15.074610314002404,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008454322814941406,
+        "max_abs_remote_difference_from_blas": 0.015625
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 100.67499999999995
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 100.67499999999995
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.999000000000024
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1992.2740000000003
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1487.647
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5840.595
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1223.6910000000007
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 569.7070000000003
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 442.871000000001
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 504.6270000000004
+        }
+      ]
+    }
+  ],
+  "scope": "Replay real Qwen prefill snapshots without reloading the full model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-63.pt"
+  ]
+}

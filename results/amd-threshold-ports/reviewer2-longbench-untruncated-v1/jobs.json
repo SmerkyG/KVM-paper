@@ -1,0 +1,49 @@
+{
+  "source": "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-summary-ablation-v2/source",
+  "identity": {
+    "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+    "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+    "source_file_count": 369
+  },
+  "jobs": [
+    {
+      "id": "26600-amd-reviewer2-longbench-untruncated",
+      "task": "longbench-v2",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--nodes",
+        "dev-shared-research-1.dev-training.svc.cluster.local,dev-shared-research-2.dev-training.svc.cluster.local,dev-shared-research-3.dev-training.svc.cluster.local,dev-shared-research-4.dev-training.svc.cluster.local",
+        "--name",
+        "amd-reviewer2-longbench-untruncated",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-summary-ablation-v2/source:/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-summary-ablation-v2/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "LOD_AMD_STATE_PACKED_MAX=1",
+        "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
+        "VLLM_ALLOW_INSECURE_SERIALIZATION=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-P",
+        "-m",
+        "benchmarks.reviewer2_summary_ablation",
+        "task",
+        "--root",
+        "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-longbench-untruncated-v1",
+        "--task",
+        "longbench-v2"
+      ],
+      "sha256": "1ec3d0600371e548fde50fd5b3d187859aa0616a9900ae2e75cd67eef891fa52"
+    }
+  ],
+  "smokes": []
+}

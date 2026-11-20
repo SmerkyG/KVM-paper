@@ -1,5 +1,11 @@
 # LongBench v2
 
+**Kernel validation:** A race in the shared LoD state-update kernel was
+reproduced on H100 and fixed. Reference checks on ROCm passed both before and
+after the fix for 128- and 256-dimensional heads at batches 1, 4 and 8; those
+checks do not replace a full rerun of the model-quality evaluations below.
+[ROCm check records](../results/h100-baselines/provenance/rocm-state-validation/)
+
 This benchmark measures end-to-end, prefill-heavy serving quality on all 503
 examples in `THUDM/LongBench-v2`. The evaluator talks to an OpenAI-compatible
 vLLM server, caps input at 131,072 tokens by retaining the first and last

@@ -1,0 +1,280 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "48346fcaa19a45072f6280be4f6b9ed00e68152bb93f4f08ddd0b750dbac4031",
+      "source_file_count": 348
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 32,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.133685175577799,
+      "leaves_ms": 3.3990445392887767,
+      "remote_attention_ms": 11.121145121256511,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream-fused": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.4981866518656413,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06,
+      "exact_output_workspace_mib": 14495.0,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 99.87699999999998
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 99.87699999999998
+        },
+        {
+          "name": "hipPointerGetAttribute",
+          "calls": 41,
+          "self_us": 99.87699999999998
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 21.55899999999997
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 2.879000000000019
+        },
+        {
+          "name": "_route_partials",
+          "calls": 1,
+          "self_us": 1585.223
+        },
+        {
+          "name": "_route_cutoff",
+          "calls": 1,
+          "self_us": 5.5190000000000055
+        },
+        {
+          "name": "_coarse_partials",
+          "calls": 1,
+          "self_us": 4005.3150000000005
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 218.79500000000007
+        },
+        {
+          "name": "_merge_coarse",
+          "calls": 1,
+          "self_us": 233.91899999999987
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "stream-save32",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 8.357347735236672,
+      "leaves_ms": 3.4254016964934593,
+      "remote_attention_ms": 13.344361005510603,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream-fused": 0.0078125
+      },
+      "route_workspace_mib": 4742.9637451171875,
+      "final_merge_ms": 1.4994575659434,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06,
+      "exact_output_workspace_mib": 14495.0,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 102.67700000000002
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 102.67700000000002
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 21.038999999999987
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 2.798999999999978
+        },
+        {
+          "name": "_route_partials",
+          "calls": 1,
+          "self_us": 4526.9490000000005
+        },
+        {
+          "name": "_route_cutoff",
+          "calls": 1,
+          "self_us": 6.558999999999287
+        },
+        {
+          "name": "_coarse_partials",
+          "calls": 1,
+          "self_us": 3469.321000000001
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 234.39499999999862
+        },
+        {
+          "name": "_merge_coarse",
+          "calls": 1,
+          "self_us": 245.15899999999965
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "stream-save32blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 9.744949035644531,
+      "leaves_ms": 3.423460424514044,
+      "remote_attention_ms": 14.574757033128005,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797,
+        "max_abs_remote_difference_from_stream-fused": 0.03125
+      },
+      "route_workspace_mib": 6233.2137451171875,
+      "final_merge_ms": 1.4982675552368163,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06,
+      "exact_output_workspace_mib": 14495.0,
+      "coarse_repair_rows": 0,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 2,
+          "self_us": 105.67799999999986
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 100.71900000000002
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 21.399
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 3.039000000000044
+        },
+        {
+          "name": "_route_partials",
+          "calls": 1,
+          "self_us": 4953.943
+        },
+        {
+          "name": "aten::copy_",
+          "calls": 1,
+          "self_us": 9.199000000000524
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 1,
+          "self_us": 496.7950000000001
+        },
+        {
+          "name": "_route_cutoff",
+          "calls": 1,
+          "self_us": 8.359000000000378
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})",
+          "calls": 1,
+          "self_us": 9.199000000000524
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::FillFunctor<c10::BFloat16> >(at::TensorIteratorBase&, at::native::FillFunctor<c10::BFloat16> const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::FillFunctor<c10::BFloat16> >(at::TensorIteratorBase&, at::native::FillFunctor<c10::BFloat16> const&)::{lambda(int, bool)#1})",
+          "calls": 1,
+          "self_us": 4.958999999999833
+        },
+        {
+          "name": "_write_weights",
+          "calls": 1,
+          "self_us": 3653.3590000000013
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 496.7950000000001
+        },
+        {
+          "name": "_finish_saved_projection",
+          "calls": 1,
+          "self_us": 109.31700000000092
+        },
+        {
+          "name": "_repair_closed",
+          "calls": 1,
+          "self_us": 7.358999999998559
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 252.03700000000026
+        }
+      ]
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt"
+  ]
+}

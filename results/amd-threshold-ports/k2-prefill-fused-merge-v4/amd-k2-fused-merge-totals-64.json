@@ -1,0 +1,90 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 17.623581549152732,
+  "prefill_seconds": 16.655150078237057,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 3.4773727130889887,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 1.7060500690937053,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 6.351731437683107,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.001204385994467884,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.2799475084543227,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009865489993244412,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.2831645104289055,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0012912269965745507,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.4194452381134026,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d69dde9139b723c8e63a1ff599ba200927de3e77cba573092c7e0a41e582452d",
+      "source_file_count": 344
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "stream",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "2",
+    "LOD_AMD_PREFILL_MERGE_TILE": "4,64,4",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_STREAM_GEOMETRY": "128,64,1024,4,1",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

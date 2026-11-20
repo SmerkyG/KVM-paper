@@ -1,0 +1,152 @@
+{
+  "stage": "complete",
+  "results": {
+    "local-both": {
+      "dense": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.414062490369209
+      },
+      "1024": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 8.03385412032685
+      },
+      "16384": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.908854178650699
+      },
+      "comparisons": {
+        "1024-16384": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.12499994167615114,
+          "paired_bootstrap_95_margin_interval": [
+            -0.10156251555793006,
+            0.3437498962421539
+          ]
+        },
+        "1024-dense": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.6197916299576415,
+          "paired_bootstrap_95_margin_interval": [
+            0.38020825515169077,
+            0.8463541524539173
+          ]
+        },
+        "16384-dense": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.4947916882814904,
+          "paired_bootstrap_95_margin_interval": [
+            0.2578125193416175,
+            0.7317708560531173
+          ]
+        }
+      }
+    },
+    "local-16k": {
+      "dense": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.7447916748759935
+      },
+      "1024": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 8.221354066505304
+      },
+      "16384": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.9583332615984546
+      },
+      "comparisons": {
+        "1024-16384": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.26302080490684904,
+          "paired_bootstrap_95_margin_interval": [
+            -0.06770831554551175,
+            0.5651041372916552
+          ]
+        },
+        "1024-dense": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.4765623916293104,
+          "paired_bootstrap_95_margin_interval": [
+            0.08854156454935946,
+            0.8515624375289312
+          ]
+        },
+        "16384-dense": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.21354158672246135,
+          "paired_bootstrap_95_margin_interval": [
+            -0.028645859733084464,
+            0.432291607520483
+          ]
+        }
+      }
+    },
+    "remote-both": {
+      "dense": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.708333403835998
+      },
+      "1024": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.734374976875396
+      },
+      "16384": {
+        "correct": 48,
+        "total": 48,
+        "mean_gold_margin": 7.950520879892641
+      },
+      "comparisons": {
+        "1024-16384": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": -0.2161459030172447,
+          "paired_bootstrap_95_margin_interval": [
+            -0.6484375529648787,
+            0.18749988258798567
+          ]
+        },
+        "1024-dense": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.026041573039397765,
+          "paired_bootstrap_95_margin_interval": [
+            -0.42968761263745137,
+            0.4374998827369343
+          ]
+        },
+        "16384-dense": {
+          "delta_points": 0,
+          "paired_bootstrap_95_interval_points": null,
+          "discordant_examples": 0,
+          "mean_margin_delta": 0.24218747605664248,
+          "paired_bootstrap_95_margin_interval": [
+            0.0026041146056741127,
+            0.49218744689392224
+          ]
+        }
+      }
+    }
+  }
+}

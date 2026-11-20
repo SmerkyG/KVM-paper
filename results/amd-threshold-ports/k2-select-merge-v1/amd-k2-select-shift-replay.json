@@ -1,0 +1,100 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d456c62898610443b4afe23b124802d7b966a3ec4dae488b6f7381ed8b58cf8f",
+      "source_file_count": 348
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 32,
+      "variant": "blas-shift",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650310516357422,
+      "mean_open_entries": 1440.4449462890625,
+      "route_coarse_ms": 5.138821750217014,
+      "leaves_ms": 3.4103303455171132,
+      "remote_attention_ms": 10.573855251736111,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797
+      },
+      "route_workspace_mib": 6013.1082763671875,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 100.435
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 100.435
+        },
+        {
+          "name": "hipPointerGetAttribute",
+          "calls": 21,
+          "self_us": 100.435
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 21.63900000000001
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 2015.7180000000003
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1505.609
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 5.31899999999996
+        },
+        {
+          "name": "_select_grouped",
+          "calls": 1,
+          "self_us": 3236.8569999999995
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 262.6329999999998
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 510.1090000000004
+        }
+      ]
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt"
+  ]
+}

@@ -1,0 +1,278 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "ed9cba5f0ffe6d4be6b5107a519126be4384914297ad3496e264feddcaa0f3ce",
+      "source_file_count": 345
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 32,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.132152493794759,
+      "leaves_ms": 3.287859853108724,
+      "remote_attention_ms": 11.01919674343533,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream-fused": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.499548037846883,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06,
+      "exact_output_workspace_mib": 14495.0,
+      "leaf_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 3,
+          "self_us": 12.716999999999985
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+          "calls": 3,
+          "self_us": 12.716999999999985
+        },
+        {
+          "name": "hipPointerGetAttribute",
+          "calls": 40,
+          "self_us": 38.71200000000022
+        },
+        {
+          "name": "hipModuleLaunchKernel",
+          "calls": 3,
+          "self_us": 3.9990000000000236
+        },
+        {
+          "name": "_count_expert_routes_kernel",
+          "calls": 1,
+          "self_us": 244.39499999999998
+        },
+        {
+          "name": "aten::sum",
+          "calls": 1,
+          "self_us": 5.758999999999901
+        },
+        {
+          "name": "aten::cumsum",
+          "calls": 3,
+          "self_us": 24.675000000000068
+        },
+        {
+          "name": "aten::sub",
+          "calls": 1,
+          "self_us": 4.559000000000083
+        },
+        {
+          "name": "aten::add",
+          "calls": 1,
+          "self_us": 4.439000000000078
+        },
+        {
+          "name": "aten::div",
+          "calls": 1,
+          "self_us": 6.239000000000033
+        },
+        {
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4>)",
+          "calls": 1,
+          "self_us": 5.758999999999901
+        },
+        {
+          "name": "void at::native::tensor_kernel_scan_outer_dim<int, unsigned int, std::plus<int> >(int*, int const*, unsigned int, unsigned int, unsigned int, int, std::plus<int>)",
+          "calls": 1,
+          "self_us": 5.358999999999924
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul>)",
+          "calls": 1,
+          "self_us": 4.559000000000083
+        },
+        {
+          "name": "void rocprim::ROCPRIM_400200_NS::detail::init_lookback_scan_state_kernel<rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true> >(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>::value_type*)",
+          "calls": 2,
+          "self_us": 8.038000000000125
+        },
+        {
+          "name": "void rocprim::ROCPRIM_400200_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400200_NS::detail::wrapped_scan_config<rocprim::ROCPRIM_400200_NS::default_config, int>, (rocprim::ROCPRIM_400200_NS::detail::target_arch)942, rocprim::ROCPRIM_400200_NS::detail::scan_impl<(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400200_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1}, rocprim::ROCPRIM_400200_NS::detail::default_config_selector>(rocprim::ROCPRIM_400200_NS::detail::scan_impl<(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400200_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1})",
+          "calls": 2,
+          "self_us": 11.27800000000002
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "calls": 1,
+          "self_us": 4.439000000000078
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul>)",
+          "calls": 1,
+          "self_us": 6.239000000000033
+        },
+        {
+          "name": "_scatter_expert_routes_kernel",
+          "calls": 1,
+          "self_us": 197.27700000000004
+        },
+        {
+          "name": "_paged_leaf_attention_kernel",
+          "calls": 1,
+          "self_us": 2957.205
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "stream-atomic",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.124095789591472,
+      "leaves_ms": 9.278823852539062,
+      "remote_attention_ms": 15.68901252746582,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream-fused": 0.015625
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 0.3120891737590956,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06,
+      "exact_output_workspace_mib": 195.0,
+      "repair_rows": 0,
+      "leaf_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 6,
+          "self_us": 47.7920000000002
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+          "calls": 4,
+          "self_us": 18.196000000000083
+        },
+        {
+          "name": "_count_expert_routes_kernel",
+          "calls": 1,
+          "self_us": 237.15499999999997
+        },
+        {
+          "name": "aten::sum",
+          "calls": 1,
+          "self_us": 5.319000000000074
+        },
+        {
+          "name": "aten::cumsum",
+          "calls": 3,
+          "self_us": 24.635000000000105
+        },
+        {
+          "name": "aten::sub",
+          "calls": 1,
+          "self_us": 4.558999999999969
+        },
+        {
+          "name": "aten::add",
+          "calls": 1,
+          "self_us": 4.478999999999928
+        },
+        {
+          "name": "aten::div",
+          "calls": 1,
+          "self_us": 5.718999999999937
+        },
+        {
+          "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4>)",
+          "calls": 1,
+          "self_us": 5.319000000000074
+        },
+        {
+          "name": "void at::native::tensor_kernel_scan_outer_dim<int, unsigned int, std::plus<int> >(int*, int const*, unsigned int, unsigned int, unsigned int, int, std::plus<int>)",
+          "calls": 1,
+          "self_us": 5.479000000000042
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul>)",
+          "calls": 1,
+          "self_us": 4.558999999999969
+        },
+        {
+          "name": "void rocprim::ROCPRIM_400200_NS::detail::init_lookback_scan_state_kernel<rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true> >(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>::value_type*)",
+          "calls": 2,
+          "self_us": 8.038000000000011
+        },
+        {
+          "name": "void rocprim::ROCPRIM_400200_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400200_NS::detail::wrapped_scan_config<rocprim::ROCPRIM_400200_NS::default_config, int>, (rocprim::ROCPRIM_400200_NS::detail::target_arch)942, rocprim::ROCPRIM_400200_NS::detail::scan_impl<(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400200_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1}, rocprim::ROCPRIM_400200_NS::detail::default_config_selector>(rocprim::ROCPRIM_400200_NS::detail::scan_impl<(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400200_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1})",
+          "calls": 2,
+          "self_us": 11.118000000000052
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "calls": 1,
+          "self_us": 4.478999999999928
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul>)",
+          "calls": 1,
+          "self_us": 5.718999999999937
+        },
+        {
+          "name": "_scatter_expert_routes_kernel",
+          "calls": 1,
+          "self_us": 194.399
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+          "calls": 2,
+          "self_us": 29.596000000000117
+        },
+        {
+          "name": "_paged_leaf_attention_kernel",
+          "calls": 1,
+          "self_us": 8731.745
+        },
+        {
+          "name": "_normalize",
+          "calls": 1,
+          "self_us": 50.077000000001135
+        },
+        {
+          "name": "_query_major",
+          "calls": 1,
+          "self_us": 15.918999999999869
+        }
+      ]
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt"
+  ]
+}

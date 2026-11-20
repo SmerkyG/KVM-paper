@@ -1,0 +1,112 @@
+{
+  "stage": "complete",
+  "snapshots": "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots",
+  "group_tile": 16,
+  "records": [
+    {
+      "layer": 0,
+      "queries": 4096,
+      "query_heads_with_open_regions": 262144,
+      "distinct_nonempty_sets": 161371,
+      "largest_group": 1927,
+      "hash_collisions": 0,
+      "exact_query_entry_pairs": 1316015127,
+      "exact_group_tile_entries": 751065798,
+      "queries_in_exact_groups_at_least": {
+        "2": 117527,
+        "4": 92705,
+        "8": 76484,
+        "16": 62165,
+        "32": 48434
+      },
+      "pairs_in_exact_groups_at_least": {
+        "2": 684847207,
+        "4": 535130508,
+        "8": 434011986,
+        "16": 345146641,
+        "32": 261371521
+      },
+      "entries_read_per_order": {
+        "adjacent": 234234555,
+        "signature": 196522897,
+        "largest": 136419851
+      }
+    },
+    {
+      "layer": 32,
+      "queries": 4096,
+      "query_heads_with_open_regions": 262003,
+      "distinct_nonempty_sets": 252330,
+      "largest_group": 407,
+      "hash_collisions": 0,
+      "exact_query_entry_pairs": 377604164,
+      "exact_group_tile_entries": 372894151,
+      "queries_in_exact_groups_at_least": {
+        "2": 12300,
+        "4": 7936,
+        "8": 5921,
+        "16": 4341,
+        "32": 3248
+      },
+      "pairs_in_exact_groups_at_least": {
+        "2": 6545682,
+        "4": 3423687,
+        "8": 2320643,
+        "16": 1558019,
+        "32": 1099911
+      },
+      "entries_read_per_order": {
+        "adjacent": 90731664,
+        "signature": 165895628,
+        "largest": 73213082
+      }
+    },
+    {
+      "layer": 63,
+      "queries": 4096,
+      "query_heads_with_open_regions": 261832,
+      "distinct_nonempty_sets": 222223,
+      "largest_group": 545,
+      "hash_collisions": 0,
+      "exact_query_entry_pairs": 545166947,
+      "exact_group_tile_entries": 471287129,
+      "queries_in_exact_groups_at_least": {
+        "2": 49697,
+        "4": 33243,
+        "8": 24806,
+        "16": 18286,
+        "32": 13127
+      },
+      "pairs_in_exact_groups_at_least": {
+        "2": 95980254,
+        "4": 62742316,
+        "8": 45329501,
+        "16": 32016414,
+        "32": 21027886
+      },
+      "entries_read_per_order": {
+        "adjacent": 75573535,
+        "signature": 115055754,
+        "largest": 69268796
+      }
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "fd235e67706a383955867da04bac7c5675598434d746a5801876238b1b66378a",
+      "source_file_count": 347
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "layer": 32,
+  "queries": 4096,
+  "all_exact_routes": 5675498,
+  "used_regions": 17405,
+  "native_ms": 2.7028893210671168,
+  "native_with_merge_ms": 4.117177963256836,
+  "runs": [
+    {
+      "scheme": "length",
+      "buckets": 16,
+      "attention_groups": 17405,
+      "packed_k_rows": 326945,
+      "native_values_bitwise": false,
+      "native_lse_bitwise": false,
+      "lse_max_difference": 5.7220458984375e-06,
+      "values_max_difference": 0.125,
+      "merge_max_difference": 0.09375,
+      "merge_bitwise": false,
+      "aiter_only_ms": 2.1323962656656903,
+      "full_ms": 4.399517032078334,
+      "full_with_merge_ms": 5.840124740600586
+    },
+    {
+      "scheme": "128",
+      "buckets": 1,
+      "attention_groups": 56794,
+      "packed_k_rows": 3145339,
+      "native_values_bitwise": false,
+      "native_lse_bitwise": false,
+      "lse_max_difference": 5.7220458984375e-06,
+      "values_max_difference": 0.125,
+      "merge_max_difference": 0.09375,
+      "merge_bitwise": false,
+      "aiter_only_ms": 1.831670222562902,
+      "full_ms": 6.982323303222657,
+      "full_with_merge_ms": 8.32228488922119
+    }
+  ]
+}

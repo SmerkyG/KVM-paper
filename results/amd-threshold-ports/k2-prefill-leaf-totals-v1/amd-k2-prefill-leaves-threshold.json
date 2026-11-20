@@ -1,0 +1,95 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 17.003213549032807,
+  "prefill_seconds": 16.978293512016535,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 3.474698040962219,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 2.873752738952636,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 6.621769901275637,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0011633059959858662,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.28518708115816105,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009492250005714597,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.28827180552482606,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.001216064997948706,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.4324954509735102,
+      "calls": 192
+    },
+    "leaf_reduce": {
+      "seconds": 1.1497090187072756,
+      "calls": 192
+    },
+    "leaf_total": {
+      "seconds": 2.871692355155946,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "f48627f6a0c669bfaffd9b997e6d2db3f8a47ac75eb1a99bb47c5736f844bb3c",
+      "source_file_count": 344
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "stream",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_STREAM_GEOMETRY": "128,64,1024,4,1",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "stage": "complete",
+  "means": {
+    "p16-d16": 93.22115384615384,
+    "p16-d4": 93.11698717948718,
+    "p4-d16": 93.12099358974359
+  },
+  "tasks": {
+    "p16-d16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 100.0,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 96.875,
+      "ruler_cwe": 94.6875,
+      "ruler_fwe": 86.45833333333334,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "p16-d4": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 96.875,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 98.4375,
+      "ruler_cwe": 95.9375,
+      "ruler_fwe": 85.41666666666666,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "p4-d16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 100.0,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 99.21875,
+      "ruler_cwe": 90.0,
+      "ruler_fwe": 87.5,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    }
+  },
+  "comparisons": {
+    "p16-d4": {
+      "delta_points": -0.10416666666665719,
+      "paired_bootstrap_95_interval_points": [
+        -0.7572115384615384,
+        0.3125
+      ],
+      "improved": 7,
+      "declined": 3
+    },
+    "p4-d16": {
+      "delta_points": -0.1001602564102484,
+      "paired_bootstrap_95_interval_points": [
+        -0.9655448717948718,
+        0.5689102564102564
+      ],
+      "improved": 11,
+      "declined": 5
+    }
+  }
+}

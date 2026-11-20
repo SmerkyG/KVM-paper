@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from ._launch import hip_launch_kwargs
+
 import math
 import os
 import sys
@@ -53,6 +55,17 @@ class AiterPrefillCoarse:
     mean_v: torch.Tensor
     counts: torch.Tensor
     has_second_partition: bool
+    closed_regions_only: bool = False
+    route_counts: torch.Tensor | None = None
+    exact_row_starts: torch.Tensor | None = None
+    projection_stream: torch.cuda.Stream | None = None
+    summary_mode: str = "weighted"
+
+    @property
+    def fused_exact_merge(self) -> bool:
+        return self.closed_regions_only and self.route_counts is not None and os.environ.get(
+            "LOD_AMD_PREFILL_FUSED_MERGE"
+        ) == "1"
 
 
 @triton.jit(do_not_specialize=["STATE_LEN"])
@@ -766,6 +779,39 @@ def _reduce_split_route_candidates(
     return output, head_counts, route_offsets
 
 
+@triton.jit
+def _prefill_exact_work_kernel(
+    work, slots, lengths, rows, query_len, heads, group,
+    length_batch_stride, length_head_stride, length_capacity, exact_prefix,
+    BLOCK: tl.constexpr,
+):
+    row = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
+    valid = row < rows
+    head_row = row // query_len
+    length_row = (head_row // heads) * length_batch_stride + (head_row % heads // group) * length_head_stride
+    remote = tl.zeros((BLOCK,), tl.int32)
+    for rank in tl.static_range(8):
+        slot = tl.load(slots + row * 8 + rank, mask=valid, other=-1)
+        selected = valid & (slot >= 0) & (slot < length_capacity)
+        remote += tl.load(lengths + length_row + tl.maximum(slot, 0), mask=selected, other=0)
+    local = tl.where(valid, exact_prefix + row % query_len + 1, 0)
+    tl.atomic_add(work, tl.sum(remote.to(tl.int64)))
+    tl.atomic_add(work + 1, tl.sum((remote + local).to(tl.int64)))
+    tl.atomic_add(work + 2, tl.sum(valid.to(tl.int64)))
+
+
+def record_prefill_exact_work(work, slots, lengths, *, kv_group_size, exact_prefix):
+    batch, heads, query_len, routes = slots.shape
+    if routes != 8 or exact_prefix < 0 or lengths.stride(-1) != 1:
+        raise ValueError("Unsupported prefill work-count geometry")
+    rows = batch * heads * query_len
+    _prefill_exact_work_kernel[(triton.cdiv(rows, 512),)](
+        work, slots.contiguous(), lengths, rows, query_len, heads, kv_group_size,
+        lengths.stride(0), lengths.stride(1), lengths.size(-1), exact_prefix,
+        BLOCK=512, num_warps=4,
+    )
+
+
 @triton.jit(
     do_not_specialize=["QUERY_LEN", "STATE_LEN"],
     do_not_specialize_on_alignment=["QUERY_LEN", "STATE_LEN"],
@@ -817,6 +863,7 @@ def _merge_route_refinement_kernel(
     BLOCK_M: tl.constexpr,
     HAS_SECOND_PARTITION: tl.constexpr,
     ROUTE_COUNT: tl.constexpr,
+    SUMMARY_MODE: tl.constexpr = "weighted",
 ):
     """Replace routed coarse centroids with their leaves and merge local/sink."""
     batch_head = tl.program_id(0).to(tl.int64)
@@ -838,69 +885,75 @@ def _merge_route_refinement_kernel(
         other=0.0,
     ).to(tl.float32)
 
-    coarse_score_0 = tl.load(
-        coarse_lse_0 + query_row, mask=valid_query, other=-float("inf")
-    ).to(tl.float32)
-    coarse_row = (batch * QUERY_LEN + query) * QUERY_HEADS + query_head
-    coarse_value_0 = tl.load(
-        coarse_out_0 + coarse_row[:, None] * HEAD_DIM + dim[None, :],
-        mask=valid_query[:, None] & valid_dim[None, :],
-        other=0.0,
-    ).to(tl.float32)
-    full_lse = coarse_score_0
-    coarse_value = coarse_value_0
-    if HAS_SECOND_PARTITION:
-        coarse_score_1 = tl.load(
-            coarse_lse_1 + query_row, mask=valid_query, other=-float("inf")
+    if SUMMARY_MODE == "sparse":
+        coarse_lse = tl.full((BLOCK_M,), -float("inf"), tl.float32)
+        coarse_value = tl.zeros((BLOCK_M, BLOCK_D), tl.float32)
+    else:
+        coarse_score_0 = tl.load(
+            coarse_lse_0 + query_row, mask=valid_query, other=-float("inf")
         ).to(tl.float32)
-        coarse_value_1 = tl.load(
-            coarse_out_1 + coarse_row[:, None] * HEAD_DIM + dim[None, :],
+        coarse_row = (batch * QUERY_LEN + query) * QUERY_HEADS + query_head
+        coarse_value_0 = tl.load(
+            coarse_out_0 + coarse_row[:, None] * HEAD_DIM + dim[None, :],
             mask=valid_query[:, None] & valid_dim[None, :],
             other=0.0,
         ).to(tl.float32)
-        full_lse = tl.maximum(coarse_score_0, coarse_score_1)
-        partition_weight_0 = tl.exp(coarse_score_0 - full_lse)
-        partition_weight_1 = tl.exp(coarse_score_1 - full_lse)
-        partition_weight = partition_weight_0 + partition_weight_1
-        coarse_value = (
-            partition_weight_0[:, None] * coarse_value_0
-            + partition_weight_1[:, None] * coarse_value_1
-        ) / partition_weight[:, None]
-        full_lse += tl.log(partition_weight)
+        full_lse = coarse_score_0
+        coarse_value = coarse_value_0
+        if HAS_SECOND_PARTITION:
+            coarse_score_1 = tl.load(
+                coarse_lse_1 + query_row, mask=valid_query, other=-float("inf")
+            ).to(tl.float32)
+            coarse_value_1 = tl.load(
+                coarse_out_1 + coarse_row[:, None] * HEAD_DIM + dim[None, :],
+                mask=valid_query[:, None] & valid_dim[None, :],
+                other=0.0,
+            ).to(tl.float32)
+            full_lse = tl.maximum(coarse_score_0, coarse_score_1)
+            partition_weight_0 = tl.exp(coarse_score_0 - full_lse)
+            partition_weight_1 = tl.exp(coarse_score_1 - full_lse)
+            partition_weight = partition_weight_0 + partition_weight_1
+            coarse_value = (
+                partition_weight_0[:, None] * coarse_value_0
+                + partition_weight_1[:, None] * coarse_value_1
+            ) / partition_weight[:, None]
+            full_lse += tl.log(partition_weight)
 
-    selected_mass = tl.zeros((BLOCK_M,), tl.float32)
-    selected_value = tl.zeros((BLOCK_M, BLOCK_D), tl.float32)
-    for rank in tl.static_range(0, ROUTE_COUNT):
-        slot = tl.load(
-            slots + query_row * ROUTE_COUNT + rank,
-            mask=valid_query,
-            other=-1,
-        ).to(tl.int64)
-        valid_slot = valid_query & (slot >= 0) & (slot < STATE_LEN)
-        safe_slot = tl.where(valid_slot, slot, 0)
-        state_row = ((batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot) * HEAD_DIM
-        count = tl.load(
-            counts + (batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot,
-            mask=valid_slot,
-            other=1.0,
-        ).to(tl.float32)
-        key = tl.load(
-            mean_k + state_row[:, None] + dim[None, :],
-            mask=valid_slot[:, None] & valid_dim[None, :],
-            other=0.0,
-        ).to(tl.float32)
-        value = tl.load(
-            mean_v + state_row[:, None] + dim[None, :],
-            mask=valid_slot[:, None] & valid_dim[None, :],
-            other=0.0,
-        ).to(tl.float32)
-        score = tl.sum(query_value * key, axis=1) * SCALE + tl.log(count)
-        weight = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
-        selected_mass += weight
-        selected_value += weight[:, None] * value
-    remaining_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
-    coarse_value = (coarse_value - selected_value) / remaining_mass[:, None]
-    coarse_lse = full_lse + tl.log(remaining_mass)
+        selected_mass = tl.zeros((BLOCK_M,), tl.float32)
+        selected_value = tl.zeros((BLOCK_M, BLOCK_D), tl.float32)
+        for rank in tl.static_range(0, ROUTE_COUNT):
+            slot = tl.load(
+                slots + query_row * ROUTE_COUNT + rank,
+                mask=valid_query,
+                other=-1,
+            ).to(tl.int64)
+            valid_slot = valid_query & (slot >= 0) & (slot < STATE_LEN)
+            safe_slot = tl.where(valid_slot, slot, 0)
+            state_row = ((batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot) * HEAD_DIM
+            count = tl.load(
+                counts + (batch * KV_HEADS + kv_head) * STATE_LEN + safe_slot,
+                mask=valid_slot,
+                other=1.0,
+            ).to(tl.float32)
+            key = tl.load(
+                mean_k + state_row[:, None] + dim[None, :],
+                mask=valid_slot[:, None] & valid_dim[None, :],
+                other=0.0,
+            ).to(tl.float32)
+            value = tl.load(
+                mean_v + state_row[:, None] + dim[None, :],
+                mask=valid_slot[:, None] & valid_dim[None, :],
+                other=0.0,
+            ).to(tl.float32)
+            score = tl.sum(query_value * key, axis=1) * SCALE
+            if SUMMARY_MODE == "weighted":
+                score += tl.log(count)
+            weight = tl.where(valid_slot, tl.exp(score - full_lse), 0.0)
+            selected_mass += weight
+            selected_value += weight[:, None] * value
+        remaining_mass = tl.maximum(1.0 - selected_mass, 1.0e-7)
+        coarse_value = (coarse_value - selected_value) / remaining_mass[:, None]
+        coarse_lse = full_lse + tl.log(remaining_mass)
 
     local_score = tl.load(
         local_lse
@@ -1026,6 +1079,27 @@ def merge_aiter_prefill_refinement(
     output_buffer: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Apply the exact coarse-to-leaf replacement in one final GPU pass."""
+    if coarse.closed_regions_only:
+        from .lod_kernels import merge_attention_branches_with_sink
+
+        if coarse.projection_stream is not None:
+            torch.cuda.current_stream(q.device).wait_stream(coarse.projection_stream)
+
+        merge_options = {}
+        if coarse.fused_exact_merge:
+            rows, ranks, warps = map(int, os.environ.get("LOD_AMD_PREFILL_MERGE_TILE", "4,64,4").split(","))
+            merge_options = dict(
+                route_counts=coarse.route_counts,
+                exact_row_starts=coarse.exact_row_starts,
+                block_m=rows, num_warps=warps, route_block=ranks,
+                route_mma_parts=int(os.environ.get("LOD_AMD_PREFILL_MERGE_MMA_PARTS", "2")),
+                route_short_mma=os.environ.get("LOD_AMD_PREFILL_MERGE_SHORT_MMA") == "1",
+            )
+        return merge_attention_branches_with_sink(
+            q, sink_k, sink_v, local_out, local_lse,
+            coarse.output_0, coarse.lse_0, route_out, route_lse,
+            kv_group_size=kv_group_size, scale=scale, output_buffer=output_buffer, **merge_options,
+        )
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(coarse.mean_k.size(1))
     state_len = int(coarse.mean_k.size(2))
@@ -1101,8 +1175,9 @@ def merge_aiter_prefill_refinement(
         BLOCK_M=block_m,
         HAS_SECOND_PARTITION=coarse.has_second_partition,
         ROUTE_COUNT=route_count,
+        SUMMARY_MODE=coarse.summary_mode,
         num_warps=num_warps,
-        waves_per_eu=1,
+        **hip_launch_kwargs(waves_per_eu=1),
     )
     return output
 
@@ -1120,6 +1195,7 @@ def aiter_prefill_route_coarse_attention(
     max_open_leaf_tokens: int | None = None,
     slot_lengths: torch.Tensor | None = None,
     buffers: dict[str, torch.Tensor] | None = None,
+    summary_mode: str = "weighted",
 ) -> tuple[torch.Tensor, AiterPrefillCoarse, torch.Tensor, torch.Tensor]:
     """Compute exact top-k routes and retain unmodified coarse attention.
 
@@ -1142,6 +1218,8 @@ def aiter_prefill_route_coarse_attention(
             or slot_lengths.stride(2) != 1
         ):
             raise ValueError("slot lengths must be GPU int32 with contiguous slots")
+    if summary_mode not in ("weighted", "sparse", "unweighted"):
+        raise ValueError(f"Unknown prefill summary mode {summary_mode}")
     tensors = (q, state_k, state_v, counts)
     if not all(tensor.is_cuda for tensor in tensors):
         raise ValueError("AITER route/coarse prefill requires GPU tensors")
@@ -1247,6 +1325,7 @@ def aiter_prefill_route_coarse_attention(
             begin: int,
             end: int,
             output_name: str,
+            bias: torch.Tensor = log_count_bias,
         ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
             attention_buffer = _workspace_tensor(
                 buffers,
@@ -1270,7 +1349,7 @@ def aiter_prefill_route_coarse_attention(
                 None,
                 None,
                 attention_buffer,
-                log_count_bias[..., begin:end],
+                bias[..., begin:end],
                 None,
                 None,
                 None,
@@ -1292,6 +1371,19 @@ def aiter_prefill_route_coarse_attention(
             )
             attention_out_1 = attention_out_0
             attention_lse_1 = attention_lse_0
+        if summary_mode == "unweighted":
+            # The candidate buffers above always use the population-biased
+            # router. Recompute only the aggregation with zero bias on live slots.
+            unweighted_bias = torch.zeros_like(log_count_bias).masked_fill_(
+                ~torch.isfinite(log_count_bias), float("-inf")
+            )
+            attention_out_0, attention_lse_0, _ = run_partition(
+                0, split_at or dispatch_state_len, "coarse_output_0", unweighted_bias
+            )
+            if split_at:
+                attention_out_1, attention_lse_1, _ = run_partition(
+                    split_at, dispatch_state_len, "coarse_output_1", unweighted_bias
+                )
     finally:
         sys.setdlopenflags(original_dlopen_flags)
 
@@ -1324,6 +1416,7 @@ def aiter_prefill_route_coarse_attention(
         mean_v=mean_v,
         counts=active_counts,
         has_second_partition=split_at != 0,
+        summary_mode=summary_mode,
     )
     return top_slots, coarse, route_head_counts, route_offsets
 

@@ -1,0 +1,352 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a9386abf966e1d68244cc26d864b2ada5a68b2985d15216cd97c6f2d92ee77f0",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "2048",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "2"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 16,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_hotpot"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 16,
+      "prompt_hash": "b5d3bad55891a3b3a83c6b46d779616d5aa932f32b11fe96c4d8d68ed95bbcb9",
+      "doc_hash": "3777ccb9e47b423577fedc2983f3343a13f9fc3b2e9ff7be5af7f519d951a316",
+      "target_hash": "ef5b4d2d44876572b7e3100f24190f349716155edf3f3184ac1b0059914a1539",
+      "input_tokens": 61734,
+      "input_token_sha256": "b85462241426d0ad2c39c390007a4b889bc11314f3cc105385ae9a61bc97bf85",
+      "targets": [
+        "the North Atlantic Conference"
+      ],
+      "prediction": " North Atlantic Conference",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.55
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 17,
+      "prompt_hash": "574266d57fe4d97c2bb1b9a726cc1d81cbb26ae55a274ad4c0fa4749eef6606f",
+      "doc_hash": "bceea16496ef88c1e5d1230d8740dc4c9610bf2e875305097e23fc02a27fa824",
+      "target_hash": "a314fedb4bce7ea032789fdb1234b665b68965c7f7cc29f2bf4fbf94eeeb9b34",
+      "input_tokens": 64850,
+      "input_token_sha256": "23b243f7ed7e814df057d8d19e4a6c01ee7c1f9dbb167fce0d4fd558344d31b2",
+      "targets": [
+        "yes"
+      ],
+      "prediction": " Yes",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 39.815
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 18,
+      "prompt_hash": "706fe16517481dcf5d4afa433bd2ab5dd1ee9c979026a7c58c02c3e14b8d3367",
+      "doc_hash": "138a3c3669d488c616b45b1697387279b9a7c3081be4837074fd16bab37a4aab",
+      "target_hash": "9dc1739f0254d65b0b05b8f242834b311b807e6a10076299744359135ea4139b",
+      "input_tokens": 64993,
+      "input_token_sha256": "6116dd0810d7aa299ad3d751e3bb98255aff049e0841340ebbbfe924bc0a327a",
+      "targets": [
+        "1969 until 1974"
+      ],
+      "prediction": " 1969 until 1974",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 40.225
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 19,
+      "prompt_hash": "2bd0013afab92571fa035896072546c146cc7ea58fbbba443b8a1e9266bfd9dd",
+      "doc_hash": "a79a79eb2f68134a5b520dbad6a199ac96012ad6ba7105d021e73e3df631059f",
+      "target_hash": "c1d0ab2bf48dc005bf45d351a8b26d9ac06dcc2d070f1fb7332c97df0a8dc10d",
+      "input_tokens": 62809,
+      "input_token_sha256": "587d5fcfa61f7250c7945a2a3c897e8f6d53c7a5db05e5bf9477ff65cf8874f2",
+      "targets": [
+        "Robert Erskine Childers DSC"
+      ],
+      "prediction": " Robert Erskine Childers",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.046
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 20,
+      "prompt_hash": "3f4c57f78b91658fceb85c4e4b56aa0e9e02ff72d4146d1d92a8d06ffe409073",
+      "doc_hash": "49cb327b51b950d2f43d79e488973a769d41cc0167321888fe7d79ebf9b40d9c",
+      "target_hash": "ef8e57cb3da1fc3661cf36154b26ace397d197c1918e1c0de705f88207b7502e",
+      "input_tokens": 64974,
+      "input_token_sha256": "b4f23aa0e7d70f5086843384ba1ba5ae5ac71bc288dc25baef0500669c558874",
+      "targets": [
+        "Pedro Rodr\u00edguez"
+      ],
+      "prediction": " Sergio P\u00e9rez",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 39.914
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 21,
+      "prompt_hash": "af1f578a20e8a8cf1081a30d716e1ca171fc2643fc5a8bd5054db6e354ad252e",
+      "doc_hash": "3c5a666c8af1841779d7d524ec895f87aeaa6c63c4848b089518b3eb0cc27bac",
+      "target_hash": "9be9fc48c62205dd17c0207581938eb46c5938c57d8823b9e680eec029fd4241",
+      "input_tokens": 62652,
+      "input_token_sha256": "016edd98f65bcd1e5cb4759f333b358001a9bdce96e082e173998559313370ae",
+      "targets": [
+        "Sonic"
+      ],
+      "prediction": " Sonic the Hedgehog",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.758
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 22,
+      "prompt_hash": "32b8d224ea8b600a75f6bed0dfdb28e4499ff854a39524f261adc98bcea381ea",
+      "doc_hash": "2bc14d31c4626fd33e79497223ed66c6ac15d81671f65b26dc58b1ac74ebfb47",
+      "target_hash": "060cae51ac2db0f53f2cde386d559b034a20a81214b6f247366c9f3b3b00b481",
+      "input_tokens": 63059,
+      "input_token_sha256": "36b8df1ffc68a93a2f1342b96b1fe1e08e6ab71f5435afaa6c70008a58b90f8b",
+      "targets": [
+        "keyboard function keys"
+      ],
+      "prediction": " The Apple Remote is a remote control device released in or after October 2005 by Apple Inc. for use with a number of its products which use infrared capabilities",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "length",
+      "elapsed_s": 39.308
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 23,
+      "prompt_hash": "435cf705695e8e510365d2f7e31d5daa4930e0fb6b3b64d368910008614ed4b9",
+      "doc_hash": "ab15d4ca4a2daedb166ab46788f069c0897414ba83a2cb3dfe29dd6d96f4b4d7",
+      "target_hash": "9045bf658dcbe7bbaaa410d8640ff194da28392405148c946f37df0a7e18355a",
+      "input_tokens": 61909,
+      "input_token_sha256": "44e847ce09c03418e154b6fb0401f74480e037a5cf0971a6861e6ce877b60634",
+      "targets": [
+        "Badly Drawn Boy"
+      ],
+      "prediction": " Badly Drawn Boy",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.104
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 24,
+      "prompt_hash": "a0a304f101ada33b5ac3ee4031ee547f9e07afc35a0ab0e299ee91ce1171f610",
+      "doc_hash": "2293b179d0d96b793d122ccb0de52e7880f3146356874a96dee5c08c41fa8e30",
+      "target_hash": "4184ff8d71b5fb1b294c0a3c9c8edaf54fb06eef49215282dc32de6aa5361474",
+      "input_tokens": 62853,
+      "input_token_sha256": "5df73816afb6948a2a33fc91e684c9e2ecf22ce47dd29cb6c8bdddd7bbefef84",
+      "targets": [
+        "World's Best Goalkeeper"
+      ],
+      "prediction": " IFFHS World's Best Goalkeeper",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.191
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 25,
+      "prompt_hash": "a0c2c8ca129c7b25a290b6d0241774305a7c33d4afa2ac921e494ceff3130f12",
+      "doc_hash": "b8a10a80c98934b9dd52e315bc3366bc1e77fad94d29c03bdb0037ba41294390",
+      "target_hash": "2341aeb604ae27d683793d08c20fab47a4205cd32d116e22c93a87d4ec97dd62",
+      "input_tokens": 63733,
+      "input_token_sha256": "87868681e3b2df9f4043cb02c7e103265cb13d7d9de0e01d5f60b21dff4fa44b",
+      "targets": [
+        "Barton Lee Hazlewood"
+      ],
+      "prediction": " Lee Hazlewood",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.744
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 26,
+      "prompt_hash": "ad68d848000e557f493ca8378f8e6135b33f6b0e6c73c29d2e9e28f7c7f69623",
+      "doc_hash": "3ad3b8ecfcdee2d7b6fd0bc2b4cbf35b786950d08c34d28050bd96417f7c07b9",
+      "target_hash": "aaf9cd7f7727fc0a1c655436593692cbac3d250667dfb37236eded7af934d4e4",
+      "input_tokens": 63918,
+      "input_token_sha256": "5e864cb104b4d45f35849498c44250ff622f99ed23118d6eb16f515898bc3145",
+      "targets": [
+        "1838"
+      ],
+      "prediction": " 1838",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.944
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 27,
+      "prompt_hash": "64c4be5eeecda0e6bc900a455d10fad142a7606ded217cbaa2754074227fe7d3",
+      "doc_hash": "35c524b66f858005b4903773c139330e540b3b9f270413ce70284c987e22a1f9",
+      "target_hash": "a314fedb4bce7ea032789fdb1234b665b68965c7f7cc29f2bf4fbf94eeeb9b34",
+      "input_tokens": 60572,
+      "input_token_sha256": "7335d1605ecc8be4f7d46ae5f63674b785960bf3d596dca95f98c4f1a02d8dfe",
+      "targets": [
+        "yes"
+      ],
+      "prediction": " Yes",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 35.736
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 28,
+      "prompt_hash": "fa01b9fc2578f2109f774a3fd63e0cb25ccf98dca23a57cf1ce06ba60e847b12",
+      "doc_hash": "f193232b829491131e5a2f7b22e8b454813a7d0b00385aab9e3937be2ac38fed",
+      "target_hash": "627ba6dfbf8e78dfbd8a681df1f27d5c63ce1f6e74400a43bf6bf5b7de7d92e2",
+      "input_tokens": 63695,
+      "input_token_sha256": "c4d7f327b9a6df50d9e3a74db80ae0e845a68beee577636d3d8d634869627ab6",
+      "targets": [
+        "Henry J. Kaiser"
+      ],
+      "prediction": " Henry J. Kaiser",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.808
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 29,
+      "prompt_hash": "95db88ebf8171fb1a09032a56d89706352ff7ed05a19b9e4d9732998d32bd329",
+      "doc_hash": "5cfdbc934f615b6460b66610feb6975cef1015d34b7eef39f55b31dd8aa41f06",
+      "target_hash": "da11b02053e0d6e289ce171b9d87ae977dfae0c16eafe28194688695750c250f",
+      "input_tokens": 61905,
+      "input_token_sha256": "e02c31a92c8db6c211bc5307d5727a814113d140d9d32ffea9e373af901b2670",
+      "targets": [
+        "Arena of Khazan"
+      ],
+      "prediction": " Arena of Khazan",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.154
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 30,
+      "prompt_hash": "16d5fc6e6198aac2381940138f7c2fc25c0d4e87aa512a0d716bcbe59b47992a",
+      "doc_hash": "3fc75cb3162c9825d7ad433526639a5e83783c1d04501c57d6012f5a13551363",
+      "target_hash": "1799dc8bff6465e18768305cedf6bd70e79708a06c82775c631ef0f2fb01d5e9",
+      "input_tokens": 63693,
+      "input_token_sha256": "fc47f0c4bb1ab5450769d0f01bea1da306eabc268338c001179b4c010b24d751",
+      "targets": [
+        "2000"
+      ],
+      "prediction": " March 14, 2000",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.963
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 31,
+      "prompt_hash": "8dbd9e7420e3be60c23cadf381d10efc1a9750e8900dbf64807458ec588a9f21",
+      "doc_hash": "d727a57cee539765a2b32e4ce90150fc650bbc2e8ba5a9655c7d2ddc1ea23865",
+      "target_hash": "950aac253f39b74c3fa14fb2ea72dfaddef4123fdec5ca70f3ac117136cd8e15",
+      "input_tokens": 62146,
+      "input_token_sha256": "6ad91f05f0a9fb833b4f6c216d0e66f7e52cf9934849b44ecac68e174248dfde",
+      "targets": [
+        "Fujioka, Gunma"
+      ],
+      "prediction": " Fujioka, Gunma",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.484
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_hotpot": 68.75
+  }
+}

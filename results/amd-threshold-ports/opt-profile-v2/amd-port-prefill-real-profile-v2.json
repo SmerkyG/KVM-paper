@@ -1,0 +1,255 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "4afd6682d4aec84f22824dcb7ac6706e6db3846799efd8c90dcc58847739724b",
+      "source_file_count": 342
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.10103793674045,
+      "leaves_ms": 16.58316921657986,
+      "remote_attention_ms": 33.98081970214844,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0049849748611450195
+      }
+    },
+    {
+      "layer": 0,
+      "variant": "scaled-fp16",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.791132736206055,
+      "leaves_ms": 16.59287770589193,
+      "remote_attention_ms": 34.29711761474609,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0039136409759521484,
+        "max_abs_remote_difference_from_blas": 0.015625
+      }
+    },
+    {
+      "layer": 0,
+      "variant": "tc",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.285181850857207,
+      "leaves_ms": 14.326547546386719,
+      "remote_attention_ms": 31.6816047668457,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0049849748611450195,
+        "max_abs_remote_difference_from_blas": 0.0078125
+      }
+    },
+    {
+      "layer": 0,
+      "variant": "scaled-fp16-tc",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.801444625854494,
+      "leaves_ms": 14.353827056884766,
+      "remote_attention_ms": 32.01285171508789,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0039136409759521484,
+        "max_abs_remote_difference_from_blas": 0.015625
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.409175872802734,
+      "mean_open_entries": 1504.1165771484375,
+      "route_coarse_ms": 16.528258938259548,
+      "leaves_ms": 18.05902519226074,
+      "remote_attention_ms": 35.629441528320314,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.00925445556640625
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "scaled-fp16",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.409175872802734,
+      "mean_open_entries": 1504.1165771484375,
+      "route_coarse_ms": 17.003929328918456,
+      "leaves_ms": 18.08425827026367,
+      "remote_attention_ms": 35.99721466064453,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.007851362228393555,
+        "max_abs_remote_difference_from_blas": 0.125
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "tc",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.409175872802734,
+      "mean_open_entries": 1504.1165771484375,
+      "route_coarse_ms": 16.507647026909723,
+      "leaves_ms": 17.664149284362793,
+      "remote_attention_ms": 35.120600891113284,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.00925445556640625,
+        "max_abs_remote_difference_from_blas": 0.015625
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "scaled-fp16-tc",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.409175872802734,
+      "mean_open_entries": 1504.1165771484375,
+      "route_coarse_ms": 16.99475212097168,
+      "leaves_ms": 17.672610092163087,
+      "remote_attention_ms": 35.650025634765626,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.007851362228393555,
+        "max_abs_remote_difference_from_blas": 0.125
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.860538482666016,
+      "mean_open_entries": 2088.41162109375,
+      "route_coarse_ms": 16.485178629557293,
+      "leaves_ms": 18.473248100280763,
+      "remote_attention_ms": 36.01795776367187,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06549263000488281
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "scaled-fp16",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.860538482666016,
+      "mean_open_entries": 2088.41162109375,
+      "route_coarse_ms": 16.99689712524414,
+      "leaves_ms": 18.45808925628662,
+      "remote_attention_ms": 36.570633239746094,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06266212463378906,
+        "max_abs_remote_difference_from_blas": 0.25
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "tc",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.860538482666016,
+      "mean_open_entries": 2088.41162109375,
+      "route_coarse_ms": 16.44049343532986,
+      "leaves_ms": 16.119766235351562,
+      "remote_attention_ms": 33.91710723876953,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06549263000488281,
+        "max_abs_remote_difference_from_blas": 0.125
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "scaled-fp16-tc",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.860538482666016,
+      "mean_open_entries": 2088.41162109375,
+      "route_coarse_ms": 16.944146156311035,
+      "leaves_ms": 16.120870123969183,
+      "remote_attention_ms": 34.39883483886719,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06266212463378906,
+        "max_abs_remote_difference_from_blas": 0.25
+      }
+    }
+  ],
+  "scope": "Replay real Qwen prefill snapshots without reloading the full model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-08.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-15.pt"
+  ]
+}

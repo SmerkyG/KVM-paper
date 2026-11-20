@@ -1,0 +1,46 @@
+{
+  "two-tier": {
+    "mode": "two-tier",
+    "env": {
+      "LOD_AMD_STATE_PACKED_MAX": "1",
+      "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+      "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+      "LOD_AMD_THRESHOLD_TILE": "64",
+      "LOD_AMD_THRESHOLD_SPLITS": "128",
+      "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+      "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+      "LOD_AMD_THRESHOLD_PRECISE": "0",
+      "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+      "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+      "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+      "LOD_AMD_THRESHOLD_MULTIPLIER": "16"
+    }
+  },
+  "fixed-2": {
+    "mode": "three-tier-bf16",
+    "env": {
+      "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+      "LOD_AMD_STATE_PACKED_MAX": "1",
+      "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+      "LOD_AMD_THRESHOLD_PAGES": "2"
+    }
+  },
+  "fixed-4": {
+    "mode": "three-tier-bf16",
+    "env": {
+      "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+      "LOD_AMD_STATE_PACKED_MAX": "1",
+      "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+      "LOD_AMD_THRESHOLD_PAGES": "4"
+    }
+  },
+  "adaptive-0.5": {
+    "mode": "three-tier-bf16",
+    "env": {
+      "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+      "LOD_AMD_STATE_PACKED_MAX": "1",
+      "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+      "LOD_AMD_THRESHOLD_PAGE_MULTIPLIER": "0.5"
+    }
+  }
+}

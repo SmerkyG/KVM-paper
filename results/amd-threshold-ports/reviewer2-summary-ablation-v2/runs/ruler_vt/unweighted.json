@@ -1,0 +1,828 @@
+{
+  "task": "ruler_vt",
+  "arm": "unweighted",
+  "mode": "two-tier",
+  "input_sha256": "9dd29ea2e1a2118ba4a0b87e959046a5333d644c0dcb50c97b820831f3fbd14a",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": 0,
+      "input_sha256": "3f0c9981e2dd1f0b3db42f77d9c143a7e8c56a93671ed89f44b39ccfeae47cee",
+      "input_tokens": 131012,
+      "output_tokens": 16,
+      "prediction": "  BQCQB TBKEQ FPLKD SFHAM LHESL",
+      "returned_tokens": 16,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          38426761418,
+          461704388042,
+          50308608
+        ],
+        "decode": [
+          7322016,
+          10157472,
+          6144
+        ]
+      },
+      "elapsed_s": 18.30113771930337,
+      "ttft_s": 17.88746476173401,
+      "decode_ms_per_token": 27.63044759631157
+    },
+    {
+      "id": 1,
+      "input_sha256": "66822c610a29a587d41f8217cebf42c8d48975e04e8fa358afd09fc295cc208a",
+      "input_tokens": 131016,
+      "output_tokens": 16,
+      "prediction": "  NNBFF GYYIS EIYCO CAWXE CPACT",
+      "returned_tokens": 16,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36650345167,
+          459953444047,
+          50310144
+        ],
+        "decode": [
+          7674198,
+          10534230,
+          6144
+        ]
+      },
+      "elapsed_s": 18.292236341163516,
+      "ttft_s": 17.878401279449463,
+      "decode_ms_per_token": 27.620404462019604
+    },
+    {
+      "id": 2,
+      "input_sha256": "edbac359aee0b69da3c5bb9b46db8f76dcc7738dbb881a728c8170da05b867a6",
+      "input_tokens": 131017,
+      "output_tokens": 16,
+      "prediction": " NZCHZ GFGCM CDMUR EEAEC MVNEQ",
+      "returned_tokens": 16,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          35399694547,
+          458709162451,
+          50310528
+        ],
+        "decode": [
+          7019178,
+          9885354,
+          6144
+        ]
+      },
+      "elapsed_s": 18.30908309109509,
+      "ttft_s": 17.89480710029602,
+      "decode_ms_per_token": 27.640078713496525
+    },
+    {
+      "id": 3,
+      "input_sha256": "529e46833437dc0d04e9dcd04d25d77c1cfd73fedb9772d4faece74dd0b3ebb1",
+      "input_tokens": 131010,
+      "output_tokens": 15,
+      "prediction": " AFTYA UPSLR ZLSKY GKUDU JAOCV",
+      "returned_tokens": 15,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37037743795,
+          460302636595,
+          50307840
+        ],
+        "decode": [
+          5657628,
+          8301468,
+          5760
+        ]
+      },
+      "elapsed_s": 18.343181459233165,
+      "ttft_s": 17.954599380493164,
+      "decode_ms_per_token": 27.792484233421938
+    },
+    {
+      "id": 4,
+      "input_sha256": "18283082374b5c878c5511fbc4e2a4794b65a5092ced121dc8d22e39d8f3013e",
+      "input_tokens": 131021,
+      "output_tokens": 18,
+      "prediction": " ZDOZT YONRG QOUWY DXWUY RFVLS",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36934263280,
+          460269211120,
+          50312064
+        ],
+        "decode": [
+          8377380,
+          11636388,
+          6912
+        ]
+      },
+      "elapsed_s": 18.701176887378097,
+      "ttft_s": 18.2319233417511,
+      "decode_ms_per_token": 27.626262429882498
+    },
+    {
+      "id": 5,
+      "input_sha256": "62dd709fc6c4bb95d35a5f8c69b21ca74d3c382ecdcfad8252577441e50ccbec",
+      "input_tokens": 131023,
+      "output_tokens": 19,
+      "prediction": "  EXKKF TRAQH UZBQZ MNJDQ XNSEV",
+      "returned_tokens": 19,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36503155735,
+          459850845847,
+          50312832
+        ],
+        "decode": [
+          7915188,
+          11373492,
+          7296
+        ]
+      },
+      "elapsed_s": 18.375841420143843,
+      "ttft_s": 17.8790385723114,
+      "decode_ms_per_token": 27.62059039539761
+    },
+    {
+      "id": 6,
+      "input_sha256": "25487a5f15e32cb5de83cdd4174ce433851769381449a8842597195c75bfb864",
+      "input_tokens": 131020,
+      "output_tokens": 18,
+      "prediction": " JQROA DHOUI JGYKP FJVHQ QDNOH",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          34241869076,
+          457570446356,
+          50311680
+        ],
+        "decode": [
+          7763304,
+          11015400,
+          6912
+        ]
+      },
+      "elapsed_s": 18.322889365255833,
+      "ttft_s": 17.853675365447998,
+      "decode_ms_per_token": 27.635863927357338
+    },
+    {
+      "id": 7,
+      "input_sha256": "b1ec2084a3212ebefe1e05b84eea59d768153fe33e6be3c2777e839347fb683d",
+      "input_tokens": 131022,
+      "output_tokens": 19,
+      "prediction": " PWFNU JFZNO KJYMG KWIPT UHGAH",
+      "returned_tokens": 19,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          38022813847,
+          461364132631,
+          50312448
+        ],
+        "decode": [
+          8233206,
+          11684214,
+          7296
+        ]
+      },
+      "elapsed_s": 18.38266934081912,
+      "ttft_s": 17.885863542556763,
+      "decode_ms_per_token": 27.624649099177784
+    },
+    {
+      "id": 8,
+      "input_sha256": "0b04639475ed2dbc49d65757af3a2731b597c72b837bd713b608384f7e7b4528",
+      "input_tokens": 131016,
+      "output_tokens": 17,
+      "prediction": " IICSJ XVMVN GLWBY GWSQC YUAJL",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          39121936951,
+          462425035831,
+          50310144
+        ],
+        "decode": [
+          6997572,
+          10039620,
+          6528
+        ]
+      },
+      "elapsed_s": 18.340300891548395,
+      "ttft_s": 17.89844822883606,
+      "decode_ms_per_token": 27.62633957900107
+    },
+    {
+      "id": 9,
+      "input_sha256": "8bc54141a9da3834eac782e008a957142848f9d56cbc5b586dd8dbc71e6f9a14",
+      "input_tokens": 131014,
+      "output_tokens": 14,
+      "prediction": " VLBIU NULLH EMIIT ROIPZ UISPE",
+      "returned_tokens": 14,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37710750419,
+          461001112403,
+          50309376
+        ],
+        "decode": [
+          6396222,
+          8882622,
+          5376
+        ]
+      },
+      "elapsed_s": 18.246104249730706,
+      "ttft_s": 17.883293628692627,
+      "decode_ms_per_token": 27.625618789058464
+    },
+    {
+      "id": 10,
+      "input_sha256": "39768bb0e7864afefa0ade70d544c75fbcc369247aa3c2d0ba44b9206dd3a1eb",
+      "input_tokens": 131021,
+      "output_tokens": 18,
+      "prediction": " WVUWB AIAFQ OECHW NJPZM MWZFL",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36754450341,
+          460089398181,
+          50312064
+        ],
+        "decode": [
+          8971170,
+          12230178,
+          6912
+        ]
+      },
+      "elapsed_s": 18.349344797432423,
+      "ttft_s": 17.879966974258423,
+      "decode_ms_per_token": 27.636142776292914
+    },
+    {
+      "id": 11,
+      "input_sha256": "ab4cca44b41c629c5c1a00d700a0772afcc0bd03df7379452802999c3f95c13d",
+      "input_tokens": 131016,
+      "output_tokens": 18,
+      "prediction": "  DPWQQ QBTXN KMFOI NTKSR EEJMG",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          35543114847,
+          458846213727,
+          50310144
+        ],
+        "decode": [
+          7482222,
+          10706670,
+          6912
+        ]
+      },
+      "elapsed_s": 18.346405543386936,
+      "ttft_s": 17.87787628173828,
+      "decode_ms_per_token": 27.61740007382982
+    },
+    {
+      "id": 12,
+      "input_sha256": "eebd3c08464d5207377c66006461a754d4005d4d5f8bd77095531d2d7a8fe1cf",
+      "input_tokens": 131022,
+      "output_tokens": 17,
+      "prediction": " SYQEL FLSFO PEVAE EYXFK ECLIW",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          35304878560,
+          458646197344,
+          50312448
+        ],
+        "decode": [
+          8095620,
+          11176836,
+          6528
+        ]
+      },
+      "elapsed_s": 18.319586623460054,
+      "ttft_s": 17.877914428710938,
+      "decode_ms_per_token": 27.631925069727004
+    },
+    {
+      "id": 13,
+      "input_sha256": "f3e400a7a3845d1836f9ebbe75b71a0d716ec3bf98cd77428f34917bcdae53ae",
+      "input_tokens": 131015,
+      "output_tokens": 15,
+      "prediction": " MEKGA IWPYM SDXPW PAOLE IRPTX",
+      "returned_tokens": 15,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37186003417,
+          460482733657,
+          50309760
+        ],
+        "decode": [
+          7465380,
+          10138020,
+          5760
+        ]
+      },
+      "elapsed_s": 18.291559984907508,
+      "ttft_s": 17.905036211013794,
+      "decode_ms_per_token": 27.642065126981056
+    },
+    {
+      "id": 14,
+      "input_sha256": "5ade5cee702dba8cdbf252c6829711b12bb0237815121a606fa5d0f3deceacbf",
+      "input_tokens": 131019,
+      "output_tokens": 17,
+      "prediction": " GOPYX NNOJF TSJNE QKBVT ZTFHH",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37132515675,
+          460454722779,
+          50311296
+        ],
+        "decode": [
+          7450638,
+          10512270,
+          6528
+        ]
+      },
+      "elapsed_s": 18.588563418015838,
+      "ttft_s": 18.142616748809814,
+      "decode_ms_per_token": 27.89250249043107
+    },
+    {
+      "id": 15,
+      "input_sha256": "348fcb9dbb3b796d51867eb72f2fe6d9f36c89011bb3cde958a93c354b3441ac",
+      "input_tokens": 131017,
+      "output_tokens": 16,
+      "prediction": " AHMQT FPFAK MFPCZ DBDDF DRSLM",
+      "returned_tokens": 16,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          39811694091,
+          463121161995,
+          50310528
+        ],
+        "decode": [
+          7716750,
+          10582926,
+          6144
+        ]
+      },
+      "elapsed_s": 18.499239219352603,
+      "ttft_s": 18.08509850502014,
+      "decode_ms_per_token": 27.633753915627796
+    },
+    {
+      "id": 16,
+      "input_sha256": "e06381c5e8c333cade4c18e934471f9a5460e0bcf881cf634efd15b8e53afad3",
+      "input_tokens": 131017,
+      "output_tokens": 17,
+      "prediction": " FHFJF AEQRH NDUEC AOKNX WOIDP",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37150165278,
+          460459633182,
+          50310528
+        ],
+        "decode": [
+          8429904,
+          11478480,
+          6528
+        ]
+      },
+      "elapsed_s": 18.34008251130581,
+      "ttft_s": 17.898350715637207,
+      "decode_ms_per_token": 27.628949843347073
+    },
+    {
+      "id": 17,
+      "input_sha256": "6a20bd2eb74676845f14fb0792197a969847319f7ec9e11291b09d43b1b93d04",
+      "input_tokens": 131023,
+      "output_tokens": 18,
+      "prediction": " ACZDH LJIJH YFAYX UAZYK JEGMB",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          39240804933,
+          462588495045,
+          50312832
+        ],
+        "decode": [
+          7414818,
+          10687650,
+          6912
+        ]
+      },
+      "elapsed_s": 18.3867242988199,
+      "ttft_s": 17.917391538619995,
+      "decode_ms_per_token": 27.62656845152378
+    },
+    {
+      "id": 18,
+      "input_sha256": "07b389a744bc4483f1d058f102f0a6b3878a91c03a9a2117fe0b26cf5406bd7b",
+      "input_tokens": 131018,
+      "output_tokens": 18,
+      "prediction": "  SHGDQ XKMXQ JXIBL RZJLE GMCVG",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          39133430819,
+          462449268131,
+          50310912
+        ],
+        "decode": [
+          8662380,
+          11900652,
+          6912
+        ]
+      },
+      "elapsed_s": 18.356556925922632,
+      "ttft_s": 17.88731288909912,
+      "decode_ms_per_token": 27.632425374844495
+    },
+    {
+      "id": 19,
+      "input_sha256": "09876e20300287e4757996d991361a591aeed51ff4c08c9eaa2013b9c977eb3f",
+      "input_tokens": 131017,
+      "output_tokens": 17,
+      "prediction": "  ACSJC PWCIB CNKCB SIZVH ZYMFK",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          39605574354,
+          462915042258,
+          50310528
+        ],
+        "decode": [
+          9404424,
+          12453000,
+          6528
+        ]
+      },
+      "elapsed_s": 18.35045426338911,
+      "ttft_s": 17.908221006393433,
+      "decode_ms_per_token": 27.64311630744487
+    },
+    {
+      "id": 20,
+      "input_sha256": "53811de9a071797c84dc76eb9c6bc64a91ec4d4784a8036bf1405a1a880c7a31",
+      "input_tokens": 131017,
+      "output_tokens": 17,
+      "prediction": " EVYXV XLDJB GDWAB GKCZQ ABDLM",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37658379010,
+          460967846914,
+          50310528
+        ],
+        "decode": [
+          8767686,
+          11816262,
+          6528
+        ]
+      },
+      "elapsed_s": 18.339866414666176,
+      "ttft_s": 17.898005723953247,
+      "decode_ms_per_token": 27.636232669465244
+    },
+    {
+      "id": 21,
+      "input_sha256": "05df1085db6eb54a7de227d215b4ac585f3b0e50097a14245c2e8c2d2a75cfac",
+      "input_tokens": 131019,
+      "output_tokens": 18,
+      "prediction": "  EGPAP QPMXU NMFBM LDKPT CXYDM",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          37403098903,
+          460725306007,
+          50311296
+        ],
+        "decode": [
+          7978092,
+          11223276,
+          6912
+        ]
+      },
+      "elapsed_s": 18.35244374535978,
+      "ttft_s": 17.883681535720825,
+      "decode_ms_per_token": 27.62763519935748
+    },
+    {
+      "id": 22,
+      "input_sha256": "7178d775de1e00d5c011fb2c1c2afa2fa6eea896e525976765ecf43b07062f50",
+      "input_tokens": 131022,
+      "output_tokens": 19,
+      "prediction": " GWWYD FBLXV CKVRR QRGWX OZCJS",
+      "returned_tokens": 19,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          41511762171,
+          464853080955,
+          50312448
+        ],
+        "decode": [
+          7725516,
+          11176524,
+          7296
+        ]
+      },
+      "elapsed_s": 18.414817670360208,
+      "ttft_s": 17.918103456497192,
+      "decode_ms_per_token": 27.61684109767278
+    },
+    {
+      "id": 23,
+      "input_sha256": "63224d21e5327050c6ce30cc0f090cf1ec4bf57bdc6c25971ad9e2798099e7ab",
+      "input_tokens": 131017,
+      "output_tokens": 17,
+      "prediction": " ZYXHD TLWJN YOLNL AEVGB MMCVV",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36484817165,
+          459794285069,
+          50310528
+        ],
+        "decode": [
+          7952220,
+          11000796,
+          6528
+        ]
+      },
+      "elapsed_s": 18.32595474459231,
+      "ttft_s": 17.884453773498535,
+      "decode_ms_per_token": 27.61739504057914
+    },
+    {
+      "id": 24,
+      "input_sha256": "b14a2bcfbc68e4f4b31a8552398f4a1f575dd8d0cc680709d698764881035251",
+      "input_tokens": 131013,
+      "output_tokens": 17,
+      "prediction": " ZYMQG PFDXC PCLMO GMRVO FSJUL",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          34812902655,
+          458096896767,
+          50308992
+        ],
+        "decode": [
+          7785624,
+          10808088,
+          6528
+        ]
+      },
+      "elapsed_s": 18.317424787208438,
+      "ttft_s": 17.875652074813843,
+      "decode_ms_per_token": 27.63323939871043
+    },
+    {
+      "id": 25,
+      "input_sha256": "cd2fc0b0bfac9f8586be66102751e1a233743bb149f802877bbd63eb081643ea",
+      "input_tokens": 131020,
+      "output_tokens": 19,
+      "prediction": "  DZJTV KODNO UFNNN PWDGM ZTLOL",
+      "returned_tokens": 19,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          38392681356,
+          461721258636,
+          50311680
+        ],
+        "decode": [
+          8143398,
+          11579814,
+          7296
+        ]
+      },
+      "elapsed_s": 18.39101547561586,
+      "ttft_s": 17.89400577545166,
+      "decode_ms_per_token": 27.63190223938889
+    },
+    {
+      "id": 26,
+      "input_sha256": "eff93b0b46db88081ff24f3b3bd45463e9439f85d62b17a0718cc38fa5343287",
+      "input_tokens": 131009,
+      "output_tokens": 15,
+      "prediction": " XIZBG OCIVA EXHHD DCIAF HAOKB",
+      "returned_tokens": 15,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36123123270,
+          459381649734,
+          50307456
+        ],
+        "decode": [
+          7124898,
+          9762978,
+          5760
+        ]
+      },
+      "elapsed_s": 18.282399663701653,
+      "ttft_s": 17.895726680755615,
+      "decode_ms_per_token": 27.62974945030042
+    },
+    {
+      "id": 27,
+      "input_sha256": "e4d79237e8d29b8c0ff40856551895eab6638d1e489ad3b736ce37e56d2db3a4",
+      "input_tokens": 131017,
+      "output_tokens": 18,
+      "prediction": " FIEKJ GKRQX SPSOI NORWI PZUBD",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          38116912524,
+          461426380428,
+          50310528
+        ],
+        "decode": [
+          8071884,
+          11303244,
+          6912
+        ]
+      },
+      "elapsed_s": 18.739988785237074,
+      "ttft_s": 18.261044025421143,
+      "decode_ms_per_token": 28.186680420356637
+    },
+    {
+      "id": 28,
+      "input_sha256": "b37c336a08ecaa4f207a750edb9ddf39f957ba777fc4a35ee4090a80bbc74ad8",
+      "input_tokens": 131020,
+      "output_tokens": 18,
+      "prediction": " GZQCP IPJAA ROUHZ GBXZR HXWPL",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36455533505,
+          459784110785,
+          50311680
+        ],
+        "decode": [
+          8804094,
+          12056190,
+          6912
+        ]
+      },
+      "elapsed_s": 18.51638673990965,
+      "ttft_s": 18.046871662139893,
+      "decode_ms_per_token": 27.630462804261377
+    },
+    {
+      "id": 29,
+      "input_sha256": "f2a1f889eb1e372c62cad3a897c8b2ab59891d867683ed2e5612735ff2ff18a2",
+      "input_tokens": 131015,
+      "output_tokens": 16,
+      "prediction": " PLGUG KJDQU IHCQP JYAYL WDDET",
+      "returned_tokens": 16,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          36980759285,
+          460277489525,
+          50309760
+        ],
+        "decode": [
+          6991026,
+          9844914,
+          6144
+        ]
+      },
+      "elapsed_s": 18.313512358814478,
+      "ttft_s": 17.899057626724243,
+      "decode_ms_per_token": 27.640878036618233
+    },
+    {
+      "id": 30,
+      "input_sha256": "cc87e25a81c333c759a55a56f1facde1761b0ede430f5aeb33fff5d68b117f19",
+      "input_tokens": 131019,
+      "output_tokens": 18,
+      "prediction": "  BTZAM NKSZD WEPYL UAULZ KGEVB",
+      "returned_tokens": 18,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          38007841018,
+          461330048122,
+          50311296
+        ],
+        "decode": [
+          8462508,
+          11707692,
+          6912
+        ]
+      },
+      "elapsed_s": 18.361665664240718,
+      "ttft_s": 17.891867876052856,
+      "decode_ms_per_token": 27.629808358409825
+    },
+    {
+      "id": 31,
+      "input_sha256": "b0f7c4fadee9e93195a58466477dc295f2b41aa216e5eb917b915f3dd8ae8a7f",
+      "input_tokens": 131017,
+      "output_tokens": 17,
+      "prediction": "  EDRSG IGUZG AYGQH MTWVB DFYZH",
+      "returned_tokens": 17,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          38992671344,
+          462302139248,
+          50310528
+        ],
+        "decode": [
+          6877362,
+          9925938,
+          6528
+        ]
+      },
+      "elapsed_s": 18.35374565422535,
+      "ttft_s": 17.91233229637146,
+      "decode_ms_per_token": 27.6277867378667
+    }
+  ]
+}

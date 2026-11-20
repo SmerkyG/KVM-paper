@@ -1,0 +1,159 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "0c12b78e97fcab78b9e3b1f9e72810f0e0762b6774a7e69fd529944712c57f13",
+      "source_file_count": 356
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "4096",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_PREFILL_TOPK": "16"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 3,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_cwe"
+  ],
+  "records": [
+    {
+      "task": "ruler_cwe",
+      "doc_id": 23,
+      "prompt_hash": "e300c1d1c64d9d0efca8c95931e076011b95089ec9c00aa101a4357251295c12",
+      "doc_hash": "37b28cad98ba397cc6307a0e267a1fe507a83e0e4d41f7c340abaeae4a87fa7a",
+      "target_hash": "9e1cdbdc6ec8784bb2531995054e8a843e791052ff7dbec29eb768c44c442c6e",
+      "input_tokens": 64489,
+      "input_token_sha256": "f876256d5db28f2f873cd599b84f4054f5c884ee8dafb6da04775661239a3001",
+      "targets": [
+        "patroller",
+        "vestment",
+        "vibe",
+        "relative",
+        "counter",
+        "belly",
+        "nobody",
+        "dearest",
+        "acrid",
+        "coupon"
+      ],
+      "prediction": " \"nobody\", \"patroller\", \"vibe\", \"coupon\", \"acrid\", \"relative\", \"counter\", \"dearest\", \"belly\", and \"vestment\".",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 23.368
+    },
+    {
+      "task": "ruler_cwe",
+      "doc_id": 24,
+      "prompt_hash": "712a8bfd55f4cc388456854bf1a3c7904f0d841fb2301071014b6ca808b8ae9b",
+      "doc_hash": "d63e0321bd4de6e0fa7864e7c828fe7269bc026f1b55bbbda78558d3c8f6c144",
+      "target_hash": "d0a71af38ce73807044785a121de47cd94303149114dd720701f824bac02b7a1",
+      "input_tokens": 64573,
+      "input_token_sha256": "7dedd4ad8e3cb665111f7ba2f19f98f83fc5d70ff9245da511fee45af6c2f408",
+      "targets": [
+        "deranged",
+        "conceive",
+        "courage",
+        "special",
+        "anorak",
+        "prior",
+        "sculpting",
+        "sauerkraut",
+        "ribbon",
+        "shoelace"
+      ],
+      "prediction": " \"anorak\", \"courage\", \"special\", \"shoelace\", \"conceive\", \"deranged\", \"ribbon\", \"sculpting\", \"prior\", and \"sauerkraut\".",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 19.64
+    },
+    {
+      "task": "ruler_cwe",
+      "doc_id": 25,
+      "prompt_hash": "9699f5968e2fa4f23aac81191902f24f8a7161e3b79e4eda70b07ece4e467ca7",
+      "doc_hash": "29fee3bd39db8a303974e5758ba71feb4c3b21f79aa1d66ed59dbb7677f8db23",
+      "target_hash": "388fd8110650fe459e818115591f3e0609e72336b1d4ff6ae51c5e8323078e17",
+      "input_tokens": 64504,
+      "input_token_sha256": "48fa6feb4e8a9a34734b46595c05cccc1578a4aa88ed5592a4a4facd08a0d6a0",
+      "targets": [
+        "canopy",
+        "entry",
+        "company",
+        "highland",
+        "zoot-suit",
+        "ligula",
+        "settle",
+        "detailed",
+        "sip",
+        "mimosa"
+      ],
+      "prediction": " **entry, detailed, company, settle, canopy, highland, mimosa, work, zoot-suit, and flu**.",
+      "score": 0.8,
+      "historical_two_tier_score": 0.9,
+      "finish_reason": "stop",
+      "elapsed_s": 18.958
+    }
+  ],
+  "task_scores": {
+    "ruler_cwe": 93.33333333333333
+  }
+}

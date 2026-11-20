@@ -1,0 +1,174 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "caa54cf64342415183e96bbfd79235d5e1e32488930ee77cf2f2fc05824d54c9",
+      "source_file_count": 348
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 32,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.128610038757325,
+      "leaves_ms": 3.393155997140067,
+      "remote_attention_ms": 11.09879870944553,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream-fused": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.493156775649713,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06,
+      "exact_output_workspace_mib": 14495.0,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 100.27699999999999
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 100.27699999999999
+        },
+        {
+          "name": "hipPointerGetAttribute",
+          "calls": 41,
+          "self_us": 100.27699999999999
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 20.839
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 2.1189999999999714
+        },
+        {
+          "name": "_route_partials",
+          "calls": 1,
+          "self_us": 1586.819
+        },
+        {
+          "name": "_route_cutoff",
+          "calls": 1,
+          "self_us": 5.639000000000124
+        },
+        {
+          "name": "_coarse_partials",
+          "calls": 1,
+          "self_us": 4023.469
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 218.11699999999928
+        },
+        {
+          "name": "_merge_coarse",
+          "calls": 1,
+          "self_us": 233.1949999999997
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "blas-bits",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 5.504624821589544,
+      "leaves_ms": 3.430790383475167,
+      "remote_attention_ms": 10.908839162190755,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797,
+        "max_abs_remote_difference_from_stream-fused": 0.03125
+      },
+      "route_workspace_mib": 6013.1082763671875,
+      "final_merge_ms": 1.4972036931932586,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 101.35899999999998
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 101.35899999999998
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1947.4960000000005
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 21.559000000000026
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1444.623
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 6.919000000000096
+        },
+        {
+          "name": "select_region_bits",
+          "calls": 1,
+          "self_us": 3538.3949999999995
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 241.5550000000003
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 502.8730000000005
+        }
+      ]
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt"
+  ]
+}

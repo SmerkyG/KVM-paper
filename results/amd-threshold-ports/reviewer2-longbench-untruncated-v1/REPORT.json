@@ -1,0 +1,73 @@
+{
+  "stage": "complete",
+  "eligible": 298,
+  "results": {
+    "dense": {
+      "correct": 22,
+      "accuracy": 0.6875,
+      "prefill_remote": null,
+      "prefill_total": 40406.972602236216,
+      "decode_remote": null,
+      "decode_total": 56966.90625,
+      "ttft_s": 7.849303841590881,
+      "elapsed_s": 8.062663434073329,
+      "decode_ms": 30.592277513018676
+    },
+    "weighted": {
+      "correct": 22,
+      "accuracy": 0.6875,
+      "prefill_remote": 284.89634755829087,
+      "prefill_total": 8278.10046997787,
+      "decode_remote": 994.2423095703125,
+      "decode_total": 1369.6173095703125,
+      "ttft_s": 5.256278395652771,
+      "elapsed_s": 5.454952688887715,
+      "decode_ms": 28.5419760537999
+    },
+    "sparse": {
+      "correct": 24,
+      "accuracy": 0.75,
+      "prefill_remote": 286.6208148219949,
+      "prefill_total": 8279.824937241574,
+      "decode_remote": 1019.9593505859375,
+      "decode_total": 1395.3343505859375,
+      "ttft_s": 5.29180908203125,
+      "elapsed_s": 5.490493817254901,
+      "decode_ms": 28.48883412246193
+    },
+    "unweighted": {
+      "correct": 22,
+      "accuracy": 0.6875,
+      "prefill_remote": 287.70788305915545,
+      "prefill_total": 8280.912005478734,
+      "decode_remote": 1016.0834350585938,
+      "decode_total": 1391.4584350585938,
+      "ttft_s": 5.462921380996704,
+      "elapsed_s": 5.654132413677871,
+      "decode_ms": 27.472061770302908
+    }
+  },
+  "comparisons": {
+    "weighted-sparse": {
+      "delta_pp": -6.25,
+      "ci95_pp": [
+        -15.625,
+        0.0
+      ]
+    },
+    "weighted-unweighted": {
+      "delta_pp": 0.0,
+      "ci95_pp": [
+        -9.375,
+        9.375
+      ]
+    },
+    "dense-weighted": {
+      "delta_pp": 0.0,
+      "ci95_pp": [
+        -9.375,
+        9.375
+      ]
+    }
+  }
+}

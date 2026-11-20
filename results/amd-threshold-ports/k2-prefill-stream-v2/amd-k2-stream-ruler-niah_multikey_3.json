@@ -1,0 +1,120 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a1ab73c4623625d7d3b007fce7054d51a7d107215a423d83816d585597191c65",
+      "source_file_count": 343
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "stream",
+    "LOD_AMD_PREFILL_QUERY_TILE": "8192",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_STREAM_GEOMETRY": "128,64,512,4,1",
+    "LOD_AMD_PREFILL_THRESHOLD": "16"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "legacy",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 4,
+  "selection": "prefix",
+  "tasks": [
+    "niah_multikey_3"
+  ],
+  "records": [
+    {
+      "task": "niah_multikey_3",
+      "doc_id": 0,
+      "prompt_hash": "d3c372651ed4661bd5980912fbc9db62d33bae90664bcf79707e7db93d9b8b38",
+      "doc_hash": "0ba1a215a74b5c1c1422540eec07e91db03e00cd7ee295a5d4426068c8362931",
+      "target_hash": "a8c588b58066f8dbe3a97389c0a59ee85d5de07de11df74e387cd43cae1c0c97",
+      "input_tokens": 63934,
+      "input_token_sha256": "4296a9ed0cf19c406c744a961496962157b005989f08b555787f235866f7d2da",
+      "targets": [
+        "d5ee0855-b321-4620-b7ea-83f89ef8b7bb"
+      ],
+      "prediction": " d5ee0855-b321-4620-b7ea-83f89ef8b7bb.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 20.924
+    },
+    {
+      "task": "niah_multikey_3",
+      "doc_id": 1,
+      "prompt_hash": "b7f841e8356602597c7d47f5f41489f292091da1817aa153e414bbb3bc6169c3",
+      "doc_hash": "7372929c053d15e862d7d584a2a282c6ccd4ff562161af6641d1544e1fc57aa7",
+      "target_hash": "2568cb5e7dc2c5541e5aee8f9ec1b00401abc14ea090204c1594f23d11259f1e",
+      "input_tokens": 64156,
+      "input_token_sha256": "ed1048fae617e8d25d0cd685b3c91258b9edac6db495d6728546f628e780a651",
+      "targets": [
+        "6846a76e-12ad-4aec-bf8f-7b9b0b11220c"
+      ],
+      "prediction": " 6846a76e-12ad-4aec-bf8f-7b9b0b11220c.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 19.52
+    },
+    {
+      "task": "niah_multikey_3",
+      "doc_id": 2,
+      "prompt_hash": "10277d8344474e042df225c5038cef84bb04ba42d2b803b4fe6f03fd6e7a0a21",
+      "doc_hash": "7da0c85c2913cafda9acedfd04c4556eee99f36bc4f8fcd2dbfa113df6e3bc3b",
+      "target_hash": "a5506fe4cb20c2fa0dd4a525a53ff3135e2f476a651bb68460d251575be325c5",
+      "input_tokens": 63940,
+      "input_token_sha256": "32541475a74df5b4978e191ba76707689fefeb331811d895d80d325767f31178",
+      "targets": [
+        "b1aaba0a-fe98-4a72-b49e-8cbfb50c76fc"
+      ],
+      "prediction": " b1aaba0a-fe98-4a72-b49e-8cbfb50c76fc.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 19.38
+    },
+    {
+      "task": "niah_multikey_3",
+      "doc_id": 3,
+      "prompt_hash": "e18b5589d6ac098f5fc3593e8b848ee2038821714c12f9eeae377979b3f8091e",
+      "doc_hash": "626de243c6c60d70e1a22dd37c22c3828c1d9f4d3d9c8ca740009b6b0d11f53f",
+      "target_hash": "d8b87eae748972fa1242fd294888eb76e594751c754aeb76135faa1260a00ab8",
+      "input_tokens": 64109,
+      "input_token_sha256": "08a488ca37ee57f30fb04ac9671bd50e712483f79f59a1e27b08bcf25e181664",
+      "targets": [
+        "16ab5061-bcbe-4da2-8c64-971d254a1639"
+      ],
+      "prediction": " 16ab5061-bcbe-4da2-8c64-971d254a1639.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 19.432
+    }
+  ],
+  "task_scores": {
+    "niah_multikey_3": 100.0
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a9386abf966e1d68244cc26d864b2ada5a68b2985d15216cd97c6f2d92ee77f0",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "2048",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "2"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 16,
+  "selection": "prefix",
+  "tasks": [
+    "niah_multiquery"
+  ],
+  "records": [
+    {
+      "task": "niah_multiquery",
+      "doc_id": 0,
+      "prompt_hash": "caeed53b3224b86b72a11b7b5684402c4ccb7a576320ab5800bef858246553f9",
+      "doc_hash": "c085d617de2796ed45983767e126505fa4fd12f3fea6d955110872d46973aa17",
+      "target_hash": "121a6673ef9c4c3057955b16534f65415fa3c2a7eda1eb9d164243c41328e318",
+      "input_tokens": 65082,
+      "input_token_sha256": "8f8c4f62aae03e964b5d4f5378d3570b0ea70c40eb86ddd9e6c71b2005c5b7c3",
+      "targets": [
+        "1614394",
+        "9646701",
+        "8942330",
+        "4206183"
+      ],
+      "prediction": ":\n\n- **gaping-exception**: 1614394\n- **hulking-macrame**: 9646701\n- **marked-migrant**: 8942330\n- **threatening-champion**: 4206183",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 43.561
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 1,
+      "prompt_hash": "e8ad30a65e2b469122a45c96072982d4715de7ad82d573dacccd21cb4ad38915",
+      "doc_hash": "4944afd3332c0f832112cd81f6487204d16e08e2e3dda0a7d366341119a46679",
+      "target_hash": "7148c588029934b40db91dec0d00c860c9dffb09247ab1e166a36feb539bab20",
+      "input_tokens": 65082,
+      "input_token_sha256": "18122e88ec04646c44f9fe0d29f531582d86601cbdd3de19faa63b13ae43adae",
+      "targets": [
+        "9347057",
+        "8377556",
+        "6688090",
+        "9324908"
+      ],
+      "prediction": " as follows:\n\n- **Voiceless-agency**: 9347057\n- **Materialistic-seeker**: 8377556\n- **Lyrical-dance**: 6688090\n- **Elderly-bean**: 9324908\n\nThese numbers are explicitly stated in the text as \"special magic numbers\" for each respective term.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 42.678
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 2,
+      "prompt_hash": "0d528b27e45d9fa4360dbf5931d9058fafb3762c5681a5508e25daf2f68aa54e",
+      "doc_hash": "873a6b563428aa42dbd906c1501a37986abe55311b07a64d5948db2850df2f63",
+      "target_hash": "60160e11e4fa163d8e23339cebf5144ff5556b38472127162348629d8822f287",
+      "input_tokens": 65085,
+      "input_token_sha256": "7924a94fa16b30fac14d22664368d4373b270fc7e14f01e13ae97eb6369b6033",
+      "targets": [
+        "2721307",
+        "6501583",
+        "5960015",
+        "5928582"
+      ],
+      "prediction": ":\n\n- **ill-embryo**: 2721307\n- **brash-apple**: 6501583\n- **typical-kebab**: 5960015\n- **salty-privilege**: 5928582",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 42.098
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 3,
+      "prompt_hash": "d741ba0a86b64c0ea76c70a9db45f32eccdde288c2e527184d8e7726578684fb",
+      "doc_hash": "8600203f3bad1f4b267731c16e7cb8319ffd62dc8c3559133093d3f0b9748e16",
+      "target_hash": "14d4c54c06122a4be75cd17b9b72ec4cc441dfb6cc6b6c95902f37b04c6d7691",
+      "input_tokens": 65085,
+      "input_token_sha256": "448687b67ddb2d709eb6b4718d14f49714b2a548c3d0d16bbfd68ba487cb2c2a",
+      "targets": [
+        "6914963",
+        "1710601",
+        "8297090",
+        "1962308"
+      ],
+      "prediction": " 6914963, 1710601, 8297090, and 1962308, respectively.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 40.896
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 4,
+      "prompt_hash": "5c26082f9d0677786ae6ade017feee4f40fd0759520fa323deecc1812a5082d6",
+      "doc_hash": "09b06b29b049717eb3b7091413d74df46f5695f3dfc30c4d5e613dcee3527a68",
+      "target_hash": "d7989de17c2aa99ba54eccdaa0f9b5756716e66f88835ca8ea39dd631782e0ef",
+      "input_tokens": 65079,
+      "input_token_sha256": "a4166f3a32e0440ee40c77996e4cce6b545fde94143b11d982ad495601d1e303",
+      "targets": [
+        "7423230",
+        "4959345",
+        "7145971",
+        "3117788"
+      ],
+      "prediction": ":\n\n- **late-underwriting**: 7423230\n- **bewildered-chuck**: 4959345\n- **thirsty-yurt**: 7145971\n- **alcoholic-army**: 3117788",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 42.056
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 5,
+      "prompt_hash": "07ac3c186b45f056a790e15c833cbb9af1a78d4d6157a042f04ef4922bcf5869",
+      "doc_hash": "5abff42f7a1ce67e5d83e3219028f10406dc655cb3157fa2df2f8a1805e26624",
+      "target_hash": "a8ea9d34493db82e0c797ba07446d32ac9073437901842d466ea7fe9d4be3768",
+      "input_tokens": 65079,
+      "input_token_sha256": "f1b768aa7eeb940aeb01d54e2b699733ff964fff82563d6055f9433cc1d143e2",
+      "targets": [
+        "5675638",
+        "6274512",
+        "7156398",
+        "3310140"
+      ],
+      "prediction": ":\n\n- **tightfisted-hostel**: 5675638\n- **marked-expedition**: 6274512\n- **rhetorical-talk**: 7156398\n- **bored-boundary**: 3310140",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.851
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 6,
+      "prompt_hash": "36ef8080ebb7de25419ea1e698580bcc00ba62cea5780cf074b3ae02adfc4d62",
+      "doc_hash": "a4a4c0abf207e8c669e0251f88364cfa00a748ea0e44e62db6293d8f02580059",
+      "target_hash": "a35bb559aa096b1b7caaf0cc70cbffec53d0766b1aba3fc1b9d9a5c1a29b3851",
+      "input_tokens": 65085,
+      "input_token_sha256": "2a00cfef108038b7a106e1e7a75ccb78fa8025d3b5eb21112c330b57c4b776a2",
+      "targets": [
+        "9240971",
+        "5366937",
+        "8487220",
+        "5791184"
+      ],
+      "prediction": ":\n\n- voracious-gear: 9240971\n- glib-serval: 5366937\n- watery-snowboarding: 8487220\n- famous-greenhouse: 5791184",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.627
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 7,
+      "prompt_hash": "367cc05d200edadc84a4d1cbfab90ea53861b43316044967988c74d902b63ea7",
+      "doc_hash": "73b66578fdc8f784c87fc230665a5e76ef8b6342dc633af9da0593c47969c33c",
+      "target_hash": "1bdb1db3c3229e43b147f1f5e03f7a8e7e6e59e091484f6b1a87f54cbe462150",
+      "input_tokens": 65079,
+      "input_token_sha256": "f6ffc2fa48d8def96b63acf62c8233d8c17a1a25bc4163a2d4f1322fbb5c1b4f",
+      "targets": [
+        "6828829",
+        "6361793",
+        "2089496",
+        "5871470"
+      ],
+      "prediction": ":\n\n- **unbecoming-assassination**: 6828829\n- **utter-investment**: 6361793\n- **whispering-paddock**: 2089496\n- **scattered-dueling**: 5871470",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.908
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 8,
+      "prompt_hash": "9be5562a747d57ca47644458da7d17771f28217fe6f230a414d4d37683358555",
+      "doc_hash": "407e0797f992bc4f1c62c1d47538fa8baab25a9722fc5cac6a6d348bf1d438db",
+      "target_hash": "4301908abadef3516f89ea968b97e66ef3d0898d68e4e1f4fe307dfeab91479d",
+      "input_tokens": 65076,
+      "input_token_sha256": "d19cc606198e43d4a2798767d52bbf4ed9ddd5df314832cb8cd7a87479ac84c6",
+      "targets": [
+        "3177199",
+        "7189302",
+        "7054838",
+        "9288312"
+      ],
+      "prediction": ":\n\n- **painstaking-care**: 3177199\n- **secretive-dirt**: 7189302\n- **adaptable-liar**: 7054838\n- **foamy-smuggling**: 9288312",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 42.021
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 9,
+      "prompt_hash": "86a0d14a3758f7e848f04e40dc5eb309ef9b2259a81f324aad79ae5a4bb0f350",
+      "doc_hash": "4d37fae686b4a433fac54efda9765b03eb64376673f1264a8feaed3e5e1df104",
+      "target_hash": "59172ea5ae1a6a4735e5152db0be6c957b2206f2c348406305458c32ba02df8f",
+      "input_tokens": 65079,
+      "input_token_sha256": "410a656d0916127b2f0b61766ac79910990e8a30b3ba08e5c46dd56a7da7dad3",
+      "targets": [
+        "6318841",
+        "2237331",
+        "8815384",
+        "2244282"
+      ],
+      "prediction": " 6318841, 2237331, 8815384, and 2244282, respectively.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 40.948
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 10,
+      "prompt_hash": "9a971d15bbf1387db49560d4c376c9990082b63ff1db8a830387d674d7a5e3d6",
+      "doc_hash": "15bf0a791befd2c6d7909d49a97a3a87318f4e140986a7cf00207de34c6083f7",
+      "target_hash": "3b869ce292344c3d9d8b219ccf9c6ee5c8e50e17cb9288318756542b4605d950",
+      "input_tokens": 65085,
+      "input_token_sha256": "cda12ed59b55ff49518b348817674d9bc38ac719dacec32754e4663587a748b6",
+      "targets": [
+        "3717354",
+        "9692311",
+        "6102363",
+        "4782763"
+      ],
+      "prediction": " as follows:\n\n- **disillusioned-pint**: 3717354\n- **creepy-monk**: 9692311\n- **deranged-dioxide**: 6102363\n- **illustrious-bore**: 4782763\n\nThese numbers are explicitly stated in the text as \"One of the special magic numbers for [name] is: [number].\"",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 43.043
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 11,
+      "prompt_hash": "9d909493b891d79c11d35ec0d9f713d589b9022fa1c0b9670a2b82d081e9f6df",
+      "doc_hash": "7a8c51aacf3655d2288d91a0a463b6c0b11b91941a316807ff68ec5287c6936c",
+      "target_hash": "a65db50b54fb0b5d71240759a5118b9af72df3499a85d43a535c2a446a1c6982",
+      "input_tokens": 65085,
+      "input_token_sha256": "938437832627da6a76d7c1e269b71fab96bd933b8978b684c55950e4f7f34ba9",
+      "targets": [
+        "9431778",
+        "3829240",
+        "6080553",
+        "9950276"
+      ],
+      "prediction": ":\n\n- **Capricious-mileage**: 9431778\n- **Tested-specialist**: 3829240\n- **Tall-blackberry**: 6080553\n- **Succinct-wildebeest**: 9950276",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.929
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 12,
+      "prompt_hash": "e9a3494595dd5acf24d80ec5f3074501b8cef2841f44d9c5e26bf8bfa78c7644",
+      "doc_hash": "a7646299299211865d40b9edfcb3a99eaada7f3433d57e703ed0e3d003a4d7d9",
+      "target_hash": "8c033afac78113d36dd916091ae0e61318195409a8308f5342e048815cfe6fa3",
+      "input_tokens": 65088,
+      "input_token_sha256": "0e1effab145588787062d2d6f40ffe63e95c15f2b56b8ed3c88c23fac23f1117",
+      "targets": [
+        "4536777",
+        "7989166",
+        "5440189",
+        "1762722"
+      ],
+      "prediction": ":\n\n- **tired-gastropod**: 4536777\n- **slimy-plunger**: 7989166\n- **testy-hall**: 5440189\n- **brave-insect**: 1762722",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 42.121
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 13,
+      "prompt_hash": "be9924f7cbf65698ecc8bf659a96b17a8aa9c14e19932c384435791329e3d5db",
+      "doc_hash": "a62efff2cb990b25df44c3017ef0d8cfc99419bcdf6046c9367caa2d92ade0c5",
+      "target_hash": "b51f6a9e25b8ac9993faa5dd621f760647296537369bdc0fc2baee07e14b877d",
+      "input_tokens": 65079,
+      "input_token_sha256": "b8f338ec09d2bb76198ca2711130db9135117b737652171cd5d57af65cdfe51e",
+      "targets": [
+        "2005173",
+        "8375356",
+        "7813102",
+        "8609207"
+      ],
+      "prediction": ":\n\n- **blue-dictionary**: 2005173\n- **different-lycra**: 8375356\n- **fretful-taro**: 7813102\n- **hesitant-temporary**: 8609207",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.893
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 14,
+      "prompt_hash": "e012b8fd5a25069994c99376c2c3592b6b332934c073f23e4d1988121b194cb1",
+      "doc_hash": "94842b82b2dec0c925a089fe091efb30baf0240e922758e2646e9c7b1a7ec0cb",
+      "target_hash": "1ca70b46af9149334bf8c68c73312f5a8ef4ffc08bcbf8b428a8cbc01dd3155d",
+      "input_tokens": 65091,
+      "input_token_sha256": "8611b936d5161ec93dd45d6d97c210bbff203a00d21c32e31aa9f988db321397",
+      "targets": [
+        "9639932",
+        "6357240",
+        "6794356",
+        "3193891"
+      ],
+      "prediction": ":\n\n- **likeable-evaluator**: 9639932\n- **woebegone-mango**: 6357240\n- **zippy-cannon**: 6794356\n- **massive-clinic**: 3193891\n\nThese numbers are embedded within the text as part of the narrative, often appearing in contexts that seem unrelated to their actual purpose, such as in discussions about writing, startups, or technology. They are likely placeholders or codes used for specific purposes within the text, but their exact significance is not explained in the provided content.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 44.746
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 15,
+      "prompt_hash": "f664189e291de3a202d56f4d7053f7108ee6964688cf255622a05fa2f59cdc6b",
+      "doc_hash": "bc7ca1b10c0daf67f28a92fc2fd8929c77f4a62198b448106bade9ffc1b8b01e",
+      "target_hash": "286407f204e87e38d65cb3e25e26a24fb16657120411ff6e435cff25d814d308",
+      "input_tokens": 65079,
+      "input_token_sha256": "6c3618fd2c4b58e4ed6f067639b5c182fba183cec295ed7caa882f8728d8f1b8",
+      "targets": [
+        "7444964",
+        "3363534",
+        "8015136",
+        "1849015"
+      ],
+      "prediction": " 7444964, 3363534, 8015136, and 1849015, respectively.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 40.81
+    }
+  ],
+  "task_scores": {
+    "niah_multiquery": 100.0
+  }
+}

@@ -1,0 +1,647 @@
+{
+  "m": 16384,
+  "n": 53248,
+  "k": 5120,
+  "rows": [
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 32,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.162078666687012
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 20.638596216837566
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 18.168719863891603
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "bitwise_equal_sample": true,
+      "ms": 27.04108428955078
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 15.596257591247559
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 22.434289042154948
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 82944, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 21.304473876953125
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 18.555179850260416
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 20.746689224243163
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.941342926025392
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "bitwise_equal_sample": true,
+      "ms": 19.788621520996095
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 17.041040992736818
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 18.492259470621743
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 17.717353439331056
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.599728775024413
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 99328, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 17.584683863321942
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.32826499938965
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 15.354625988006593
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 13.069670562744141
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 99328, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 17.2396390914917
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 15.490540504455566
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 13.608381652832032
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 12.377561416625976
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 98304, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 18.17224464416504
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.25086898803711
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 15.017054462432862
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 14.61448793411255
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 98304, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 70.9348876953125
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 63.58593826293945
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 59.84977722167969
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 47.4523063659668
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 512,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 64.45242691040039
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 512,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 1,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 53.91085014343262
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 512,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2
+      },
+      "error": "out of resource: shared memory, Required: 83968, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 512,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 2,
+        "matrix_instr_nonkdim": 16,
+        "kpack": 2
+      },
+      "error": "out of resource: shared memory, Required: 83968, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 512,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 8,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 165888, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 21.62306849161784
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 19.75977439880371
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 256,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "error": "out of resource: shared memory, Required: 82944, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 1
+      },
+      "bitwise_equal_sample": true,
+      "ms": 23.201285298665365
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 20.984975051879882
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 64,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 8,
+        "num_warps": 4,
+        "num_stages": 3
+      },
+      "bitwise_equal_sample": true,
+      "ms": 23.06409200032552
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 4,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 17.588569513956706
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 16,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.646420097351076
+    },
+    {
+      "config": {
+        "BLOCK_SIZE_M": 128,
+        "BLOCK_SIZE_N": 256,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 32,
+        "num_warps": 4,
+        "num_stages": 2
+      },
+      "bitwise_equal_sample": true,
+      "ms": 16.383988666534425
+    },
+    {
+      "backend": "aiter-ck",
+      "bitwise_equal_sample": false,
+      "ms": 31.558149528503417
+    },
+    {
+      "backend": "aiter-triton",
+      "bitwise_equal_sample": true,
+      "ms": 26.50948848724365
+    }
+  ]
+}

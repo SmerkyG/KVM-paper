@@ -1,0 +1,91 @@
+{
+  "layer": 32,
+  "queries": 4096,
+  "regions": 3547,
+  "runs": [
+    {
+      "mode": "current",
+      "milliseconds": 4.052708129882812
+    },
+    {
+      "mode": "bf16",
+      "tile": "16,64,512,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011330135748721659,
+      "changed_coarse_values": 6707900,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 5.405115747451783
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,64,1024,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011473721679067239,
+      "changed_coarse_values": 6768991,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 4.624417037963867
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,128,1024,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011533177166711539,
+      "changed_coarse_values": 6793230,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 5.742547130584716
+    },
+    {
+      "mode": "bf16",
+      "tile": "64,64,1024,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011473721679067239,
+      "changed_coarse_values": 6768991,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 4.576888084411621
+    },
+    {
+      "mode": "bf16",
+      "tile": "64,128,1024,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011533177166711539,
+      "changed_coarse_values": 6793230,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 5.257168409559462
+    },
+    {
+      "mode": "bf16",
+      "tile": "128,64,1024,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011473721679067239,
+      "changed_coarse_values": 6768991,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 5.605691146850586
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,128,0,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.0001192341442219913,
+      "changed_coarse_values": 6950427,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 5.353590647379558
+    },
+    {
+      "mode": "bf16",
+      "tile": "64,128,0,4,1",
+      "changed_route_rows": 0,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.0001192341442219913,
+      "changed_coarse_values": 6950427,
+      "max_lse_error": 1.9073486328125e-06,
+      "milliseconds": 5.0585885365804035
+    }
+  ]
+}

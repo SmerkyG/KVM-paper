@@ -1,0 +1,202 @@
+{
+  "queries": 4096,
+  "regions": 3547,
+  "runs": [
+    {
+      "backend": "separate",
+      "ms": 4.178715085983276
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 1,
+      "bk": 16,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 1,
+      "bk": 16,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 1,
+      "bk": 32,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 1,
+      "bk": 32,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 1,
+      "bk": 64,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 1,
+      "bk": 64,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 1,
+      "bk": 16,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 1,
+      "bk": 16,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 1,
+      "bk": 32,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 1,
+      "bk": 32,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 1,
+      "bk": 64,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 1,
+      "bk": 64,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 2,
+      "bk": 16,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 2,
+      "bk": 16,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 2,
+      "bk": 32,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 2,
+      "bk": 32,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 2,
+      "bk": 64,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 8,
+      "packed_key": 2,
+      "bk": 64,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 2,
+      "bk": 16,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 2,
+      "bk": 16,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 2,
+      "bk": 32,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 2,
+      "bk": 32,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 2,
+      "bk": 64,
+      "unroll": 1,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    },
+    {
+      "backend": "fused",
+      "warps": 16,
+      "packed_key": 2,
+      "bk": 64,
+      "unroll": 4,
+      "error": "AttributeError(\"module 'triton.experimental.gluon.language' has no attribute 'range'\")"
+    }
+  ]
+}

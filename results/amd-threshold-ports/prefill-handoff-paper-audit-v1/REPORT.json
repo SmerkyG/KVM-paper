@@ -1,0 +1,139 @@
+{
+  "stage": "complete",
+  "cases": {
+    "k2-two-tier": {
+      "aligned": {
+        "checked": 512,
+        "mismatches": 0,
+        "lengths": [
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768
+        ],
+        "sha256": "cb155996b32abb107e03c586eea02a1b1a1a038db6cd8fb5744397cb9df8ed05"
+      },
+      "mixed": {
+        "checked": 0,
+        "mismatches": 0,
+        "lengths": [
+          24576,
+          31744,
+          32768,
+          28672,
+          20480,
+          27648,
+          12288,
+          16384
+        ],
+        "sha256": "d5282eb1cb5bf8fcb605753a27a93cc421b41f93e0555c9f2ea12cbf54de13bd"
+      }
+    },
+    "qwen-two-tier": {
+      "aligned": {
+        "checked": 128,
+        "mismatches": 0,
+        "lengths": [
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768
+        ],
+        "sha256": "57a458610379ac811ab9a9f08e4c892c26687b9e5acceadc889764748bd84023"
+      },
+      "mixed": {
+        "checked": 0,
+        "mismatches": 0,
+        "lengths": [
+          24576,
+          31744,
+          32768,
+          28672,
+          20480,
+          27648,
+          12288,
+          16384
+        ],
+        "sha256": "8c7f0b703ee05d6521919817dffd2a02c2a86d90692b3d772ff1882fceb62208"
+      }
+    },
+    "k2-three-tier-bf16": {
+      "aligned": {
+        "checked": 512,
+        "mismatches": 0,
+        "lengths": [
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768
+        ],
+        "sha256": "cb155996b32abb107e03c586eea02a1b1a1a038db6cd8fb5744397cb9df8ed05"
+      },
+      "mixed": {
+        "checked": 0,
+        "mismatches": 0,
+        "lengths": [
+          24576,
+          31744,
+          32768,
+          28672,
+          20480,
+          27648,
+          12288,
+          16384
+        ],
+        "sha256": "d5282eb1cb5bf8fcb605753a27a93cc421b41f93e0555c9f2ea12cbf54de13bd"
+      }
+    },
+    "qwen-three-tier-bf16": {
+      "aligned": {
+        "checked": 128,
+        "mismatches": 0,
+        "lengths": [
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768,
+          32768
+        ],
+        "sha256": "57a458610379ac811ab9a9f08e4c892c26687b9e5acceadc889764748bd84023"
+      },
+      "mixed": {
+        "checked": 0,
+        "mismatches": 0,
+        "lengths": [
+          24576,
+          31744,
+          32768,
+          28672,
+          20480,
+          27648,
+          12288,
+          16384
+        ],
+        "sha256": "8c7f0b703ee05d6521919817dffd2a02c2a86d90692b3d772ff1882fceb62208"
+      }
+    }
+  },
+  "initial_mixed_assertion_runs": [
+    "26161-amd-k2-paper-handoff-k2-two-tier",
+    "26162-amd-k2-paper-handoff-qwen-two-tier",
+    "26163-amd-k2-paper-handoff-k2-three-tier-bf16",
+    "26164-amd-k2-paper-handoff-qwen-three-tier-bf16"
+  ]
+}

@@ -1,0 +1,828 @@
+{
+  "task": "ruler_qa_squad",
+  "arm": "sparse",
+  "mode": "two-tier",
+  "input_sha256": "8676172f42a1f1f4c8018f378948939218d8aca090481842d2e4251c8349cead",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": 0,
+      "input_sha256": "0d32b802459333715de710ef120743750f004e7c123d60fa67a31936c1d76f83",
+      "input_tokens": 124924,
+      "output_tokens": 2,
+      "prediction": " France",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19309603539,
+          410939370963,
+          47970816
+        ],
+        "decode": [
+          1868754,
+          2260818,
+          768
+        ]
+      },
+      "elapsed_s": 15.686676677316427,
+      "ttft_s": 15.655506610870361,
+      "decode_ms_per_token": 28.51598709821701
+    },
+    {
+      "id": 1,
+      "input_sha256": "324723a4780f294fd961cc3ba342748a332bba1062419df6a03c9a238366b5d1",
+      "input_tokens": 127073,
+      "output_tokens": 13,
+      "prediction": " in the 10th and 11th centuries",
+      "returned_tokens": 13,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20546785853,
+          421722651965,
+          48796032
+        ],
+        "decode": [
+          11599842,
+          13401954,
+          4992
+        ]
+      },
+      "elapsed_s": 16.31037842296064,
+      "ttft_s": 15.967828035354614,
+      "decode_ms_per_token": 28.568823045740526
+    },
+    {
+      "id": 2,
+      "input_sha256": "6893a78ee1eeda9c8c4449767dd9d3a3a37e5477c0e1598b3006a230a5fe37e1",
+      "input_tokens": 127841,
+      "output_tokens": 7,
+      "prediction": " Denmark, Iceland, and Norway",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          20241277323,
+          425258814603,
+          49090944
+        ],
+        "decode": [
+          6202536,
+          7164840,
+          2688
+        ]
+      },
+      "elapsed_s": 16.262147713452578,
+      "ttft_s": 16.091650009155273,
+      "decode_ms_per_token": 28.584640473127365
+    },
+    {
+      "id": 3,
+      "input_sha256": "f231ecebaf26e613d08f4eb179c5d8b745ef30a98a319637ce88e71f9c149112",
+      "input_tokens": 125983,
+      "output_tokens": 3,
+      "prediction": " Rollo",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20358539576,
+          416470876088,
+          48377472
+        ],
+        "decode": [
+          2742882,
+          3076962,
+          1152
+        ]
+      },
+      "elapsed_s": 15.9042809586972,
+      "ttft_s": 15.848275184631348,
+      "decode_ms_per_token": 28.46228238195181
+    },
+    {
+      "id": 4,
+      "input_sha256": "6c13753405be18cb7d1647bcb03b342059ec4c316187736d0ed5e88738df7441",
+      "input_tokens": 127341,
+      "output_tokens": 6,
+      "prediction": " 10th century",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 0.75,
+      "work": {
+        "prefill": [
+          20331882206,
+          422822603486,
+          48898944
+        ],
+        "decode": [
+          5424828,
+          6276156,
+          2304
+        ]
+      },
+      "elapsed_s": 16.162322901189327,
+      "ttft_s": 16.020339250564575,
+      "decode_ms_per_token": 28.58204133808613
+    },
+    {
+      "id": 5,
+      "input_sha256": "d69e3339416ac8e3b30f36e254a8dda84ddda505e1a94ac35b6e830f3435f8a8",
+      "input_tokens": 126758,
+      "output_tokens": 7,
+      "prediction": " Duke William II of Normandy",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          20355005016,
+          420020685528,
+          48675072
+        ],
+        "decode": [
+          6263172,
+          7066884,
+          2688
+        ]
+      },
+      "elapsed_s": 16.448937200009823,
+      "ttft_s": 16.27700972557068,
+      "decode_ms_per_token": 28.94107686976592
+    },
+    {
+      "id": 6,
+      "input_sha256": "1fc931984e0c397a3d93b6575e9164621174909f806c6a74d356c98d4ff84f74",
+      "input_tokens": 129481,
+      "output_tokens": 4,
+      "prediction": " The Normans",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          21209595866,
+          435188932826,
+          49720704
+        ],
+        "decode": [
+          3621564,
+          4328892,
+          1536
+        ]
+      },
+      "elapsed_s": 16.557642923668027,
+      "ttft_s": 16.4719820022583,
+      "decode_ms_per_token": 28.585365042090416
+    },
+    {
+      "id": 7,
+      "input_sha256": "363de0ad75b99d259370240ca1d70b1275ca4278b4cabf8a93af10441c9038fe",
+      "input_tokens": 128449,
+      "output_tokens": 2,
+      "prediction": " Christianity",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          20991910422,
+          429211399446,
+          49324416
+        ],
+        "decode": [
+          1874694,
+          2221446,
+          768
+        ]
+      },
+      "elapsed_s": 16.19794130884111,
+      "ttft_s": 16.165918111801147,
+      "decode_ms_per_token": 28.597675263881683
+    },
+    {
+      "id": 8,
+      "input_sha256": "9445b6d07543f4717c74913f3501a8be762582968fb764b762f82ca2d4afb14a",
+      "input_tokens": 127013,
+      "output_tokens": 5,
+      "prediction": " Norseman, Viking",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20279676642,
+          421164950754,
+          48772992
+        ],
+        "decode": [
+          3589008,
+          4159248,
+          1920
+        ]
+      },
+      "elapsed_s": 16.094871874898672,
+      "ttft_s": 15.981188774108887,
+      "decode_ms_per_token": 28.457597363740206
+    },
+    {
+      "id": 9,
+      "input_sha256": "58fd0082401fde4ad8b394e19fb03e8c378416bbe2f1383d649c0547d5092ce4",
+      "input_tokens": 127672,
+      "output_tokens": 5,
+      "prediction": " 9th century",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20469021006,
+          424621754190,
+          49026048
+        ],
+        "decode": [
+          4288074,
+          5140554,
+          1920
+        ]
+      },
+      "elapsed_s": 16.180109126493335,
+      "ttft_s": 16.067127466201782,
+      "decode_ms_per_token": 28.466613963246346
+    },
+    {
+      "id": 10,
+      "input_sha256": "70ee65593ec863ab01533280a91193bd3570528bca23094f27b62b7a3d9355b7",
+      "input_tokens": 129610,
+      "output_tokens": 5,
+      "prediction": " 911",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20586591179,
+          435314664779,
+          49770240
+        ],
+        "decode": [
+          4291944,
+          4933224,
+          1920
+        ]
+      },
+      "elapsed_s": 16.461369302123785,
+      "ttft_s": 16.347927808761597,
+      "decode_ms_per_token": 28.417876921594143
+    },
+    {
+      "id": 11,
+      "input_sha256": "608cbdf4e4ac1d7b66be9833d3d83aa3cbd8a777ae20b79f99e8f98d52b09f56",
+      "input_tokens": 124131,
+      "output_tokens": 7,
+      "prediction": " King Charles III of West Francia",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20269743230,
+          408824852990,
+          47666304
+        ],
+        "decode": [
+          5994774,
+          7306518,
+          2688
+        ]
+      },
+      "elapsed_s": 15.748073916882277,
+      "ttft_s": 15.578076839447021,
+      "decode_ms_per_token": 28.492535464465618
+    },
+    {
+      "id": 12,
+      "input_sha256": "7b157528d3fe4cd92703805b3af8b5885cc078b9a29343b47489c99dbd7a905a",
+      "input_tokens": 125457,
+      "output_tokens": 5,
+      "prediction": " the river Epte",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 0.3333333333333333,
+      "work": {
+        "prefill": [
+          19838067117,
+          413670105261,
+          48175488
+        ],
+        "decode": [
+          4249218,
+          4781058,
+          1920
+        ]
+      },
+      "elapsed_s": 15.868360022082925,
+      "ttft_s": 15.75390911102295,
+      "decode_ms_per_token": 28.611005283892155
+    },
+    {
+      "id": 13,
+      "input_sha256": "e4c1168adde1115005e4f342efab917a664be362174b181738c52535010110bd",
+      "input_tokens": 124952,
+      "output_tokens": 3,
+      "prediction": " Rollo",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19575544029,
+          411318288093,
+          47981568
+        ],
+        "decode": [
+          2600886,
+          2926902,
+          1152
+        ]
+      },
+      "elapsed_s": 15.77359858341515,
+      "ttft_s": 15.708878755569458,
+      "decode_ms_per_token": 28.451156802475452
+    },
+    {
+      "id": 14,
+      "input_sha256": "76fa80633961d78ccca0cb2b0069b650a4eb61d28f514e394b7e1712e0e62fda",
+      "input_tokens": 127710,
+      "output_tokens": 3,
+      "prediction": " Catholicism",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19862570282,
+          424208800682,
+          49040640
+        ],
+        "decode": [
+          2603640,
+          3157752,
+          1152
+        ]
+      },
+      "elapsed_s": 16.138388155028224,
+      "ttft_s": 16.081512689590454,
+      "decode_ms_per_token": 28.508301824331284
+    },
+    {
+      "id": 15,
+      "input_sha256": "10b2c95480c5159fe1a604b6c4cbc508677d723c22758e1a1ff1fce6b04e76ee",
+      "input_tokens": 128342,
+      "output_tokens": 5,
+      "prediction": " the north of France",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20288708098,
+          427934403202,
+          49283328
+        ],
+        "decode": [
+          4221156,
+          4885476,
+          1920
+        ]
+      },
+      "elapsed_s": 16.275019200518727,
+      "ttft_s": 16.161575078964233,
+      "decode_ms_per_token": 28.578573372215033
+    },
+    {
+      "id": 16,
+      "input_sha256": "c7096b1d1c392c4f91fea22a6033f70efbafc7e34f8f6325f02f4128ca072e9d",
+      "input_tokens": 125154,
+      "output_tokens": 4,
+      "prediction": " fighting horsemen",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20125203324,
+          412691913468,
+          48059136
+        ],
+        "decode": [
+          3458070,
+          4203798,
+          1536
+        ]
+      },
+      "elapsed_s": 15.812119303271174,
+      "ttft_s": 15.726569652557373,
+      "decode_ms_per_token": 28.517395878831547
+    },
+    {
+      "id": 17,
+      "input_sha256": "90a14b6a4137492cc80df35a0f540f081d7c51388650a7a90af488a704309d48",
+      "input_tokens": 128046,
+      "output_tokens": 5,
+      "prediction": " The Seljuk Turks",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 0.6666666666666666,
+      "work": {
+        "prefill": [
+          19050157194,
+          425131437834,
+          49169664
+        ],
+        "decode": [
+          4256976,
+          4844496,
+          1920
+        ]
+      },
+      "elapsed_s": 16.244684483855963,
+      "ttft_s": 16.13074779510498,
+      "decode_ms_per_token": 28.62512320280075
+    },
+    {
+      "id": 18,
+      "input_sha256": "4aecb3c5c778fce88e5ea342748b1a826373d930670eacedc0d34522034b13fb",
+      "input_tokens": 126448,
+      "output_tokens": 7,
+      "prediction": " 1050s",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.3333333333333333,
+      "work": {
+        "prefill": [
+          19942790720,
+          418159456832,
+          48556032
+        ],
+        "decode": [
+          6493452,
+          7840140,
+          2688
+        ]
+      },
+      "elapsed_s": 16.06151253543794,
+      "ttft_s": 15.89020323753357,
+      "decode_ms_per_token": 28.56516931205988
+    },
+    {
+      "id": 19,
+      "input_sha256": "a8f4bead0eea465da9bf76b537de53356f0198cf87eb04b3cf4cf3d6f6f2da7c",
+      "input_tokens": 125128,
+      "output_tokens": 19,
+      "prediction": " The provided documents do not contain information about Robert Crispin going up against the Turks.",
+      "returned_tokens": 19,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          18780059093,
+          411239835605,
+          48049152
+        ],
+        "decode": [
+          17485554,
+          20892786,
+          7296
+        ]
+      },
+      "elapsed_s": 16.223229371011257,
+      "ttft_s": 15.708542108535767,
+      "decode_ms_per_token": 28.60081299311585
+    },
+    {
+      "id": 20,
+      "input_sha256": "749797c2a17f9ac2d6c0c5dc8744c942d18b4aa10544d59e97ea1e0f30533667",
+      "input_tokens": 128517,
+      "output_tokens": 6,
+      "prediction": " Alexius Komnenos",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20163648049,
+          428750075953,
+          49350528
+        ],
+        "decode": [
+          4966764,
+          5578476,
+          2304
+        ]
+      },
+      "elapsed_s": 16.32533505745232,
+      "ttft_s": 16.182127714157104,
+      "decode_ms_per_token": 28.63648384809494
+    },
+    {
+      "id": 21,
+      "input_sha256": "aeaf78ddc9fb06fae73b21748ceffb792f098a147150052edfc8d395922c4a1e",
+      "input_tokens": 127128,
+      "output_tokens": 32,
+      "prediction": " The documents do not specify a single \"Norman castle\" by name, but mention several, including Trim Castle, Dublin Castle, and the Royal Castle (Cur",
+      "returned_tokens": 32,
+      "finish_reason": "length",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          19607679459,
+          421051135971,
+          48817152
+        ],
+        "decode": [
+          29126922,
+          34186122,
+          11904
+        ]
+      },
+      "elapsed_s": 16.88057291507721,
+      "ttft_s": 15.99434757232666,
+      "decode_ms_per_token": 28.59642801265563
+    },
+    {
+      "id": 22,
+      "input_sha256": "3737ae5fd5cfeb6c44001da00aab4c0043c6cc4b2d4c7bc4256b64c0c62e336b",
+      "input_tokens": 126813,
+      "output_tokens": 4,
+      "prediction": " Oursel",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19188623541,
+          419115241653,
+          48696192
+        ],
+        "decode": [
+          3296454,
+          3837894,
+          1536
+        ]
+      },
+      "elapsed_s": 16.029316755011678,
+      "ttft_s": 15.9437837600708,
+      "decode_ms_per_token": 28.63580236832301
+    },
+    {
+      "id": 23,
+      "input_sha256": "0159eac1159c2348fa1cc0ad90ef45f930bc4149369147e49f1be336f32411d5",
+      "input_tokens": 128729,
+      "output_tokens": 3,
+      "prediction": " Armenians",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          20493797241,
+          430235608185,
+          49431936
+        ],
+        "decode": [
+          2759046,
+          3307398,
+          1152
+        ]
+      },
+      "elapsed_s": 16.260138960555196,
+      "ttft_s": 16.203105211257935,
+      "decode_ms_per_token": 28.569385409355164
+    },
+    {
+      "id": 24,
+      "input_sha256": "6488aa41abc4ac38c014bc5ad5d8d09db86e21fdd74f14b477f6b0d93cb7dec0",
+      "input_tokens": 128097,
+      "output_tokens": 32,
+      "prediction": " They were of Norman mercenary origin, specifically descended from an Italo-Norman named Raoul who served under George Maniaces in the Sicilian expedition of",
+      "returned_tokens": 32,
+      "finish_reason": "length",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19675110735,
+          426023536719,
+          49189248
+        ],
+        "decode": [
+          23126376,
+          27530856,
+          11904
+        ]
+      },
+      "elapsed_s": 17.0173108112067,
+      "ttft_s": 16.131807804107666,
+      "decode_ms_per_token": 28.584714738592023
+    },
+    {
+      "id": 25,
+      "input_sha256": "477e3edbd27932db8d7c4f240415bfb8eddf7d2439af3d38932028cbd59f2516",
+      "input_tokens": 127939,
+      "output_tokens": 4,
+      "prediction": " Robert Guiscard",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20485838337,
+          426009883521,
+          49128576
+        ],
+        "decode": [
+          3533334,
+          4231446,
+          1536
+        ]
+      },
+      "elapsed_s": 16.20111585408449,
+      "ttft_s": 16.115489721298218,
+      "decode_ms_per_token": 28.59843149781227
+    },
+    {
+      "id": 26,
+      "input_sha256": "e5a0362b6938c098732dbf35fda4c0d0a9ee7fd8001d7de7e8fd9b1bc0b1e4bc",
+      "input_tokens": 126012,
+      "output_tokens": 7,
+      "prediction": " February 1082",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20307171106,
+          416548317730,
+          48388608
+        ],
+        "decode": [
+          6476640,
+          7339488,
+          2688
+        ]
+      },
+      "elapsed_s": 16.00764057971537,
+      "ttft_s": 15.835999965667725,
+      "decode_ms_per_token": 28.600074350833893
+    },
+    {
+      "id": 27,
+      "input_sha256": "b9fd21e1acec599fa80015a86975b2fe5c483094c4911d5060ab1350a780ec41",
+      "input_tokens": 125489,
+      "output_tokens": 8,
+      "prediction": " 30,000",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          20016871438,
+          413984599822,
+          48187776
+        ],
+        "decode": [
+          7668084,
+          8621940,
+          3072
+        ]
+      },
+      "elapsed_s": 15.966631699353456,
+      "ttft_s": 15.766199827194214,
+      "decode_ms_per_token": 28.64728681743145
+    },
+    {
+      "id": 28,
+      "input_sha256": "a501e6429023d17f3faf0824bd3bb2b50d0a1a95341d05d65c63bfdc0df86fdd",
+      "input_tokens": 129307,
+      "output_tokens": 4,
+      "prediction": " Deabolis",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19788465851,
+          432768001595,
+          49653888
+        ],
+        "decode": [
+          3444642,
+          3884706,
+          1536
+        ]
+      },
+      "elapsed_s": 16.394964803010225,
+      "ttft_s": 16.3095440864563,
+      "decode_ms_per_token": 28.520379836360615
+    },
+    {
+      "id": 29,
+      "input_sha256": "c129d59ab503fb453c00eeb7e8bbd763ad741120f416d89562e0df2a66f72b88",
+      "input_tokens": 126546,
+      "output_tokens": 4,
+      "prediction": " Bohemond",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19132075163,
+          417802827803,
+          48593664
+        ],
+        "decode": [
+          3329436,
+          3853980,
+          1536
+        ]
+      },
+      "elapsed_s": 15.98641524836421,
+      "ttft_s": 15.904396772384644,
+      "decode_ms_per_token": 28.582672278086346
+    },
+    {
+      "id": 30,
+      "input_sha256": "13c701bc41202dfde4431511ab24bc2b0bb0a6775d301f9ed7dc2aca4cd1873b",
+      "input_tokens": 125347,
+      "output_tokens": 6,
+      "prediction": " the river Deabolis",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19889800217,
+          413258402201,
+          48133248
+        ],
+        "decode": [
+          5321796,
+          6297540,
+          2304
+        ]
+      },
+      "elapsed_s": 15.887685498222709,
+      "ttft_s": 15.744359970092773,
+      "decode_ms_per_token": 28.619156032800674
+    },
+    {
+      "id": 31,
+      "input_sha256": "19afc8f34927bceb75b2eefc3b543f5b26d6ec9b4540709e657f393fdc4d2d82",
+      "input_tokens": 127269,
+      "output_tokens": 6,
+      "prediction": " 1081",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          20763809871,
+          422898576975,
+          48871296
+        ],
+        "decode": [
+          5657160,
+          6342600,
+          2304
+        ]
+      },
+      "elapsed_s": 16.143499506637454,
+      "ttft_s": 16.000853061676025,
+      "decode_ms_per_token": 28.55588234961033
+    }
+  ]
+}

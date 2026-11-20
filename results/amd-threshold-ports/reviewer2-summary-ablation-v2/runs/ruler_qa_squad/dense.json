@@ -1,0 +1,828 @@
+{
+  "task": "ruler_qa_squad",
+  "arm": "dense",
+  "mode": "full",
+  "input_sha256": "8676172f42a1f1f4c8018f378948939218d8aca090481842d2e4251c8349cead",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": 0,
+      "input_sha256": "0d32b802459333715de710ef120743750f004e7c123d60fa67a31936c1d76f83",
+      "input_tokens": 124924,
+      "output_tokens": 2,
+      "prediction": " France",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7803065350,
+          124924
+        ],
+        "decode": [
+          null,
+          124925,
+          1
+        ]
+      },
+      "elapsed_s": 39.27057340182364,
+      "ttft_s": 39.23221731185913,
+      "decode_ms_per_token": 34.290311858057976
+    },
+    {
+      "id": 1,
+      "input_sha256": "324723a4780f294fd961cc3ba342748a332bba1062419df6a03c9a238366b5d1",
+      "input_tokens": 127073,
+      "output_tokens": 13,
+      "prediction": " in the 10th and 11th centuries",
+      "returned_tokens": 13,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8073837201,
+          127073
+        ],
+        "decode": [
+          null,
+          1524954,
+          12
+        ]
+      },
+      "elapsed_s": 40.68586455471814,
+      "ttft_s": 40.276535987854004,
+      "decode_ms_per_token": 34.11967710902294
+    },
+    {
+      "id": 2,
+      "input_sha256": "6893a78ee1eeda9c8c4449767dd9d3a3a37e5477c0e1598b3006a230a5fe37e1",
+      "input_tokens": 127841,
+      "output_tokens": 7,
+      "prediction": " Denmark, Iceland, and Norway",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          null,
+          8171724561,
+          127841
+        ],
+        "decode": [
+          null,
+          767067,
+          6
+        ]
+      },
+      "elapsed_s": 40.99331409111619,
+      "ttft_s": 40.78850507736206,
+      "decode_ms_per_token": 34.142969797054924
+    },
+    {
+      "id": 3,
+      "input_sha256": "f231ecebaf26e613d08f4eb179c5d8b745ef30a98a319637ce88e71f9c149112",
+      "input_tokens": 125983,
+      "output_tokens": 3,
+      "prediction": " Rollo",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7935921136,
+          125983
+        ],
+        "decode": [
+          null,
+          251969,
+          2
+        ]
+      },
+      "elapsed_s": 40.06160412169993,
+      "ttft_s": 39.99342679977417,
+      "decode_ms_per_token": 34.104347229003906
+    },
+    {
+      "id": 4,
+      "input_sha256": "6c13753405be18cb7d1647bcb03b342059ec4c316187736d0ed5e88738df7441",
+      "input_tokens": 127341,
+      "output_tokens": 6,
+      "prediction": " 10th century",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 0.75,
+      "work": {
+        "prefill": [
+          null,
+          8107928811,
+          127341
+        ],
+        "decode": [
+          null,
+          636720,
+          5
+        ]
+      },
+      "elapsed_s": 40.57840883359313,
+      "ttft_s": 40.407410860061646,
+      "decode_ms_per_token": 34.17108282446861
+    },
+    {
+      "id": 5,
+      "input_sha256": "d69e3339416ac8e3b30f36e254a8dda84ddda505e1a94ac35b6e830f3435f8a8",
+      "input_tokens": 126758,
+      "output_tokens": 7,
+      "prediction": " Duke William II of Normandy",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          null,
+          8033858661,
+          126758
+        ],
+        "decode": [
+          null,
+          760569,
+          6
+        ]
+      },
+      "elapsed_s": 40.41696394607425,
+      "ttft_s": 40.21250867843628,
+      "decode_ms_per_token": 34.083395885924496
+    },
+    {
+      "id": 6,
+      "input_sha256": "1fc931984e0c397a3d93b6575e9164621174909f806c6a74d356c98d4ff84f74",
+      "input_tokens": 129481,
+      "output_tokens": 3,
+      "prediction": " Rollo",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          null,
+          8382729421,
+          129481
+        ],
+        "decode": [
+          null,
+          258965,
+          2
+        ]
+      },
+      "elapsed_s": 41.74258196540177,
+      "ttft_s": 41.67441725730896,
+      "decode_ms_per_token": 34.07290484756231
+    },
+    {
+      "id": 7,
+      "input_sha256": "363de0ad75b99d259370240ca1d70b1275ca4278b4cabf8a93af10441c9038fe",
+      "input_tokens": 128449,
+      "output_tokens": 3,
+      "prediction": " Catholicism",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 0.6666666666666666,
+      "work": {
+        "prefill": [
+          null,
+          8249637025,
+          128449
+        ],
+        "decode": [
+          null,
+          256901,
+          2
+        ]
+      },
+      "elapsed_s": 41.08570244535804,
+      "ttft_s": 41.01768350601196,
+      "decode_ms_per_token": 34.01655051857233
+    },
+    {
+      "id": 8,
+      "input_sha256": "9445b6d07543f4717c74913f3501a8be762582968fb764b762f82ca2d4afb14a",
+      "input_tokens": 127013,
+      "output_tokens": 3,
+      "prediction": " Norseman",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          null,
+          8066214591,
+          127013
+        ],
+        "decode": [
+          null,
+          254029,
+          2
+        ]
+      },
+      "elapsed_s": 40.32025297731161,
+      "ttft_s": 40.25199246406555,
+      "decode_ms_per_token": 34.12093408405781
+    },
+    {
+      "id": 9,
+      "input_sha256": "58fd0082401fde4ad8b394e19fb03e8c378416bbe2f1383d649c0547d5092ce4",
+      "input_tokens": 127672,
+      "output_tokens": 5,
+      "prediction": " 9th century",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8150133628,
+          127672
+        ],
+        "decode": [
+          null,
+          510698,
+          4
+        ]
+      },
+      "elapsed_s": 40.909292032942176,
+      "ttft_s": 40.78019976615906,
+      "decode_ms_per_token": 34.094240982085466
+    },
+    {
+      "id": 10,
+      "input_sha256": "70ee65593ec863ab01533280a91193bd3570528bca23094f27b62b7a3d9355b7",
+      "input_tokens": 129610,
+      "output_tokens": 5,
+      "prediction": " 911",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8399440855,
+          129610
+        ],
+        "decode": [
+          null,
+          518450,
+          4
+        ]
+      },
+      "elapsed_s": 42.29943994060159,
+      "ttft_s": 42.16314220428467,
+      "decode_ms_per_token": 34.07408529892564
+    },
+    {
+      "id": 11,
+      "input_sha256": "608cbdf4e4ac1d7b66be9833d3d83aa3cbd8a777ae20b79f99e8f98d52b09f56",
+      "input_tokens": 124131,
+      "output_tokens": 7,
+      "prediction": " King Charles III of West Francia",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7704314646,
+          124131
+        ],
+        "decode": [
+          null,
+          744807,
+          6
+        ]
+      },
+      "elapsed_s": 39.362274589017034,
+      "ttft_s": 39.15386962890625,
+      "decode_ms_per_token": 34.74533061186472
+    },
+    {
+      "id": 12,
+      "input_sha256": "7b157528d3fe4cd92703805b3af8b5885cc078b9a29343b47489c99dbd7a905a",
+      "input_tokens": 125457,
+      "output_tokens": 5,
+      "prediction": " the river Epte",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 0.3333333333333333,
+      "work": {
+        "prefill": [
+          null,
+          7869792153,
+          125457
+        ],
+        "decode": [
+          null,
+          501838,
+          4
+        ]
+      },
+      "elapsed_s": 39.64828963764012,
+      "ttft_s": 39.51222825050354,
+      "decode_ms_per_token": 34.04527995735407
+    },
+    {
+      "id": 13,
+      "input_sha256": "e4c1168adde1115005e4f342efab917a664be362174b181738c52535010110bd",
+      "input_tokens": 124952,
+      "output_tokens": 3,
+      "prediction": " Rollo",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7806563628,
+          124952
+        ],
+        "decode": [
+          null,
+          249907,
+          2
+        ]
+      },
+      "elapsed_s": 39.86532568745315,
+      "ttft_s": 39.79722309112549,
+      "decode_ms_per_token": 34.07500218600035
+    },
+    {
+      "id": 14,
+      "input_sha256": "76fa80633961d78ccca0cb2b0069b650a4eb61d28f514e394b7e1712e0e62fda",
+      "input_tokens": 127710,
+      "output_tokens": 3,
+      "prediction": " Catholicism",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8154985905,
+          127710
+        ],
+        "decode": [
+          null,
+          255423,
+          2
+        ]
+      },
+      "elapsed_s": 41.350614903494716,
+      "ttft_s": 41.28246283531189,
+      "decode_ms_per_token": 34.084356389939785
+    },
+    {
+      "id": 15,
+      "input_sha256": "10b2c95480c5159fe1a604b6c4cbc508677d723c22758e1a1ff1fce6b04e76ee",
+      "input_tokens": 128342,
+      "output_tokens": 5,
+      "prediction": " the north of France",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8235898653,
+          128342
+        ],
+        "decode": [
+          null,
+          513378,
+          4
+        ]
+      },
+      "elapsed_s": 41.1152701061219,
+      "ttft_s": 40.97870230674744,
+      "decode_ms_per_token": 34.1492835432291
+    },
+    {
+      "id": 16,
+      "input_sha256": "c7096b1d1c392c4f91fea22a6033f70efbafc7e34f8f6325f02f4128ca072e9d",
+      "input_tokens": 125154,
+      "output_tokens": 4,
+      "prediction": " fighting horsemen",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7831824435,
+          125154
+        ],
+        "decode": [
+          null,
+          375468,
+          3
+        ]
+      },
+      "elapsed_s": 39.46579102613032,
+      "ttft_s": 39.3632128238678,
+      "decode_ms_per_token": 34.13780530293783
+    },
+    {
+      "id": 17,
+      "input_sha256": "90a14b6a4137492cc80df35a0f540f081d7c51388650a7a90af488a704309d48",
+      "input_tokens": 128046,
+      "output_tokens": 5,
+      "prediction": " The Seljuk Turks",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 0.6666666666666666,
+      "work": {
+        "prefill": [
+          null,
+          8197953081,
+          128046
+        ],
+        "decode": [
+          null,
+          512194,
+          4
+        ]
+      },
+      "elapsed_s": 40.99451827816665,
+      "ttft_s": 40.85744833946228,
+      "decode_ms_per_token": 34.243650268763304
+    },
+    {
+      "id": 18,
+      "input_sha256": "4aecb3c5c778fce88e5ea342748b1a826373d930670eacedc0d34522034b13fb",
+      "input_tokens": 126448,
+      "output_tokens": 9,
+      "prediction": " in the 1050s",
+      "returned_tokens": 9,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7994611576,
+          126448
+        ],
+        "decode": [
+          null,
+          1011620,
+          8
+        ]
+      },
+      "elapsed_s": 40.30142270773649,
+      "ttft_s": 40.02796959877014,
+      "decode_ms_per_token": 34.19731301255524
+    },
+    {
+      "id": 19,
+      "input_sha256": "a8f4bead0eea465da9bf76b537de53356f0198cf87eb04b3cf4cf3d6f6f2da7c",
+      "input_tokens": 125128,
+      "output_tokens": 9,
+      "prediction": " In the 1060s",
+      "returned_tokens": 9,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7828570756,
+          125128
+        ],
+        "decode": [
+          null,
+          1001060,
+          8
+        ]
+      },
+      "elapsed_s": 39.63280995376408,
+      "ttft_s": 39.36066794395447,
+      "decode_ms_per_token": 34.02245487086475
+    },
+    {
+      "id": 20,
+      "input_sha256": "749797c2a17f9ac2d6c0c5dc8744c942d18b4aa10544d59e97ea1e0f30533667",
+      "input_tokens": 128517,
+      "output_tokens": 6,
+      "prediction": " Alexius Komnenos",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8258373903,
+          128517
+        ],
+        "decode": [
+          null,
+          642600,
+          5
+        ]
+      },
+      "elapsed_s": 41.22373078763485,
+      "ttft_s": 41.053157567977905,
+      "decode_ms_per_token": 34.14361551403999
+    },
+    {
+      "id": 21,
+      "input_sha256": "aeaf78ddc9fb06fae73b21748ceffb792f098a147150052edfc8d395922c4a1e",
+      "input_tokens": 127128,
+      "output_tokens": 3,
+      "prediction": " Trim Castle",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          null,
+          8080827756,
+          127128
+        ],
+        "decode": [
+          null,
+          254259,
+          2
+        ]
+      },
+      "elapsed_s": 40.83654776960611,
+      "ttft_s": 40.76833701133728,
+      "decode_ms_per_token": 34.18252244591713
+    },
+    {
+      "id": 22,
+      "input_sha256": "3737ae5fd5cfeb6c44001da00aab4c0043c6cc4b2d4c7bc4256b64c0c62e336b",
+      "input_tokens": 126813,
+      "output_tokens": 4,
+      "prediction": " Oursel",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8040831891,
+          126813
+        ],
+        "decode": [
+          null,
+          380445,
+          3
+        ]
+      },
+      "elapsed_s": 40.34006518870592,
+      "ttft_s": 40.237915992736816,
+      "decode_ms_per_token": 34.067471201221146
+    },
+    {
+      "id": 23,
+      "input_sha256": "0159eac1159c2348fa1cc0ad90ef45f930bc4149369147e49f1be336f32411d5",
+      "input_tokens": 128729,
+      "output_tokens": 3,
+      "prediction": " Turkish forces",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8285642085,
+          128729
+        ],
+        "decode": [
+          null,
+          257461,
+          2
+        ]
+      },
+      "elapsed_s": 41.203360699117184,
+      "ttft_s": 41.135149002075195,
+      "decode_ms_per_token": 34.14962626993656
+    },
+    {
+      "id": 24,
+      "input_sha256": "6488aa41abc4ac38c014bc5ad5d8d09db86e21fdd74f14b477f6b0d93cb7dec0",
+      "input_tokens": 128097,
+      "output_tokens": 14,
+      "prediction": " They were descended from an Italo-Norman named Raoul.",
+      "returned_tokens": 14,
+      "finish_reason": "stop",
+      "score": 0.6666666666666666,
+      "work": {
+        "prefill": [
+          null,
+          8204484753,
+          128097
+        ],
+        "decode": [
+          null,
+          1665352,
+          13
+        ]
+      },
+      "elapsed_s": 41.29638447612524,
+      "ttft_s": 40.85291528701782,
+      "decode_ms_per_token": 34.09881173418118
+    },
+    {
+      "id": 25,
+      "input_sha256": "477e3edbd27932db8d7c4f240415bfb8eddf7d2439af3d38932028cbd59f2516",
+      "input_tokens": 127939,
+      "output_tokens": 4,
+      "prediction": " Robert Guiscard",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8184257830,
+          127939
+        ],
+        "decode": [
+          null,
+          383823,
+          3
+        ]
+      },
+      "elapsed_s": 40.96694250032306,
+      "ttft_s": 40.86473751068115,
+      "decode_ms_per_token": 34.057607874274254
+    },
+    {
+      "id": 26,
+      "input_sha256": "e5a0362b6938c098732dbf35fda4c0d0a9ee7fd8001d7de7e8fd9b1bc0b1e4bc",
+      "input_tokens": 126012,
+      "output_tokens": 7,
+      "prediction": " February 1082",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7939575078,
+          126012
+        ],
+        "decode": [
+          null,
+          756093,
+          6
+        ]
+      },
+      "elapsed_s": 40.3648039791733,
+      "ttft_s": 40.15492653846741,
+      "decode_ms_per_token": 34.978427924215794
+    },
+    {
+      "id": 27,
+      "input_sha256": "b9fd21e1acec599fa80015a86975b2fe5c483094c4911d5060ab1350a780ec41",
+      "input_tokens": 125489,
+      "output_tokens": 8,
+      "prediction": " 30,000",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          7873807305,
+          125489
+        ],
+        "decode": [
+          null,
+          878451,
+          7
+        ]
+      },
+      "elapsed_s": 40.033067060634494,
+      "ttft_s": 39.79499053955078,
+      "decode_ms_per_token": 34.01525983852999
+    },
+    {
+      "id": 28,
+      "input_sha256": "a501e6429023d17f3faf0824bd3bb2b50d0a1a95341d05d65c63bfdc0df86fdd",
+      "input_tokens": 129307,
+      "output_tokens": 4,
+      "prediction": " Deabolis",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8360214778,
+          129307
+        ],
+        "decode": [
+          null,
+          387927,
+          3
+        ]
+      },
+      "elapsed_s": 41.80071837641299,
+      "ttft_s": 41.69809412956238,
+      "decode_ms_per_token": 34.20273773372173
+    },
+    {
+      "id": 29,
+      "input_sha256": "c129d59ab503fb453c00eeb7e8bbd763ad741120f416d89562e0df2a66f72b88",
+      "input_tokens": 126546,
+      "output_tokens": 4,
+      "prediction": " Bohemond",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          null,
+          8007008331,
+          126546
+        ],
+        "decode": [
+          null,
+          379644,
+          3
+        ]
+      },
+      "elapsed_s": 41.641519751399755,
+      "ttft_s": 41.53894877433777,
+      "decode_ms_per_token": 34.204832588632904
+    },
+    {
+      "id": 30,
+      "input_sha256": "13c701bc41202dfde4431511ab24bc2b0bb0a6775d301f9ed7dc2aca4cd1873b",
+      "input_tokens": 125347,
+      "output_tokens": 4,
+      "prediction": " Deabolis",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 0.6666666666666666,
+      "work": {
+        "prefill": [
+          null,
+          7855997878,
+          125347
+        ],
+        "decode": [
+          null,
+          376047,
+          3
+        ]
+      },
+      "elapsed_s": 39.59386239014566,
+      "ttft_s": 39.49159288406372,
+      "decode_ms_per_token": 34.112230564157166
+    },
+    {
+      "id": 31,
+      "input_sha256": "19afc8f34927bceb75b2eefc3b543f5b26d6ec9b4540709e657f393fdc4d2d82",
+      "input_tokens": 127269,
+      "output_tokens": 6,
+      "prediction": " 1081",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          null,
+          8098762815,
+          127269
+        ],
+        "decode": [
+          null,
+          636360,
+          5
+        ]
+      },
+      "elapsed_s": 40.500781727954745,
+      "ttft_s": 40.330485582351685,
+      "decode_ms_per_token": 34.04603414237499
+    }
+  ]
+}

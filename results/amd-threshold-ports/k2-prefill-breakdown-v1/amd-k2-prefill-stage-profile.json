@@ -1,0 +1,393 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d5f52d8c8d42bbdd10d06ff88b0af1612c3a983920fb0a72466f9184c468960c",
+      "source_file_count": 342
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 7.317890167236328,
+      "mean_open_entries": 2158.176025390625,
+      "route_coarse_ms": 3.213493169740189,
+      "leaves_ms": 2.453869918297077,
+      "remote_attention_ms": 5.961597967147827,
+      "validation": {},
+      "route_device_profile": [
+        {
+          "name": "_prepare_aiter_state_kernel",
+          "calls": 1,
+          "self_us": 25.399
+        },
+        {
+          "name": "aiter::lod_route_mha_fwd_8_1_d128w8_mulnorm_v1",
+          "calls": 1,
+          "self_us": 3343.447
+        },
+        {
+          "name": "std::enable_if<!(kattr_no_packed_fp32_ops_v<ck_tile::gfx9_t>), void>::type ck_tile::kentry<ck_tile::gfx9_t, 1, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs>(ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs)",
+          "calls": 1,
+          "self_us": 3343.447
+        },
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 8.59900000000016
+        },
+        {
+          "name": "hipDeviceSynchronize",
+          "calls": 2,
+          "self_us": 3343.447
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 8.59900000000016
+        },
+        {
+          "name": "_reduce_route_candidates_kernel",
+          "calls": 1,
+          "self_us": 323.59099999999944
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "variant": "bitmap",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 10.835043217585637,
+      "leaves_ms": 7.7606356169048105,
+      "remote_attention_ms": 19.006351776123047,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.012553215026855469
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 104.19500000000005
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 104.19500000000005
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.038999999999987
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 3657.7199999999993
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 3137.0509999999995
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5192.487000000001
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1286.6110000000008
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 583.6669999999995
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 461.70900000000074
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 520.6689999999999
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 617.8604736328125,
+      "route_coarse_ms": 3.2292197648869005,
+      "leaves_ms": 1.6350673155351119,
+      "remote_attention_ms": 5.212406921386719,
+      "validation": {},
+      "route_device_profile": [
+        {
+          "name": "_prepare_aiter_state_kernel",
+          "calls": 1,
+          "self_us": 25.637
+        },
+        {
+          "name": "aiter::lod_route_mha_fwd_8_1_d128w8_mulnorm_v1",
+          "calls": 1,
+          "self_us": 3024.655
+        },
+        {
+          "name": "std::enable_if<!(kattr_no_packed_fp32_ops_v<ck_tile::gfx9_t>), void>::type ck_tile::kentry<ck_tile::gfx9_t, 1, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs>(ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs)",
+          "calls": 1,
+          "self_us": 3024.655
+        },
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 7.87900000000036
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 7.87900000000036
+        },
+        {
+          "name": "_reduce_route_candidates_kernel",
+          "calls": 1,
+          "self_us": 328.6310000000003
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "bitmap",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 10.920013545109676,
+      "leaves_ms": 5.236845125470842,
+      "remote_attention_ms": 16.643246321244675,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 105.637
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 105.637
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 23.158999999999992
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 3649.6779999999994
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 3126.931
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5103.251
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1343.7690000000002
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 587.3069999999989
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 473.1890000000003
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 522.7469999999994
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 7.931671142578125,
+      "mean_open_entries": 1415.843017578125,
+      "route_coarse_ms": 3.196929896961559,
+      "leaves_ms": 2.0751934378487724,
+      "remote_attention_ms": 5.604907720229205,
+      "validation": {},
+      "route_device_profile": [
+        {
+          "name": "_prepare_aiter_state_kernel",
+          "calls": 1,
+          "self_us": 25.437000000000012
+        },
+        {
+          "name": "aiter::lod_route_mha_fwd_8_1_d128w8_mulnorm_v1",
+          "calls": 1,
+          "self_us": 2985.6929999999998
+        },
+        {
+          "name": "std::enable_if<!(kattr_no_packed_fp32_ops_v<ck_tile::gfx9_t>), void>::type ck_tile::kentry<ck_tile::gfx9_t, 1, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs>(ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs)",
+          "calls": 1,
+          "self_us": 2985.6929999999998
+        },
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 7.838999999999942
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 7.838999999999942
+        },
+        {
+          "name": "_reduce_route_candidates_kernel",
+          "calls": 1,
+          "self_us": 291.39300000000003
+        }
+      ]
+    },
+    {
+      "layer": 63,
+      "variant": "bitmap",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 166.5,
+      "mean_open_regions": 14.484535217285156,
+      "mean_open_entries": 2079.646484375,
+      "route_coarse_ms": 10.82134035550631,
+      "leaves_ms": 4.76764905375819,
+      "remote_attention_ms": 16.066044998168945,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008454322814941406
+      },
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 104.83499999999992
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 104.83499999999992
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 24.63900000000001
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 3645.2419999999984
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 3125.3729999999996
+        },
+        {
+          "name": "_select",
+          "calls": 1,
+          "self_us": 5115.889000000001
+        },
+        {
+          "name": "_expert_metadata",
+          "calls": 1,
+          "self_us": 1268.1309999999994
+        },
+        {
+          "name": "_expert_prefix",
+          "calls": 1,
+          "self_us": 582.8269999999993
+        },
+        {
+          "name": "_finish_offsets",
+          "calls": 1,
+          "self_us": 454.1890000000003
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 519.8689999999988
+        }
+      ]
+    }
+  ],
+  "context": 65536,
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

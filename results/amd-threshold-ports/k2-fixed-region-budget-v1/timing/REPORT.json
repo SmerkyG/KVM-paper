@@ -1,0 +1,474 @@
+{
+  "stage": "complete",
+  "quality_control": 93.06490384615384,
+  "results": {
+    "prefill-top4": {
+      "candidate": {
+        "prefill_samples_s": [
+          15.29989582602866,
+          15.295940123032779,
+          15.28527540504001
+        ],
+        "decode_samples_ms": [
+          38.778679974484476,
+          38.78685220024636,
+          38.78276261116298
+        ],
+        "prefill_s": 15.295940123032779,
+        "decode_ms": 38.78276261116298,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "03d8b5e1f1a02f9c3e599d5ffa7a9b5e5bfa6254a7ec6fe6759a0097de2f3a0e"
+          ],
+          [
+            "03d8b5e1f1a02f9c3e599d5ffa7a9b5e5bfa6254a7ec6fe6759a0097de2f3a0e"
+          ],
+          [
+            "03d8b5e1f1a02f9c3e599d5ffa7a9b5e5bfa6254a7ec6fe6759a0097de2f3a0e"
+          ]
+        ]
+      },
+      "control": {
+        "prefill_samples_s": [
+          15.705343512818217,
+          15.659183576935902,
+          15.672955139074475
+        ],
+        "decode_samples_ms": [
+          38.74886140147282,
+          38.722111536117154,
+          38.902334304566466
+        ],
+        "prefill_s": 15.672955139074475,
+        "decode_ms": 38.74886140147282,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ]
+        ]
+      },
+      "prefill_change_percent": -2.4055132723614703,
+      "decode_change_percent": 0.08748956347106596,
+      "ruler_mean": 90.30849358974359,
+      "ruler_delta_points": -2.7564102564102484,
+      "node": "dev-shared-research-1.dev-training.svc.cluster.local",
+      "gpu": "0"
+    },
+    "decode-top4": {
+      "candidate": {
+        "prefill_samples_s": [
+          15.774107165634632,
+          15.765821002423763,
+          15.757830362766981
+        ],
+        "decode_samples_ms": [
+          39.54055610665819,
+          39.531204842205625,
+          39.5623809818062
+        ],
+        "prefill_s": 15.765821002423763,
+        "decode_ms": 39.54055610665819,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "7a7ef451e3c5d54d728d9ef87a7104f17c320884e0619ab36759ece4fbfd0bbc"
+          ],
+          [
+            "7a7ef451e3c5d54d728d9ef87a7104f17c320884e0619ab36759ece4fbfd0bbc"
+          ],
+          [
+            "7a7ef451e3c5d54d728d9ef87a7104f17c320884e0619ab36759ece4fbfd0bbc"
+          ]
+        ]
+      },
+      "control": {
+        "prefill_samples_s": [
+          15.764623656868935,
+          15.800906835123897,
+          15.800159575417638
+        ],
+        "decode_samples_ms": [
+          39.150404980318854,
+          39.11208534736943,
+          38.94255171144323
+        ],
+        "prefill_s": 15.800159575417638,
+        "decode_ms": 39.11208534736943,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": false,
+        "output_token_sha256": [
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "a7c4881506660560011968a9e8b8dcf5f9252f255e208dc6aed64bd173b174d9"
+          ]
+        ]
+      },
+      "prefill_change_percent": -0.2173305454920782,
+      "decode_change_percent": 1.095494539560704,
+      "ruler_mean": 90.05208333333333,
+      "ruler_delta_points": -3.012820512820511,
+      "node": "dev-shared-research-2.dev-training.svc.cluster.local",
+      "gpu": "0"
+    },
+    "prefill-top8": {
+      "candidate": {
+        "prefill_samples_s": [
+          16.380804574117064,
+          16.377935506403446,
+          16.403011521324515
+        ],
+        "decode_samples_ms": [
+          38.99240079590527,
+          38.99046181868471,
+          38.99727996758884
+        ],
+        "prefill_s": 16.380804574117064,
+        "decode_ms": 38.99240079590527,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "c72c067d41eea7ad25d3aea82ae8423a27a5e974353cef91767af039dc5bd6c3"
+          ],
+          [
+            "c72c067d41eea7ad25d3aea82ae8423a27a5e974353cef91767af039dc5bd6c3"
+          ],
+          [
+            "c72c067d41eea7ad25d3aea82ae8423a27a5e974353cef91767af039dc5bd6c3"
+          ]
+        ]
+      },
+      "control": {
+        "prefill_samples_s": [
+          15.91777086444199,
+          15.92159184999764,
+          15.910022512078285
+        ],
+        "decode_samples_ms": [
+          38.890827305294806,
+          38.89189464462106,
+          38.88051675858151
+        ],
+        "prefill_s": 15.91777086444199,
+        "decode_ms": 38.890827305294806,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ]
+        ]
+      },
+      "prefill_change_percent": 2.9089105102613644,
+      "decode_change_percent": 0.26117595754162615,
+      "ruler_mean": 92.2676282051282,
+      "ruler_delta_points": -0.7972756410256352,
+      "node": "dev-shared-research-3.dev-training.svc.cluster.local",
+      "gpu": "0"
+    },
+    "decode-top8": {
+      "candidate": {
+        "prefill_samples_s": [
+          15.749188853427768,
+          15.761718621477485,
+          15.763863179832697
+        ],
+        "decode_samples_ms": [
+          40.001969997319975,
+          39.995360104512656,
+          40.097659761158866
+        ],
+        "prefill_s": 15.761718621477485,
+        "decode_ms": 40.001969997319975,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "fcd5fc8eb72a29541b5ceef55a4b7c3aaa600977bf15913db616908a1732c81d"
+          ],
+          [
+            "fcd5fc8eb72a29541b5ceef55a4b7c3aaa600977bf15913db616908a1732c81d"
+          ],
+          [
+            "fcd5fc8eb72a29541b5ceef55a4b7c3aaa600977bf15913db616908a1732c81d"
+          ]
+        ]
+      },
+      "control": {
+        "prefill_samples_s": [
+          15.775630336254835,
+          15.774403929710388,
+          15.797796107828617
+        ],
+        "decode_samples_ms": [
+          38.898452035937225,
+          38.98515008040704,
+          38.99480334803229
+        ],
+        "prefill_s": 15.775630336254835,
+        "decode_ms": 38.98515008040704,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ]
+        ]
+      },
+      "prefill_change_percent": -0.08818484257570036,
+      "decode_change_percent": 2.608223682134714,
+      "ruler_mean": 92.64423076923077,
+      "ruler_delta_points": -0.420673076923066,
+      "node": "dev-shared-research-4.dev-training.svc.cluster.local",
+      "gpu": "0"
+    },
+    "prefill-top16": {
+      "candidate": {
+        "prefill_samples_s": [
+          17.8985168968793,
+          17.912307038903236,
+          17.911268254974857
+        ],
+        "decode_samples_ms": [
+          38.66752919452665,
+          38.662019039065854,
+          38.71093070029019
+        ],
+        "prefill_s": 17.911268254974857,
+        "decode_ms": 38.66752919452665,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "dee6d1ae5ee94359f90cdb426cda4903548e75ca1033486190bbe9daf0fc8f61"
+          ],
+          [
+            "dee6d1ae5ee94359f90cdb426cda4903548e75ca1033486190bbe9daf0fc8f61"
+          ],
+          [
+            "dee6d1ae5ee94359f90cdb426cda4903548e75ca1033486190bbe9daf0fc8f61"
+          ]
+        ]
+      },
+      "control": {
+        "prefill_samples_s": [
+          15.749784546205774,
+          15.75584145099856,
+          15.782715135021135
+        ],
+        "decode_samples_ms": [
+          38.783764201980375,
+          38.778404098593455,
+          38.9351626338339
+        ],
+        "prefill_s": 15.75584145099856,
+        "decode_ms": 38.783764201980375,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": false,
+        "output_token_sha256": [
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "a7c4881506660560011968a9e8b8dcf5f9252f255e208dc6aed64bd173b174d9"
+          ]
+        ]
+      },
+      "prefill_change_percent": 13.680175766427837,
+      "decode_change_percent": -0.29970017053627673,
+      "ruler_mean": 92.04727564102564,
+      "ruler_delta_points": -1.0176282051282044,
+      "node": "dev-shared-research-1.dev-training.svc.cluster.local",
+      "gpu": "1"
+    },
+    "decode-top16": {
+      "candidate": {
+        "prefill_samples_s": [
+          15.744394179433584,
+          15.740760130807757,
+          15.76815178990364
+        ],
+        "decode_samples_ms": [
+          40.36409929358342,
+          40.34784626674082,
+          40.16431007767096
+        ],
+        "prefill_s": 15.744394179433584,
+        "decode_ms": 40.34784626674082,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": true,
+        "output_token_sha256": [
+          [
+            "a5e6443e9f625e4253c4603b21d7c0b3a01f9b05858d5f82abfe8d6697106c9b"
+          ],
+          [
+            "a5e6443e9f625e4253c4603b21d7c0b3a01f9b05858d5f82abfe8d6697106c9b"
+          ],
+          [
+            "a5e6443e9f625e4253c4603b21d7c0b3a01f9b05858d5f82abfe8d6697106c9b"
+          ]
+        ]
+      },
+      "control": {
+        "prefill_samples_s": [
+          15.763739977031946,
+          15.791368313133717,
+          15.777373816817999
+        ],
+        "decode_samples_ms": [
+          39.09387974454148,
+          39.06992293559597,
+          39.00311166944448
+        ],
+        "prefill_s": 15.777373816817999,
+        "decode_ms": 39.06992293559597,
+        "prompt": {
+          "request_index": 0,
+          "source_stream_indices": [
+            0,
+            1
+          ],
+          "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+          "unique_16_token_block_ratio": 1.0
+        },
+        "greedy_output_identical_across_repeats": false,
+        "output_token_sha256": [
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ],
+          [
+            "a7c4881506660560011968a9e8b8dcf5f9252f255e208dc6aed64bd173b174d9"
+          ],
+          [
+            "7bc7095aabb5ccc5434a81abde96f170521299290363531d90c02eb5586f9e80"
+          ]
+        ]
+      },
+      "prefill_change_percent": -0.20903122260600426,
+      "decode_change_percent": 3.2708621751095235,
+      "ruler_mean": 92.88461538461539,
+      "ruler_delta_points": -0.1802884615384528,
+      "node": "dev-shared-research-2.dev-training.svc.cluster.local",
+      "gpu": "1"
+    }
+  }
+}

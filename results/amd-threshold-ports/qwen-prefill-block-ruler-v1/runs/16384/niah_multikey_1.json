@@ -1,0 +1,587 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "2c51ebdfb03f92d80aa218b4ce64910bb9bde4d551c251036966387a8524f1cc",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {},
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "threshold_implementation": "legacy",
+  "threshold_rule": "region",
+  "decode_threshold_options": {},
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 32,
+  "selection": "prefix",
+  "tasks": [
+    "niah_multikey_1"
+  ],
+  "records": [
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 0,
+      "prompt_hash": "5dc68dfa49ef505d34ba0a5cb6137d27942e8639bcf40700d993f22b817de2a2",
+      "doc_hash": "5e64a36b46365122dca50228511de1e81f85360d678a6518aaab4a3990688ccd",
+      "target_hash": "df3c2ac8cdc3daf1d435a4aa2551f784c3f7751ac6f0149ac2fa1aaffa0153fc",
+      "input_tokens": 65012,
+      "input_token_sha256": "0354421f8a389b658b798e46f4d80cbe9497bc1b759db10da21676046292f58a",
+      "targets": [
+        "6719285"
+      ],
+      "prediction": " **6719285**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.149
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 1,
+      "prompt_hash": "7306d7061cdf527acf9372c0ac52f6870694ff494f3501103353f3e606d2deee",
+      "doc_hash": "b084ac2e5097afcf87c2a72eeea8f98e7c9ea60ea02bd8f8f2c5f8746ecfd844",
+      "target_hash": "d003a9b9adacb241c88e812fd62b4ff45563810b3b3eecfe1ed371175c2e0fca",
+      "input_tokens": 65010,
+      "input_token_sha256": "2ea47d04473e669011e49249c5e43a4e4a0e21d3734f28a6fdd35dbb317ddffa",
+      "targets": [
+        "2368710"
+      ],
+      "prediction": " **2368710**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.26
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 2,
+      "prompt_hash": "d6fdbb1104ec414568091253c9565372a8227c9adaf1f0dc532d90674819e5aa",
+      "doc_hash": "519e484d73097d0395ca224426dccd97a763f0e8063940011fa3b3604ac58b39",
+      "target_hash": "4917479b9e52cd6fdd74ba97009c10097f5db66c12e1bbb60d81e6f877311965",
+      "input_tokens": 65015,
+      "input_token_sha256": "150414f0cfce7638801d189dc1f1ca0319f3115191dc7c9638fc16c118a5fe50",
+      "targets": [
+        "8212753"
+      ],
+      "prediction": " **8212753**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.247
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 3,
+      "prompt_hash": "5271d4b463b9c06a2ee4e9c94c8f54bd5c18900eca6371ab6fe80c4a96a1cdd7",
+      "doc_hash": "9e3dde42b3605c1861de2c8afdb5d068c6b46457c55c4b7a15f88f69032d8559",
+      "target_hash": "8d27020ee43174c993521cdca0c5141b5bf05981e43c49d46d8cd29a7c2b26b0",
+      "input_tokens": 65012,
+      "input_token_sha256": "0dcdd223806d1548692a972516fdabf22d92bf29ff7bd8a7fce611cfbbf50ede",
+      "targets": [
+        "4543918"
+      ],
+      "prediction": " **4543918**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.28
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 4,
+      "prompt_hash": "39ebdc6b5a3da61c70ec8645ac5df8617cf68c54bfb1ed247d870ec11f188b79",
+      "doc_hash": "e33851cca72b6a9e12bd90d95e4855b4b82bc2cb5b36874e0e5cdecc233e5d84",
+      "target_hash": "052d1afd52f398fbf4a3d2eb733633e568c1514a43748ee75218411766c7be8e",
+      "input_tokens": 65006,
+      "input_token_sha256": "6d9d5aca24385689e31ee58a710afcf535595140265fac8fbbe1b6113f79744e",
+      "targets": [
+        "7378822"
+      ],
+      "prediction": " **7378822**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.29
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 5,
+      "prompt_hash": "9a06f622eddb8711965adc1ef60e6eb9849b22cbc0602bf09d4e857929105886",
+      "doc_hash": "357b93ab075becefd388edaa0fef8e55781ff9c13c7441d057cb6a8513de7608",
+      "target_hash": "51d965b6cd0ffbf1ef138fba01a95ef014e36d841aa29010553c04212584503e",
+      "input_tokens": 65013,
+      "input_token_sha256": "7e9544e9dfc40be7fc2cb68317aaf206b7e3af19e86b5e375794bdedd66372ac",
+      "targets": [
+        "2932288"
+      ],
+      "prediction": " **2932195**.\n\n*(Note: Upon re-reading the text carefully, the number associated with \"harsh-bourgeoisie\" is actually **2932288**. Let me double-check the text provided.)*\n\nCorrection: The text states: \"One of the special magic numbers for harsh-bourgeoisie is: **2932288**.\"\n\nThe special magic number for harsh-bourgeoisie is **2932288**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 11.054
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 6,
+      "prompt_hash": "23a0667a5402cb19e36ada6c8f6b327f4d4eddc010205e150b82e06c9862ce76",
+      "doc_hash": "01178212fb42dd6284ac5823f122b85c436cd9b6977f6603a0644158201cf15e",
+      "target_hash": "9dfc26c9c520915fe3a2a2a00700bdb1b2c37dd762a19bdfac2b3033c9f6aa02",
+      "input_tokens": 65006,
+      "input_token_sha256": "031369ee4a828fdc240b40963887d1cbaecf93b80150afa544ac474c2963b716",
+      "targets": [
+        "5082173"
+      ],
+      "prediction": " **5082173**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.268
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 7,
+      "prompt_hash": "82d5b501cd8255034c937206523921e7e99e188ef5b3166d0f693df3cec659fc",
+      "doc_hash": "45baa5c5d5a451d1d251485467a4395eef20509e1e990d42e17552a41a7f87bf",
+      "target_hash": "77387c0ece7c44b1f5078bf4d4e7aa77126dc60a22427d0668acb244d0367804",
+      "input_tokens": 65018,
+      "input_token_sha256": "f14242aa0593a1ab5bdf6d4f8b3335e52215074930b764570d7f209da2b65252",
+      "targets": [
+        "6587964"
+      ],
+      "prediction": " **6587964**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.272
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 8,
+      "prompt_hash": "251805ce1de05c945b86144c7a526282bd28e00f15d28318b6176ef4381e948c",
+      "doc_hash": "5dc2f3c7309e97b0648c558d03913662b8c48de118ce422f25bbb8ba4e74ccca",
+      "target_hash": "c6902af9861354b822e1fc121b019421a04cdc68e952f3eb9780578e123faf61",
+      "input_tokens": 65006,
+      "input_token_sha256": "f455ff6c1fd3e6f0ee347dfce81ff4698eba87b079190ebc22bdbf9a7077aed3",
+      "targets": [
+        "2264218"
+      ],
+      "prediction": " **2264218**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.279
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 9,
+      "prompt_hash": "df04c7904f55dd41888276a0aa41332edfe72131a16ebb65753094bcf83273fc",
+      "doc_hash": "6a5cef2128fd93158eb8b2a89ec0a504c4b6e6b8a3000f7b8969f1887d74ac0b",
+      "target_hash": "906dec657a4025269f3ae6592567f6db905b8df2a4077b17a71b93c20011b1c2",
+      "input_tokens": 65009,
+      "input_token_sha256": "472eddfcb2346fe324c2cc20c7c185558a14866870e84d3c8da374178b663b11",
+      "targets": [
+        "6422534"
+      ],
+      "prediction": " **6422534**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.285
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 10,
+      "prompt_hash": "7a778c53cce951147e51ce5c0eec074a65f3ad4daa12bf3096232fa209075ac8",
+      "doc_hash": "b5113c0943522cf06b34f4478d01de8e728f3c1eb65489be7a23e917364c1abd",
+      "target_hash": "8ca76abf57730de21fe57cebcc5ddcf9c216223a62dd992264f3effb937d0959",
+      "input_tokens": 65002,
+      "input_token_sha256": "94ab86d5fa62cab608ed4dcb0e64c7c521da90c2ded43ec9cd62e33866233ed7",
+      "targets": [
+        "1954456"
+      ],
+      "prediction": " **1954456**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.27
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 11,
+      "prompt_hash": "5bafd2724248968ae125c27d63f15f9dceb17ffd9cd417d0147bbd350630f081",
+      "doc_hash": "8642527420a01f8bbbd52345f491337bcf66597b330080c375d48ddfaa7e818a",
+      "target_hash": "d920a382a897299efb1b27e00496f18e61e149f067dcffb7d53b7c21338603a8",
+      "input_tokens": 65013,
+      "input_token_sha256": "a3c4303578a73f796e9965172e3826a2f009359949d3cbfce19fcb0571b1284d",
+      "targets": [
+        "1688246"
+      ],
+      "prediction": " **1688246**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.284
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 12,
+      "prompt_hash": "06701d97fb1cb446c90108c0e69e3ba0df1fabb74cfd26c9f238544160785d83",
+      "doc_hash": "3c61de5911185b17601b20d508bb4d3d09fb631f3dd86ed88eb98ad9a8fa169a",
+      "target_hash": "541fa3e87d27bf76b970b984487f68d3267b1ee42c6575cb2300ce2c3600c204",
+      "input_tokens": 65004,
+      "input_token_sha256": "988725b2db9d073cec8abec63a9d20a2ade5e355ece3a456dabeb4e34695c511",
+      "targets": [
+        "8344365"
+      ],
+      "prediction": " **8344365**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.281
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 13,
+      "prompt_hash": "0bbd9338dc499fa106fc3573aa54d4fa8132432f91e75fe55660029a0edbe6e7",
+      "doc_hash": "e7669ddf6dd1f3532c5d97cc657290bb7700da940a3f1c20584a96aa1e75e41c",
+      "target_hash": "defb543abc1ebcdf3d0c2dce921ba82a3279930f98178b8e9804decd56ac7635",
+      "input_tokens": 65007,
+      "input_token_sha256": "c3d06aeba590f26fd3f3f1f6db356f733b2cc09f59df9d97ba9a434d0ee7b4cc",
+      "targets": [
+        "6614484"
+      ],
+      "prediction": " **6614484**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.27
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 14,
+      "prompt_hash": "64413811631805ec863eb286b82899dbd3d07dec5f3c5afd5540278aa6dd1e32",
+      "doc_hash": "0fb7c140ba97a7cafa583bcbd8695f1267b02202b93bed4a428c1ff79b2f9014",
+      "target_hash": "9ecf8a26fb19fbe1a3d45d4faf87bd0d25d4bbdd7bad46f37372d6683a6c961b",
+      "input_tokens": 65010,
+      "input_token_sha256": "b0a6744f7ef2b91d8239988be6acaf20dba0dd26ed30ac45bf561d7b8bcb6a65",
+      "targets": [
+        "5227787"
+      ],
+      "prediction": " **5227787**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.286
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 15,
+      "prompt_hash": "721373b79537ff46a06f098c201753ac5d1ce39c085a28f241dbc9389c1ebf17",
+      "doc_hash": "466f08c38f718ff38ed5a9f8cee9625c969684109c8246c3de072f023e07727d",
+      "target_hash": "0eb70c3b94013660d1e0d46aa3b7a8ec3eeda00ffad5af29e3d4ec46a7c5c3c5",
+      "input_tokens": 65010,
+      "input_token_sha256": "75bbbedddd48b77dcf9efa5f804aad68ce6e18b9735bc4d6be7b59c317b5f26f",
+      "targets": [
+        "6510922"
+      ],
+      "prediction": " **6510922**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.272
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 16,
+      "prompt_hash": "015a8ecbb23c7fb7a13e7453e7299e7083609b841dd9d98b36e3047862272669",
+      "doc_hash": "e2c3b2e59a4ecec7137464826d145684e18d636153b303f8ec1c2f7936a5f68d",
+      "target_hash": "902331f61cf4a7b3ec46047c43dab842664afbe55383bce85b658192ecf56b20",
+      "input_tokens": 65012,
+      "input_token_sha256": "c0452583b5422fcdb0e73b53dac1c231553779d7569807d3431eded55016ea3d",
+      "targets": [
+        "6733317"
+      ],
+      "prediction": " **6733317**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.254
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 17,
+      "prompt_hash": "abcf3f7ff71deea7c652c57a80e6f42d579bc0f8d189660e51a820781aea561a",
+      "doc_hash": "be971daa851c1f5aeae0b3d1c77fad92d37b537461345d2f4fbcc9128fc51138",
+      "target_hash": "e3a4a9d55b49ba36ee975fe25d222b11eb9433024fd6a5ce66eb0e32afc047b5",
+      "input_tokens": 65007,
+      "input_token_sha256": "cac9c8298905b4c30dd35079c032bca99b70cd6862fe6d983ce4005e68288814",
+      "targets": [
+        "6649968"
+      ],
+      "prediction": " **6649968**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.262
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 18,
+      "prompt_hash": "fc5e6f6b51cc42139bb94db51eca59088532f011c54da377b1c2701375a65705",
+      "doc_hash": "c7b109b1d44004f4233a8972206369ba30949ab663ef4cd83d6125a9552a0368",
+      "target_hash": "a7e237a6e8ae8c8c8ab50ef3eceb9c340b2ef9b6ab185bc3c60dcddd310a05cf",
+      "input_tokens": 65009,
+      "input_token_sha256": "757605343fdb9f1fc2fc3381958fe3a7350af9932cc3022725aeab98284a6609",
+      "targets": [
+        "4985095"
+      ],
+      "prediction": " **4985095**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.263
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 19,
+      "prompt_hash": "7c1dfb9eddf86a04a2cf829ad21b673860c6412f5bfc27a2ffd4fb2e2397c5b4",
+      "doc_hash": "37664be1ffca9a045c3d1f0cfff3ba4a61e103f576c75206aef74fb184c50121",
+      "target_hash": "2657305fd7c330f54bffc5850ae30c2606cf572685e370d482c963a0a6d41f44",
+      "input_tokens": 65014,
+      "input_token_sha256": "0f7885c3a361965c47c283aff05a8cfa6f60ce3eb15f65643432466f060b0282",
+      "targets": [
+        "9437374"
+      ],
+      "prediction": " **9437374**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.252
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 20,
+      "prompt_hash": "b6b5c681f7c59b26fa5f461265a540288bfb0219d645b20dba50bb073d712c12",
+      "doc_hash": "70d23b4453e7818fb2d03bc0da28df38983ee2d4634d1a204760b8dfe146ce50",
+      "target_hash": "70b66ec8bef1eaef052ff4c1eb8b4f337c8a11b5452dfc5ad82f6fb6b2a75f6d",
+      "input_tokens": 65009,
+      "input_token_sha256": "f2e738f59c324a7e86ddd6db4f3ac7f06a3b1f605e1e8d4a5d8ea6f7cf11fa67",
+      "targets": [
+        "2721170"
+      ],
+      "prediction": " **2721170**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.254
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 21,
+      "prompt_hash": "eb56ab168598602f9207f98336c80f77f2548890b122a1dc8c7bae6a764ad16f",
+      "doc_hash": "d289815b927d73b32ae1242b5d88e1b769199ed41834c07f942bbd0cd6f4aa88",
+      "target_hash": "b6321df9d759dc504b82c27d70bff0dee4590de68b11a8abb5bf72a8f662ed3f",
+      "input_tokens": 65012,
+      "input_token_sha256": "a9ce49c055b98a92ce66c68e1ecfc72781243ecf3db19809034c9dca889b6624",
+      "targets": [
+        "1893502"
+      ],
+      "prediction": " **1893502**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.265
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 22,
+      "prompt_hash": "0a6ff1134e67275e99f56ad2b11bacc20abe8ea3464a32fc8da63095f22d01b3",
+      "doc_hash": "eb56800fa5971561d6642318e5f85c2773d753dc22b33d0e0d62664e5924c1bd",
+      "target_hash": "10a4b643e4af0c2dc51bfb5a0983b4cc25297b669e8772046050fca10a10fd40",
+      "input_tokens": 65012,
+      "input_token_sha256": "260ea7548023c50f8334512b7c1101abe76248005eb82d4e319c623b8724fb6f",
+      "targets": [
+        "6625238"
+      ],
+      "prediction": " **6625238**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.243
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 23,
+      "prompt_hash": "074a98031fad05d0eb528bb9964a8ee5d8b6e863b59a5a78e58bf6a42d4b7207",
+      "doc_hash": "14f3a2f7f48a58128b6e2c22d7bd14ceef97c21f691c75d3828ede4775ed0bc3",
+      "target_hash": "12ea1504f2fabdb2c7d5fc7081e4b4e35b9a79557e8f63034243aaa3bc428e20",
+      "input_tokens": 65013,
+      "input_token_sha256": "9f83b233c55d031243a5db2f5269c0c09a246449bf8e55edd6ad60b2be241b8d",
+      "targets": [
+        "1318832"
+      ],
+      "prediction": " **1318832**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.258
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 24,
+      "prompt_hash": "b23d5ad6ffbdf611e0a2836f34abd7730f55553d5a9e6cd862e243171d387043",
+      "doc_hash": "b69a8c39b7c3a608dc6908b554afeb6e2f9bf5d269412b3213ca028cabc180f7",
+      "target_hash": "d98d578bf0a37041627311d5b6b94008218f2a831464aa14aec5c72e0c08788f",
+      "input_tokens": 65006,
+      "input_token_sha256": "7a3ac5f94b9f4dbe606bb14b36beb1a563083761ab5634a0e02fe55f4c03ec31",
+      "targets": [
+        "8043503"
+      ],
+      "prediction": " **8043503**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.264
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 25,
+      "prompt_hash": "41f915cc21bd18114fd2a9daf14aa3bb69e867153af56a1663355aedcdda4ddd",
+      "doc_hash": "51d737022421150935768389103ba957270939cae8a2f20596d56656d848223d",
+      "target_hash": "5d68d36dbf2ecf52f7f8669d3f909adcf8830c005a606dff577c65d621c16ebe",
+      "input_tokens": 65012,
+      "input_token_sha256": "89c37f5518f911bc0ad0e7604d1bd62f2a1a064118b769d3a9b7e8392116ab08",
+      "targets": [
+        "5059048"
+      ],
+      "prediction": " **5059048**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.245
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 26,
+      "prompt_hash": "61d88a0588412a15e0731611dca56ea702f2bd36952ba1ce1825cb019df2dfdd",
+      "doc_hash": "b37390ac5f2f56009da4b8e359c3ceef7f4f9af458d4faff8c66ffdb4f322fb8",
+      "target_hash": "5c1a2146fbd01598197af134d4d60190ee59433159162cd254c83341dda91fa4",
+      "input_tokens": 65008,
+      "input_token_sha256": "4b9a61c654fbbc6a6ea8ba5c592de08dcc0f690d7eec3b24e588b893c7969165",
+      "targets": [
+        "9825812"
+      ],
+      "prediction": " **9825812**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.254
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 27,
+      "prompt_hash": "c6d83fac2ec75c2e60b7794f7e544e0c45934ad3cdc69190c7ef98925d3cdb4c",
+      "doc_hash": "2396c7fac4e9aa45aeacba13c38226ba1fb9bfa7bdbb384049d190ad5f468123",
+      "target_hash": "44b48e0f784c4d268a00706ca44cc676b49aa7fe4f1d83a2a033213606baeee8",
+      "input_tokens": 65007,
+      "input_token_sha256": "ffc3bdd1031b6de52b0f264a45e0d80b8f2657f363cc41b134db2405d6db58de",
+      "targets": [
+        "5255545"
+      ],
+      "prediction": " **5255545**.",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.261
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 28,
+      "prompt_hash": "dc5baa7762ced6456b1274f4d045991c2023ead6a801fd33158723347d876089",
+      "doc_hash": "54cfee6ba198a1379c76618bfb0ceda40f1bcad0858db9da33d35c4ba058dd86",
+      "target_hash": "85309529eb1a04721ead2f25df18b9fb02c30bda0407715d5f243945a8896fb1",
+      "input_tokens": 65004,
+      "input_token_sha256": "7d249f6b9bc429674db25e0f6986d4c7641b1b9ba7394fa024f53c07506f9aa1",
+      "targets": [
+        "8795078"
+      ],
+      "prediction": " **8795078**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.271
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 29,
+      "prompt_hash": "73b69124969a98bad2543f249df6f6135a4414983f6a503efa0672b31ce012c2",
+      "doc_hash": "7fede831ea93f2790fa27f7af780562cd71fceb36793a542a8f8f8463c554a66",
+      "target_hash": "c26ee13667a133ab1bc860591a5fd1499a81f11cc461254bf9c5157ba33e946f",
+      "input_tokens": 65009,
+      "input_token_sha256": "0762bf873e758ae632901b0814ce21e09e9f4b38dc4c776e4451fd054ea2cd11",
+      "targets": [
+        "1703065"
+      ],
+      "prediction": " **1703065**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.254
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 30,
+      "prompt_hash": "6b20f0cfeb05cd970f2c624febc1c5b39f13addcff8fa52a71367d5411d239f0",
+      "doc_hash": "cadd70f36a731222d2cc0a0cc690276fc8cae556268ca9722f0f567e08557c09",
+      "target_hash": "9e284383859f67e974a4249c351842261457287149f45c7ffc0aa0ce0533b32d",
+      "input_tokens": 65014,
+      "input_token_sha256": "e9aa656cb569384dcbff11cfbdaa9db1405930af7bcd83203d1c961363a28dfc",
+      "targets": [
+        "3088344"
+      ],
+      "prediction": " **3088344**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.268
+    },
+    {
+      "task": "niah_multikey_1",
+      "doc_id": 31,
+      "prompt_hash": "f67991ba3a46ec25f8d13e5e8e573f49ed4e5309bed510ab06b77c910a9bba68",
+      "doc_hash": "dcd415e8eceaf79c5081b9d46e2e220677e10c738ca1827fccc6ec3d09f44225",
+      "target_hash": "1d8c72b4cc6f4953c324be83b8ce189aa1a5330cf1773edbe4513707ec687685",
+      "input_tokens": 65005,
+      "input_token_sha256": "b5b66f55afa0a0806539243ae25f05a473fd4d52fd1a9e68a8cd14f66c09f059",
+      "targets": [
+        "9712003"
+      ],
+      "prediction": " **9712003**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.252
+    }
+  ],
+  "task_scores": {
+    "niah_multikey_1": 100.0
+  }
+}

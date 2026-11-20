@@ -1,0 +1,55 @@
+{
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "length": 65536,
+  "lod_layers": 16,
+  "warmup_seconds": 8.669144673272967,
+  "prefill_seconds": 7.904069757089019,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 0.3561831402778626,
+      "calls": 48,
+      "query_tokens": 786432
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 0.15963863682746884,
+      "calls": 48,
+      "query_tokens": 786432
+    },
+    "remote_path": {
+      "seconds": 0.5577180109024048,
+      "calls": 48,
+      "query_tokens": 786432
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "708952eb1c428abeaba395f21226de23e9d16644a10e449fb24cc81f6553c29f",
+      "source_file_count": 344
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

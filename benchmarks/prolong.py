@@ -207,14 +207,20 @@ def make_speed_prompts(
     *,
     length: int,
     batch_size: int,
+    data_files: list[str] | None = None,
 ) -> tuple[list[dict[str, list[int]]], list[dict[str, Any]]]:
     """Build distinct, exact-length prompts without repeating documents."""
 
     from datasets import load_dataset
 
+    source = (
+        {"revision": DATASET_REVISION}
+        if data_files is None
+        else {"data_files": {"train": data_files}}
+    )
     dataset = load_dataset(
-        DATASET,
-        revision=DATASET_REVISION,
+        DATASET if data_files is None else "parquet",
+        **source,
         split="train",
         streaming=True,
     ).shuffle(seed=SPEED_SHUFFLE_SEED, buffer_size=1_000)
@@ -681,7 +687,18 @@ def main() -> None:
             "checkpoint": args.checkpoint,
             "mode": args.mode,
             "dummy_attention": args.dummy_attention,
-            "decode_routes": None if args.mode == "full" else 8,
+            "prefill_threshold_options": {key: value for key, value in os.environ.items() if key.startswith("LOD_AMD_PREFILL_")},
+            "decode_routes": (None if args.mode == "full" or os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") is not None else 8),
+            "decode_threshold_multiplier": (float(os.environ["LOD_AMD_THRESHOLD_MULTIPLIER"])
+                                            if "LOD_AMD_THRESHOLD_MULTIPLIER" in os.environ else None),
+            "decode_threshold_union": os.environ.get("LOD_AMD_THRESHOLD_UNION") == "1",
+            "decode_threshold_implementation": os.environ.get("LOD_AMD_THRESHOLD_IMPLEMENTATION", "legacy") if os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") else None,
+            "decode_threshold_rule": os.environ.get("LOD_AMD_THRESHOLD_RULE", "region") if os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") else None,
+            "decode_threshold_options": {key: value for key, value in os.environ.items() if key.startswith("LOD_AMD_THRESHOLD_")},
+            "decode_threshold_tile": int(os.environ.get("LOD_AMD_THRESHOLD_TILE", "64")) if os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") else None,
+            "decode_threshold_splits": int(os.environ.get("LOD_AMD_THRESHOLD_SPLITS", "64")) if os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") else None,
+            "decode_threshold_entry_block": int(os.environ.get("LOD_AMD_THRESHOLD_ENTRY_BLOCK", "32")) if os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") else None,
+            "decode_threshold_entry_warps": int(os.environ.get("LOD_AMD_THRESHOLD_ENTRY_WARPS", "4")) if os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER") else None,
             "batch_size": args.batch_size,
             "speed_samples": speed_samples if args.measure == "speed" else None,
             "tensor_parallel_size": args.tensor_parallel_size,

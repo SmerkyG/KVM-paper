@@ -1,0 +1,266 @@
+{
+  "stage": "complete",
+  "examples_per_task": 32,
+  "models": {
+    "qwen": {
+      "mean": {
+        "archived_dense": 96.14983974358974,
+        "top8": 95.41266025641026,
+        "decode_threshold": 94.47115384615384,
+        "both_threshold": 95.3926282051282
+      },
+      "comparisons": {
+        "decode_threshold_vs_top8": {
+          "delta_points": -0.941506410256423,
+          "improved": 2,
+          "declined": 7,
+          "paired_bootstrap_95_interval_points": [
+            -2.1434294871794872,
+            0.16025641025641024
+          ]
+        },
+        "both_threshold_vs_top8": {
+          "delta_points": -0.020032051282058205,
+          "improved": 3,
+          "declined": 3,
+          "paired_bootstrap_95_interval_points": [
+            -0.9815705128205128,
+            0.9415064102564102
+          ]
+        },
+        "both_threshold_vs_decode_threshold": {
+          "delta_points": 0.9214743589743648,
+          "improved": 7,
+          "declined": 2,
+          "paired_bootstrap_95_interval_points": [
+            -0.16025641025641024,
+            2.1634615384615383
+          ]
+        }
+      },
+      "tasks": [
+        {
+          "task": "niah_single_1",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_single_2",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_single_3",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multikey_1",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multikey_2",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multikey_3",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 96.875,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multiquery",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multivalue",
+          "archived_dense": 100.0,
+          "top8": 99.21875,
+          "decode_threshold": 98.4375,
+          "both_threshold": 99.21875
+        },
+        {
+          "task": "ruler_cwe",
+          "archived_dense": 99.6875,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "ruler_fwe",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "ruler_qa_hotpot",
+          "archived_dense": 75.0,
+          "top8": 68.75,
+          "decode_threshold": 59.375,
+          "both_threshold": 68.75
+        },
+        {
+          "task": "ruler_qa_squad",
+          "archived_dense": 75.26041666666666,
+          "top8": 72.39583333333334,
+          "decode_threshold": 73.4375,
+          "both_threshold": 72.13541666666666
+        },
+        {
+          "task": "ruler_vt",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        }
+      ]
+    },
+    "k2": {
+      "mean": {
+        "archived_dense": 93.22916666666667,
+        "top8": 90.08413461538461,
+        "decode_threshold": 92.23557692307692,
+        "both_threshold": 93.37339743589743
+      },
+      "comparisons": {
+        "decode_threshold_vs_top8": {
+          "delta_points": 2.1514423076923066,
+          "improved": 14,
+          "declined": 2,
+          "paired_bootstrap_95_interval_points": [
+            0.9254807692307693,
+            3.4935897435897436
+          ]
+        },
+        "both_threshold_vs_top8": {
+          "delta_points": 3.2892628205128176,
+          "improved": 21,
+          "declined": 6,
+          "paired_bootstrap_95_interval_points": [
+            1.7588141025641026,
+            5.044070512820513
+          ]
+        },
+        "both_threshold_vs_decode_threshold": {
+          "delta_points": 1.137820512820511,
+          "improved": 9,
+          "declined": 7,
+          "paired_bootstrap_95_interval_points": [
+            0.1762820512820513,
+            2.327724358974359
+          ]
+        }
+      },
+      "tasks": [
+        {
+          "task": "niah_single_1",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_single_2",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_single_3",
+          "archived_dense": 100.0,
+          "top8": 96.875,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multikey_1",
+          "archived_dense": 100.0,
+          "top8": 96.875,
+          "decode_threshold": 96.875,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multikey_2",
+          "archived_dense": 100.0,
+          "top8": 84.375,
+          "decode_threshold": 90.625,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multikey_3",
+          "archived_dense": 100.0,
+          "top8": 93.75,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multiquery",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        },
+        {
+          "task": "niah_multivalue",
+          "archived_dense": 98.4375,
+          "top8": 99.21875,
+          "decode_threshold": 99.21875,
+          "both_threshold": 98.4375
+        },
+        {
+          "task": "ruler_cwe",
+          "archived_dense": 92.1875,
+          "top8": 92.1875,
+          "decode_threshold": 95.9375,
+          "both_threshold": 94.0625
+        },
+        {
+          "task": "ruler_fwe",
+          "archived_dense": 86.45833333333334,
+          "top8": 83.33333333333333,
+          "decode_threshold": 86.45833333333334,
+          "both_threshold": 87.5
+        },
+        {
+          "task": "ruler_qa_hotpot",
+          "archived_dense": 65.625,
+          "top8": 59.375,
+          "decode_threshold": 62.5,
+          "both_threshold": 65.625
+        },
+        {
+          "task": "ruler_qa_squad",
+          "archived_dense": 69.27083333333334,
+          "top8": 65.10416666666666,
+          "decode_threshold": 67.44791666666666,
+          "both_threshold": 68.22916666666666
+        },
+        {
+          "task": "ruler_vt",
+          "archived_dense": 100.0,
+          "top8": 100.0,
+          "decode_threshold": 100.0,
+          "both_threshold": 100.0
+        }
+      ]
+    }
+  }
+}

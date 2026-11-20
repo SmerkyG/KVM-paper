@@ -1,5 +1,11 @@
 # RULER
 
+**Kernel validation:** A race in the shared LoD state-update kernel was
+reproduced on H100 and fixed. Reference checks on ROCm passed both before and
+after the fix for 128- and 256-dimensional heads at batches 1, 4 and 8; those
+checks do not replace a full rerun of the model-quality evaluations below.
+[ROCm check records](../results/h100-baselines/provenance/rocm-state-validation/)
+
 This benchmark evaluates all 13 RULER subtasks at a 65,536-token context
 length. Each task contains 500 examples. The full-attention and two-tier
 baselines use `lm-eval==0.4.13`, greedy generation through vLLM's
@@ -75,6 +81,59 @@ versus 98.34 for NIAH, 88.72 versus 90.15 for extraction, 67.85 versus 64.74
 for QA, and 100.00 versus 100.00 for variable tracking.
 Three-tier BF16 and INT4 with top-2 score 89.60% and 89.03%, respectively,
 2.44 and 3.01 points below two-tier on the 13-task mean.
+
+## AMD two-tier threshold follow-ups
+
+These experiments use batch one, BF16 KV, normalized-query equal-per-region
+**c=16 decode routing**, and the existing top-8 sparse prefill with an exact
+first 16,384-token chunk. The full historical tables above retain their
+original fixed-eight two-tier results. Fresh top-8 controls retain native
+query scores, so the routing comparison changes both the score and the
+selection rule.
+
+The [paired 500-example comparison](../results/amd-threshold/full500/REPORT.md)
+covers four Qwen tasks and five K2 tasks selected for misses. Threshold routing
+matched or improved every task's aggregate score versus fresh top-8 controls.
+The selected-task mean rose from 84.44% to 85.06% for Qwen and from 83.22% to
+84.42% for K2. These are different task subsets and are not 13-task averages.
+Archived dense results on the same requests are included for context.
+
+The [optimized-kernel regression panel](../results/amd-threshold-ruler32-64k/REPORT.md)
+contains all 13 tasks, with the first 32 examples per task and model. Compared
+with the old c=16 kernel, the initially optimized kernel scored 94.99% to
+94.67% on Qwen and 92.17% to 92.32% on K2. The separate
+[Qwen precision follow-up](../results/amd-threshold-ruler32-64k/precision-panel/REPORT.md)
+scored 95.15%, with no retrieval-task score losses versus the old kernel;
+one HotpotQA example still declined. Its attention-only timing was 41.02 µs
+versus 39.21 µs for native top-8, and full-model timing with this correction
+has not been measured. These small panels do not establish noninferiority
+on the 500-example benchmark or replace its results. Frozen requests,
+independently audited token hashes, exact commands and successful job exits
+are linked from each report. Serving defaults are unchanged.
+
+## AMD three-tier threshold pilot
+
+The [three-tier threshold report](../results/amd-threshold-three-tier/REPORT.md)
+adds batch-one c=16 normalized-query region routing with the existing top-two
+page frontier, for both models in BF16 and INT4 KV. It includes paired
+32-example Multikey 2/3 screens, 1,024-step full-model timings with cache
+updates, and same-query attention measurements. Prefill retains top-8 routing
+and the exact first 16K chunk. The path is opt-in; serving defaults are unchanged.
+
+These selected retrieval screens are separate from the 500-example, all-13-task
+tables above. Current K2 native controls score substantially below the historical
+report; that discrepancy remains unresolved. The page-kernel extension matched
+the pre-change native outputs bitwise on 12 sampled serving states, and all 24
+independent frontier checks plus 66 existing page-opening tests passed.
+
+## AMD threshold prefill pilot
+
+The [Qwen threshold prefill report](../results/amd-threshold-prefill/REPORT.md)
+compares top-8 and normalized-query c=16 region routing during BF16 two-tier
+prefill. It includes 32 paired examples each of Multikey 2 and Multikey 3,
+with the same precise c=16 decoder in both arms, plus 32K/64K full-model
+prefill timings against top-8 and dense. The exact first 16K chunk remains
+unchanged. These retrieval screens are separate from the full benchmark above.
 
 ## Reproduce
 

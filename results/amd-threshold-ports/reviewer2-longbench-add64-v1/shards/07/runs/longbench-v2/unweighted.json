@@ -1,0 +1,228 @@
+{
+  "task": "longbench-v2",
+  "arm": "unweighted",
+  "mode": "two-tier",
+  "input_sha256": "86095ca8907f95f21ed57351e213dc25b1d08414d655509fd1a5bc3a4071f5fa",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "85bcef54baec2dd22ca88b80c435e516bb78dd448ab84af611a6c02238c6b314",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": "66ebbe4f5a08c7b9b35de533",
+      "input_sha256": "8aa22330f657dc201909f5fb5a72e3cd56a58f70f0b8b3a2f5da1f2abed3dc0f",
+      "input_tokens": 18869,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          271442586,
+          53245555866,
+          7245696
+        ],
+        "decode": [
+          1810302,
+          3169662,
+          3072
+        ]
+      },
+      "elapsed_s": 2.3779731802642345,
+      "ttft_s": 2.185685396194458,
+      "decode_ms_per_token": 27.478716469236783
+    },
+    {
+      "id": "66ebc4af5a08c7b9b35dede0",
+      "input_sha256": "469051a4d82777001af9127687a15ea932981203f71a5b3cff38d2a8478e5bf5",
+      "input_tokens": 24052,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          1080686859,
+          64670910987,
+          9235968
+        ],
+        "decode": [
+          2222862,
+          3775758,
+          3072
+        ]
+      },
+      "elapsed_s": 3.0100096110254526,
+      "ttft_s": 2.8180439472198486,
+      "decode_ms_per_token": 27.479598032576696
+    },
+    {
+      "id": "66ece358821e116aacb1dc08",
+      "input_sha256": "f1d944649280856d79513567b8ab558195d760271712930c3b4698c4d3842d3b",
+      "input_tokens": 30240,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          1247266711,
+          91021938583,
+          11612160
+        ],
+        "decode": [
+          2039778,
+          2941410,
+          3072
+        ]
+      },
+      "elapsed_s": 3.8011549338698387,
+      "ttft_s": 3.61039662361145,
+      "decode_ms_per_token": 27.458866792065756
+    },
+    {
+      "id": "66f3e473821e116aacb2fa73",
+      "input_sha256": "cbf0f5705d77c3ef069e3ee6c2eee61dc5f3f32f41a7e2f4eeaf924f7a9e719c",
+      "input_tokens": 46405,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          2803381000,
+          144560029960,
+          17819520
+        ],
+        "decode": [
+          2483886,
+          3499182,
+          3072
+        ]
+      },
+      "elapsed_s": 5.904916726052761,
+      "ttft_s": 5.714004755020142,
+      "decode_ms_per_token": 27.475200593471527
+    },
+    {
+      "id": "671b170cbb02136c067d4f4a",
+      "input_sha256": "27b1d41aa3860c2356490aa81b843a4ac490f650eb80386de89f8933a4b8788b",
+      "input_tokens": 68738,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          5891004559,
+          219197882383,
+          26395392
+        ],
+        "decode": [
+          2453208,
+          3655896,
+          3072
+        ]
+      },
+      "elapsed_s": 8.886088699102402,
+      "ttft_s": 8.693689584732056,
+      "decode_ms_per_token": 27.528479429227964
+    },
+    {
+      "id": "66f19f04821e116aacb27bab",
+      "input_sha256": "9b05ccf43bb19ace424bffc75c007e395b3d19781e47977f6404475a3716ba42",
+      "input_tokens": 90061,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          10390162435,
+          288101496835,
+          34583424
+        ],
+        "decode": [
+          4569654,
+          6002742,
+          3072
+        ]
+      },
+      "elapsed_s": 11.810097003355622,
+      "ttft_s": 11.618504047393799,
+      "decode_ms_per_token": 27.553006740553037
+    },
+    {
+      "id": "66f2a7a9821e116aacb2a721",
+      "input_sha256": "b6806645bf285adbdc7c3b4907804b2802d01df5bbb521806f55fd9fd8a59fad",
+      "input_tokens": 99508,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          11889720234,
+          329628138666,
+          38211072
+        ],
+        "decode": [
+          4694454,
+          6050742,
+          3072
+        ]
+      },
+      "elapsed_s": 13.094443839043379,
+      "ttft_s": 12.90119743347168,
+      "decode_ms_per_token": 27.62333383517606
+    },
+    {
+      "id": "66f3c219821e116aacb2eb4e",
+      "input_sha256": "589243e1a250ee511f4b8c6828720e9595072b933b0b6fefa166edd00d064bc0",
+      "input_tokens": 124161,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          18029271943,
+          406696304263,
+          47677824
+        ],
+        "decode": [
+          6237462,
+          7043862,
+          3072
+        ]
+      },
+      "elapsed_s": 16.636177284643054,
+      "ttft_s": 16.44256830215454,
+      "decode_ms_per_token": 27.864268581782067
+    }
+  ]
+}

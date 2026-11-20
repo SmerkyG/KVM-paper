@@ -1,0 +1,49 @@
+{
+  "identity": {
+    "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+    "source_sha256": "85bcef54baec2dd22ca88b80c435e516bb78dd448ab84af611a6c02238c6b314",
+    "source_file_count": 369
+  },
+  "source": "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-longbench-add64-v1/source",
+  "jobs": [
+    {
+      "id": "26606-amd-reviewer2-longbench-add64-05",
+      "task": "longbench-v2",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--nodes",
+        "dev-shared-research-1.dev-training.svc.cluster.local,dev-shared-research-2.dev-training.svc.cluster.local,dev-shared-research-3.dev-training.svc.cluster.local,dev-shared-research-4.dev-training.svc.cluster.local",
+        "--name",
+        "amd-reviewer2-longbench-add64-05",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-longbench-add64-v1/source:/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-longbench-add64-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "LOD_AMD_STATE_PACKED_MAX=1",
+        "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
+        "VLLM_ALLOW_INSECURE_SERIALIZATION=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-P",
+        "-m",
+        "benchmarks.reviewer2_summary_ablation",
+        "task",
+        "--root",
+        "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-longbench-add64-v1/shards/05",
+        "--task",
+        "longbench-v2"
+      ],
+      "sha256": "1413992954156cfb6ba6a6a49a93af871060f699a76a67e7937ae7529b2ec02b"
+    }
+  ],
+  "smokes": []
+}

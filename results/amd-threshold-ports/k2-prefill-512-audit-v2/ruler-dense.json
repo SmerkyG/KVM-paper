@@ -1,0 +1,88 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "full",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c1f4be2a5b9332c62974de933aa494bd9b57a2e0df3e1beaecd9b90f134a1c08",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {},
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "threshold_implementation": "legacy",
+  "threshold_rule": "region",
+  "decode_threshold_options": {},
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 1,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_cwe",
+    "ruler_qa_hotpot"
+  ],
+  "records": [
+    {
+      "task": "ruler_cwe",
+      "doc_id": 8,
+      "prompt_hash": "abb261a9ff278a3cbe19a8e9dee82c6e56f4303906e40ede5382b8b3923c030b",
+      "doc_hash": "f11ace108e2e5ff02d1844b0d1387445f579fa24aaddb3c18986127c8fbafa15",
+      "target_hash": "c84f86452cd2244ab5f5b4703c87f38c73b59b6884700d0c918ab54ebc8ae1f9",
+      "input_tokens": 64132,
+      "input_token_sha256": "bc6edb7c9c9e241a20d707f84d321732ff9997a65c63addc6640f9721d195719",
+      "targets": [
+        "waveform",
+        "accordance",
+        "propaganda",
+        "ceramics",
+        "rate",
+        "desert",
+        "filthy",
+        "daisy",
+        "lute",
+        "professional"
+      ],
+      "prediction": "",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.059
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 20,
+      "prompt_hash": "3f4c57f78b91658fceb85c4e4b56aa0e9e02ff72d4146d1d92a8d06ffe409073",
+      "doc_hash": "49cb327b51b950d2f43d79e488973a769d41cc0167321888fe7d79ebf9b40d9c",
+      "target_hash": "ef8e57cb3da1fc3661cf36154b26ace397d197c1918e1c0de705f88207b7502e",
+      "input_tokens": 64974,
+      "input_token_sha256": "b4f23aa0e7d70f5086843384ba1ba5ae5ac71bc288dc25baef0500669c558874",
+      "targets": [
+        "Pedro Rodr\u00edguez"
+      ],
+      "prediction": " Sergio P\u00e9rez",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.377
+    }
+  ],
+  "task_scores": {
+    "ruler_cwe": 0.0,
+    "ruler_qa_hotpot": 0.0
+  }
+}

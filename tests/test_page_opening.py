@@ -11,7 +11,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.mark.parametrize("dimension,heads", [(128, 8), (256, 6)])
+@pytest.mark.parametrize("dimension,heads", [(128, 8), (256, 6), (128, 4)])
 @pytest.mark.parametrize("pages_per_slot", [None, 1, 2, 4, 8])
 @pytest.mark.parametrize("quantized", [False, True])
 @pytest.mark.parametrize("summary_precision", ["bf16", "int8"])

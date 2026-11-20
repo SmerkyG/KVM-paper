@@ -1,0 +1,163 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 16.747713085263968,
+  "prefill_seconds": 16.671499764546752,
+  "stages": {
+    "route_means": {
+      "seconds": 0.005254497999325394,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.0013676229920238253,
+        "2896": 0.0018014619983732706,
+        "3547": 0.002085413008928298
+      }
+    },
+    "route_prepare_live_count": {
+      "seconds": 0.0014532669940963395,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.00048359499685466295,
+        "2896": 0.0005033529987558723,
+        "3547": 0.0004663189984858036
+      }
+    },
+    "route_route_partials": {
+      "seconds": 0.9577639794349668,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.22649326753616333,
+        "2896": 0.3137163386344909,
+        "3547": 0.41755437326431266
+      }
+    },
+    "route_route_cutoff": {
+      "seconds": 0.002871520997956395,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.000730025000870228,
+        "2896": 0.0010657890029251579,
+        "3547": 0.0010757069941610099
+      }
+    },
+    "route_coarse_partials": {
+      "seconds": 2.1245926876068126,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.46601657199859625,
+        "2896": 0.676870390892029,
+        "3547": 0.9817057247161862
+      }
+    },
+    "route_compact_bits": {
+      "seconds": 0.14264286136627194,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.03734949511289597,
+        "2896": 0.05179379212856295,
+        "3547": 0.05349957412481306
+      }
+    },
+    "route_merge_coarse": {
+      "seconds": 0.1638574038743973,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.04144648593664171,
+        "2896": 0.05894522291421893,
+        "3547": 0.06346569502353665
+      }
+    },
+    "route_and_coarse": {
+      "seconds": 3.4850320339202874,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.7955671958923338,
+        "2896": 1.1341977176666262,
+        "3547": 1.5552671203613284
+      }
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 1.702523088216783,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 6.355181041717531,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0011741080018691718,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.27835841655731214,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009518270026892424,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.281459218621254,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0012333139968104662,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.417670064687729,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a87b20acc0df70c07d94d1b3041c70d23a81bd17849939b3792b1aeb82af1a06",
+      "source_file_count": 349
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "stream",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_STREAM_GEOMETRY": "128,64,1024,4,1",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

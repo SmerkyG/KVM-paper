@@ -1,0 +1,153 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c34991524669c72e0b76c6577910d0f08f31b822389d94d6615d05635d7f8e90",
+      "source_file_count": 344
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 7.317890167236328,
+      "mean_open_entries": 2158.176025390625,
+      "route_coarse_ms": 3.1940121672874273,
+      "leaves_ms": 2.4346769098649945,
+      "remote_attention_ms": 5.914068603515625,
+      "validation": {},
+      "route_workspace_mib": 0.0,
+      "fixed_frontier": {
+        "native_width": 8,
+        "threshold_width": 223,
+        "variable_width8_ms": 3.7797751871744794,
+        "variable_threshold_width_ms": 4.077738479088093
+      }
+    },
+    {
+      "layer": 0,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 6.120872433980306,
+      "leaves_ms": 8.026984405517577,
+      "remote_attention_ms": 14.375299072265625,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.007620096206665039
+      },
+      "route_workspace_mib": 1158.9637451171875
+    },
+    {
+      "layer": 32,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 617.8604736328125,
+      "route_coarse_ms": 3.225684551860011,
+      "leaves_ms": 1.632622642078619,
+      "remote_attention_ms": 5.170726136903506,
+      "validation": {},
+      "route_workspace_mib": 0.0,
+      "fixed_frontier": {
+        "native_width": 8,
+        "threshold_width": 223,
+        "variable_width8_ms": 2.7477139495139897,
+        "variable_threshold_width_ms": 3.1316054679252003
+      }
+    },
+    {
+      "layer": 32,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.1173956553141275,
+      "leaves_ms": 5.416575170446325,
+      "remote_attention_ms": 11.815215873718262,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445
+      },
+      "route_workspace_mib": 1158.9637451171875
+    },
+    {
+      "layer": 63,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 7.931671142578125,
+      "mean_open_entries": 1415.843017578125,
+      "route_coarse_ms": 3.1880077015269888,
+      "leaves_ms": 2.0747330596481546,
+      "remote_attention_ms": 5.56949955531529,
+      "validation": {},
+      "route_workspace_mib": 0.0,
+      "fixed_frontier": {
+        "native_width": 8,
+        "threshold_width": 223,
+        "variable_width8_ms": 3.2772236082288955,
+        "variable_threshold_width_ms": 3.5811682961203837
+      }
+    },
+    {
+      "layer": 63,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 14.484539031982422,
+      "mean_open_entries": 2079.64697265625,
+      "route_coarse_ms": 6.1043906529744465,
+      "leaves_ms": 4.984488067626954,
+      "remote_attention_ms": 11.34253387451172,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008179903030395508
+      },
+      "route_workspace_mib": 1158.9637451171875
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-63.pt"
+  ]
+}

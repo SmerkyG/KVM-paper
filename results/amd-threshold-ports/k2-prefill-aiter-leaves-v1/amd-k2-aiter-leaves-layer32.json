@@ -1,0 +1,55 @@
+{
+  "layer": 32,
+  "queries": 4096,
+  "all_exact_routes": 5675498,
+  "used_regions": 17405,
+  "native_ms": 2.7267806752522787,
+  "native_with_merge_ms": 4.149626922607422,
+  "runs": [
+    {
+      "scheme": "length",
+      "buckets": 16,
+      "attention_groups": 17405,
+      "packed_k_rows": 326945,
+      "native_values_bitwise": false,
+      "native_lse_bitwise": false,
+      "lse_max_difference": 5.7220458984375e-06,
+      "values_max_difference": 0.0625,
+      "merge_max_difference": 0.03125,
+      "merge_bitwise": false,
+      "aiter_only_ms": 15.033125114440917,
+      "full_ms": 17.56788558959961,
+      "full_with_merge_ms": 18.967746543884278
+    },
+    {
+      "scheme": "256",
+      "buckets": 1,
+      "attention_groups": 35611,
+      "packed_k_rows": 1684500,
+      "native_values_bitwise": false,
+      "native_lse_bitwise": false,
+      "lse_max_difference": 5.7220458984375e-06,
+      "values_max_difference": 0.0625,
+      "merge_max_difference": 0.03125,
+      "merge_bitwise": false,
+      "aiter_only_ms": 898.4960510253907,
+      "full_ms": 982.4560974121093,
+      "full_with_merge_ms": 983.9501159667968
+    },
+    {
+      "scheme": "512",
+      "buckets": 1,
+      "attention_groups": 25427,
+      "packed_k_rows": 960707,
+      "native_values_bitwise": false,
+      "native_lse_bitwise": false,
+      "lse_max_difference": 5.7220458984375e-06,
+      "values_max_difference": 0.0625,
+      "merge_max_difference": 0.03125,
+      "merge_bitwise": false,
+      "aiter_only_ms": 641.4408508300781,
+      "full_ms": 700.9457641601563,
+      "full_with_merge_ms": 702.3189392089844
+    }
+  ]
+}

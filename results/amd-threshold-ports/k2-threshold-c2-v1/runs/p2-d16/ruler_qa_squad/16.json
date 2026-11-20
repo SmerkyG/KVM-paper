@@ -1,0 +1,384 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a9386abf966e1d68244cc26d864b2ada5a68b2985d15216cd97c6f2d92ee77f0",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "2048",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "2"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 16,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 16,
+      "prompt_hash": "b42cf5bcf1ad93e67893a3182f82349f5f2e8c5ab5e31d98db0d9a4defe31f1c",
+      "doc_hash": "178296a1c55d24fd8e53c9a0d9506149c5636f346dd0b9d304f9a138b49ca034",
+      "target_hash": "da2e4cfa5779b28ec2232bd74f95a251095e5d3b9fedcdd654c6d49c06dfc455",
+      "input_tokens": 63037,
+      "input_token_sha256": "6827e5792c7bdaf30f83aa82298f4e6bd73c6b8a212313c9c040195f40063c24",
+      "targets": [
+        "fighting horsemen",
+        "fighting horsemen",
+        "fighting horsemen"
+      ],
+      "prediction": " fighting horsemen",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 39.279
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 17,
+      "prompt_hash": "024f3fe693dc7e40fafc4e3378f5280de935a89135cc194738bca6cbad0cc494",
+      "doc_hash": "9f6dc77e7141d45103dd42c7233ddd56ec7b0d7642101996630cc16c0b761bda",
+      "target_hash": "c5608c47d0320d3862bb153ef91adc04fa7a847f7709cfced5bf84a38f12c31d",
+      "input_tokens": 63879,
+      "input_token_sha256": "6f20d9e58ef83858424a9e9eba1cbd34cfe156ac94f5300f33912c15f52e90b8",
+      "targets": [
+        "Seljuk Turks",
+        "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
+        "the Seljuk Turks"
+      ],
+      "prediction": " The Seljuk Turks",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 38.534
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 18,
+      "prompt_hash": "891c6805a4e1e3b381a2024ec428b5efd2c12fc661aa41cf3cc204543c1bd6ae",
+      "doc_hash": "3ce203c0b23a056280d8277c316e74d16a6fe072a3dd0e3547a8c0c17be1906f",
+      "target_hash": "12838ecc79f770549b9f36d385a739c964b06fb6d14c6ad47d680da5ac1a249c",
+      "input_tokens": 65123,
+      "input_token_sha256": "14d0d34342c90593f32d13970b10fbb96e4f6d4dc451072887119d3b032dbbce",
+      "targets": [
+        "1050s",
+        "in the 1050s",
+        "in the 1050s"
+      ],
+      "prediction": " 1050s",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 39.702
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 19,
+      "prompt_hash": "8b25456c58a59b7a2986403622ab9095ec1a7ec7707c79a24ac6cdba18a59d79",
+      "doc_hash": "a0d818b063de4161e260317ac0bc5b322ed506a9c6ea33bdf686e8424affa9f7",
+      "target_hash": "a48cefa4992a67feb61061f7ec3985fc428e08a445c1c6b46442e4beee15aff2",
+      "input_tokens": 64068,
+      "input_token_sha256": "cad51e37b0f663860ac638ff05fc507e261c541ef4d502f5f2702fa0dd6e59a9",
+      "targets": [
+        "1060s",
+        "In the 1060s",
+        "In the 1060s"
+      ],
+      "prediction": " 1060s",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 38.726
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 20,
+      "prompt_hash": "bebe8d88dcdd5bd602a3d18073f08d12dbf3dc15d287b6f4d3d433f5c5ae6b80",
+      "doc_hash": "fa2bdf501fe952d9cab27e4a1700bc9c96add781ff74f598aaf76a7d2e094002",
+      "target_hash": "0cbb2f8540203d8a0948268c1ce522dd6c3859a194546e913a9f65c84b42482a",
+      "input_tokens": 64939,
+      "input_token_sha256": "22ebde179bf76325f97bab04167f5f7311235630291ad3e49d3075c7ce7a36fb",
+      "targets": [
+        "Alexius Komnenos",
+        "Alexius Komnenos",
+        "Alexius Komnenos"
+      ],
+      "prediction": " Alexius Komnenos",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 39.517
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 21,
+      "prompt_hash": "ecad7c34f7a9eac9770520b890f64ebf3724949cdb03af6bb376c6fd867b92a3",
+      "doc_hash": "eba5def77787010c4bf333bfbbf02b256447c4076718006f1f40442517e05b16",
+      "target_hash": "27b4e3d3ec867dea4d0afdd3b46c1577cdc90e9445a6b389d91327af6922b70c",
+      "input_tokens": 63047,
+      "input_token_sha256": "af900247f6b80bc5c80cadcb362b1c13508decbfc410ebb6b8f15e65cc349556",
+      "targets": [
+        "Afranji",
+        "Afranji",
+        "Afranji"
+      ],
+      "prediction": " Afranji",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.689
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 22,
+      "prompt_hash": "067f7232c6ad0ac7fedb116c3cbbae3e32fa4db606ea660b90c8102fd1d49f42",
+      "doc_hash": "678466356439a717cc699a58544e0c084970a85dd293a5e5fdfbc7db39ddee5d",
+      "target_hash": "b53cf2d8b4384d215a01cf335e57f4f006042851b55a3a56df01e61a54ee6143",
+      "input_tokens": 63027,
+      "input_token_sha256": "5b8f1daf814f195c50e3612969ad51b571cf921dbdd0f532e8b774760a9012f2",
+      "targets": [
+        "Oursel",
+        "Oursel",
+        "Oursel"
+      ],
+      "prediction": " Raimbaud",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.606
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 23,
+      "prompt_hash": "2043d2edc5a06263b138ff394040ffeaf61e4a3e9f136481510e66fd88141505",
+      "doc_hash": "5415444b1454ae7ae4268d1d4ad56b56a68e4319bc8361831483895a68c8e540",
+      "target_hash": "51cddc126a89989f6dc0122a05373d61d9a0b2a0906166ab79adf77727e25770",
+      "input_tokens": 61161,
+      "input_token_sha256": "6e1ceb4514fe5e565dee27f9e29c68c836e42bf408163339c5b05e027ad52270",
+      "targets": [
+        "Turkish forces",
+        "Turkish forces",
+        "Turkish forces"
+      ],
+      "prediction": " The Normans teamed up with the Armenians in Anatolia.",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 36.387
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 24,
+      "prompt_hash": "4b508ac7c0cf7f8866972ba102a7d3a2a0f59ea0aefe27a9bbf052a4362d3f7f",
+      "doc_hash": "93aab46de2f6cc048fd76f7538e4046474a426562ba53ba2d81d03b409b264dc",
+      "target_hash": "09d429bd655689bacfc9d71a710bf67f70e438d26cf19ab0ad483e2669ac6b13",
+      "input_tokens": 63081,
+      "input_token_sha256": "fa6b418d701719b85d9101b03a7b92c03cfd05c9332d0744a734d3ab19096c9c",
+      "targets": [
+        "Norman mercenary",
+        "an Italo-Norman named Raoul",
+        "descended from an Italo-Norman named Raoul"
+      ],
+      "prediction": " The Raoulii were descended from an Italo-Norman named Raoul.",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 38.27
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 25,
+      "prompt_hash": "96e8f173634b5c1152ed1884307cf239fed37f34d485b8b9a75c1c7811c1a863",
+      "doc_hash": "28bca94620d4b7e56b9adbfe453447f1e159bdec5249a8b82be21577bfdf947f",
+      "target_hash": "926c41f43aa3322c1c43ec3b1821ff6b4c6651bd1e416ed11179218ca72c741a",
+      "input_tokens": 64388,
+      "input_token_sha256": "c7d7710d22d54264a0187b8cfd570cb9dcf6ed16bb3ae0ff034245813201d26b",
+      "targets": [
+        "Robert Guiscard",
+        "Robert Guiscard",
+        "Robert Guiscard"
+      ],
+      "prediction": " Robert Guiscard",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 39.048
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 26,
+      "prompt_hash": "85db94f3e088ede3e1b3484d899edb49101a50662c90e230fa07a1be1c4c4515",
+      "doc_hash": "3fcf64ac1bc16f0ac0c75921068c508754b78f1d947893cd4338fabaa547ee2d",
+      "target_hash": "9f5db82e156f0e6ff24d7e87f38b306123eb800561427b4074970ac7322c5b5e",
+      "input_tokens": 64401,
+      "input_token_sha256": "8c10c735e711a6545c2cc1b4fa27734e08c0787e837041bf71231b3366c17d94",
+      "targets": [
+        "1082",
+        "February 1082",
+        "February 1082"
+      ],
+      "prediction": " 1081",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.811
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 27,
+      "prompt_hash": "ed9d8e94478728848306b3683f87f1a3916b01dd92c22ea0494be6c7e5b42ede",
+      "doc_hash": "f4154006d46198528e0cc1871ec344ec46890dea212b292fa39adba61dc93923",
+      "target_hash": "d5ca6d293dbfe27413e29daa1b3e1d3b6e9d94b5a23bd96e3766cd2cb406951e",
+      "input_tokens": 63123,
+      "input_token_sha256": "cae612333448d7b9df943588378e5c925f47b0de93be3044ec6706f5e76561ab",
+      "targets": [
+        "30,000",
+        "30,000",
+        "30,000"
+      ],
+      "prediction": " 30,000",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 37.662
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 28,
+      "prompt_hash": "19055198a2cf5096907fc938423d8c7c0c1b82c474d4b4a12951d16c49b714b0",
+      "doc_hash": "1d8198cb987b597a76bbc16fa1a8e34a4be0b8478b782a02bf97bbbe1766aca0",
+      "target_hash": "0e43a3327982981f52aeb0540b14edc236f833134c377d3fc356644a773af192",
+      "input_tokens": 64253,
+      "input_token_sha256": "2d291038424eebfee18c67d5ad4cd1a503fcbaa9fedeb8c65d1609ec0cff6374",
+      "targets": [
+        "Deabolis",
+        "Deabolis",
+        "Deabolis"
+      ],
+      "prediction": " Deabolis",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.76
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 29,
+      "prompt_hash": "c843cbf40c892579dcdabf3a56af0ec94697299c8ca4f297b614589c754ab4bf",
+      "doc_hash": "d938ddaa8eeac6a143677ea690202ab1ad7a02997b6a0979a2b70418ea08fcdc",
+      "target_hash": "4dd2baa325f0ba52c855c029d2d322f5a5d7f2ac13481b5fd03e2684243d19e5",
+      "input_tokens": 64040,
+      "input_token_sha256": "0e12e8162991710c9167dc9c27870e2a437f71798bb2920b7b5221ceda309395",
+      "targets": [
+        "Bohemond",
+        "Bohemond",
+        "Bohemond"
+      ],
+      "prediction": " Bohemond",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.759
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 30,
+      "prompt_hash": "88f8bdf1703e0af9f2bc0f1fa7c7bb3fb7dd29a991b3c910ff758ee2de3226cc",
+      "doc_hash": "0f14e0e6cdf191be0a3d78071cfe43cce2a63dd0f2c9d3069aaee57972136318",
+      "target_hash": "fd36af0f6cff5e794fb3bf32e2d30c3b5303a525b366a827f2acd221799963e2",
+      "input_tokens": 65496,
+      "input_token_sha256": "334920f2c06639274bfd1aa82e7cbd96c57ca19d356699e09a2509a1c9f101b0",
+      "targets": [
+        "Deabolis",
+        "the river Deabolis",
+        "Deabolis"
+      ],
+      "prediction": " The river Deabolis",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 40.023
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 31,
+      "prompt_hash": "8be93b86b83aef3bf7b4fbdaa5f72296d0e804491c304a053d69798e4f6bf8a1",
+      "doc_hash": "e7e782c5dcc15028bf346932d0ad77e22fdf14aa6913d0263346af0cde7b9850",
+      "target_hash": "16d97f8b4acc6fa4ea7839aaf2eabf276c07e3ce9b0972632c88bab4706447d5",
+      "input_tokens": 63700,
+      "input_token_sha256": "8569232dfbbb9686d20984eb05bceaa99ecb322de9b311767017b89974b0f6c8",
+      "targets": [
+        "1185",
+        "in 1185",
+        "1185"
+      ],
+      "prediction": " 1107",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 38.325
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 62.5
+  }
+}

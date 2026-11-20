@@ -1,0 +1,166 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 17.157039960846305,
+  "prefill_seconds": 15.71249576471746,
+  "stages": {
+    "route_means": {
+      "seconds": 0.15963655990734696,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.05186764597892763,
+        "2896": 0.05367490109056235,
+        "3547": 0.05409401283785702
+      }
+    },
+    "route_blas_qk": {
+      "seconds": 1.3602140207290652,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.3921062793731691,
+        "2896": 0.47591185045242307,
+        "3547": 0.4921958909034727
+      }
+    },
+    "route_prepare_live_count": {
+      "seconds": 0.0017779839965514836,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.000737913997843862,
+        "2896": 0.0005167129999026657,
+        "3547": 0.0005233569988049566
+      }
+    },
+    "route_select_region_bits": {
+      "seconds": 1.399620804786682,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.32099190187454224,
+        "2896": 0.4673643002510072,
+        "3547": 0.6112646026611331
+      }
+    },
+    "route_compact_bits": {
+      "seconds": 0.172040977537632,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.04610907411575318,
+        "2896": 0.06265467619895936,
+        "3547": 0.06327722722291947
+      }
+    },
+    "route_blas_pv": {
+      "seconds": 0.3101253901720046,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.08793934750556949,
+        "2896": 0.0998043338060379,
+        "3547": 0.12238170886039738
+      }
+    },
+    "route_and_coarse": {
+      "seconds": 3.560290365219117,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.9487092418670654,
+        "2896": 1.2127948036193847,
+        "3547": 1.3987863197326664
+      }
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 1.5181681632995612,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 6.313262762069702,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0013747449954971671,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.19474467521905897,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0011058300002478067,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.19833799844980243,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0014972609952092165,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.316191242218018,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "97d21ac7983bc56e4b9de42291d8e1a64432ac8af60e090c01f22a80dfaaa055",
+      "source_file_count": 351
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QK_BLAS": "hipblas",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

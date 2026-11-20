@@ -1,0 +1,28 @@
+{
+  "id": "26585-amd-reviewer2-summary-fixture-v2",
+  "command": [
+    "cluster-run",
+    "--detach",
+    "--num-gpus",
+    "1",
+    "--nodes",
+    "dev-shared-research-1.dev-training.svc.cluster.local,dev-shared-research-2.dev-training.svc.cluster.local,dev-shared-research-3.dev-training.svc.cluster.local,dev-shared-research-4.dev-training.svc.cluster.local",
+    "--name",
+    "amd-reviewer2-summary-fixture-v2",
+    "--",
+    "env",
+    "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-summary-ablation-v2/source:/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-summary-ablation-v2/source/integrations/vllm_lod",
+    "uv",
+    "run",
+    "--offline",
+    "--no-project",
+    "--python",
+    "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+    "python",
+    "-P",
+    "-m",
+    "benchmarks.reviewer2_summary_check",
+    "--output",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/reviewer2-summary-ablation-v2/check.json"
+  ]
+}

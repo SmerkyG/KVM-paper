@@ -1,0 +1,95 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 17.802087180316448,
+  "prefill_seconds": 16.634944651275873,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 3.474500486373902,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 1.7026834635734558,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 6.345599193573,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0011655049952678386,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.27911119961738584,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009998700013384221,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.28231095850467686,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0012723899935372176,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.4169717419147494,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "97a808d84949bc9acd4e4971f21b90451dd787fbc7e0fa2406a24df43052d740",
+      "source_file_count": 347
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "stream",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_STREAM_GEOMETRY": "128,64,1024,4,1",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  },
+  "leaf_work": {
+    "query_region_pairs": 2628734943,
+    "query_kv_pairs": 256138741116,
+    "padded_query_kv_pairs": 313448955904,
+    "tiled_kv_entries": 2448819968,
+    "query_head_rows": 201326592
+  }
+}

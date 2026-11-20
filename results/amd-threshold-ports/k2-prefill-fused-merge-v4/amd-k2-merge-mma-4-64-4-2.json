@@ -1,0 +1,100 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d69dde9139b723c8e63a1ff599ba200927de3e77cba573092c7e0a41e582452d",
+      "source_file_count": 344
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 32,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.116199811299642,
+      "leaves_ms": 5.414597122757523,
+      "remote_attention_ms": 11.821894645690918,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_blas": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 0.3107235098483672,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06
+    },
+    {
+      "layer": 32,
+      "variant": "stream-tc2",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.121568171183268,
+      "leaves_ms": 5.364327494303385,
+      "remote_attention_ms": 11.92560625076294,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_blas": 0.015625
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 0.30969868466039374,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06
+    },
+    {
+      "layer": 32,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.116949081420898,
+      "leaves_ms": 3.4109071640741258,
+      "remote_attention_ms": 11.15000691133387,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_blas": 0.03125
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.493182671930372,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt"
+  ]
+}

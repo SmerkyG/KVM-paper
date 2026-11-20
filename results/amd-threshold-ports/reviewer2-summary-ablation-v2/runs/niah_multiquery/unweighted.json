@@ -1,0 +1,828 @@
+{
+  "task": "niah_multiquery",
+  "arm": "unweighted",
+  "mode": "two-tier",
+  "input_sha256": "86bf7a7694c5ba12c07f84147f619e1624467b4a9f550f9c257300389f048fbc",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": 0,
+      "input_sha256": "27b30abbcd387d04cc537133791ede011b6473ff416f4f22c5e718db6fd4f6c0",
+      "input_tokens": 130461,
+      "output_tokens": 69,
+      "prediction": ":\n\n*   **threatening-optimization:** 5951043\n*   **ahead-stove:** 5123584\n*   **obscene-platform:** 3493621\n*   **puffy-beef:** 7912082",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19491991831,
+          439319529751,
+          50097024
+        ],
+        "decode": [
+          48633684,
+          60530388,
+          26496
+        ]
+      },
+      "elapsed_s": 19.778798919171095,
+      "ttft_s": 17.83446431159973,
+      "decode_ms_per_token": 28.595639392733574
+    },
+    {
+      "id": 1,
+      "input_sha256": "19dfa8219914357e654148dc6b641331951455a83d24fb02fb1713e8793d049f",
+      "input_tokens": 130473,
+      "output_tokens": 74,
+      "prediction": ":\n\n*   **picayune-eurocentrism:** 9131572\n*   **futuristic-click:** 1327658\n*   **erect-punishment:** 9821696\n*   **lucky-broom:** 7024901",
+      "returned_tokens": 74,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19751824150,
+          439653258262,
+          50101632
+        ],
+        "decode": [
+          50174754,
+          63345570,
+          28416
+        ]
+      },
+      "elapsed_s": 20.29985779337585,
+      "ttft_s": 18.168349266052246,
+      "decode_ms_per_token": 29.208221230400753
+    },
+    {
+      "id": 2,
+      "input_sha256": "fddca2106f15669ec8384c87c2f2e33136218d84bda908994c012469eed00e3e",
+      "input_tokens": 130464,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **adorable-deduce:** 5713268\n*   **aware-interval:** 8913550\n*   **icy-hate:** 4674549\n*   **rhetorical-step-daughter:** 6996728",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19594598108,
+          439440604892,
+          50098176
+        ],
+        "decode": [
+          48019092,
+          60369684,
+          27264
+        ]
+      },
+      "elapsed_s": 20.287097550928593,
+      "ttft_s": 18.281935930252075,
+      "decode_ms_per_token": 28.651572151907853
+    },
+    {
+      "id": 3,
+      "input_sha256": "ba11fc4e79df5a36be2d74d3ef18063a291bf39a76d9c35d27078b91feca845f",
+      "input_tokens": 130458,
+      "output_tokens": 69,
+      "prediction": ":\n\n*   **knowing-stole:** 3914404\n*   **dusty-smolt:** 4968669\n*   **roasted-burst:** 1937991\n*   **fat-glue:** 7516648",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19422221895,
+          439231294407,
+          50095872
+        ],
+        "decode": [
+          46668714,
+          58485930,
+          26496
+        ]
+      },
+      "elapsed_s": 19.731791539117694,
+      "ttft_s": 17.78456950187683,
+      "decode_ms_per_token": 28.72558431152035
+    },
+    {
+      "id": 4,
+      "input_sha256": "a49f0d8b3b73b0c114fd22f0b8cc84ac9eccf614b23e547f5fdf28850b111bca",
+      "input_tokens": 130461,
+      "output_tokens": 69,
+      "prediction": ":\n\n*   **auspicious-invitation:** 4902772\n*   **premium-spawn:** 6185050\n*   **dusty-chainstay:** 9228157\n*   **alive-viewer:** 2514267",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19334655976,
+          439162193896,
+          50097024
+        ],
+        "decode": [
+          46676340,
+          58573044,
+          26496
+        ]
+      },
+      "elapsed_s": 19.728842198848724,
+      "ttft_s": 17.77650547027588,
+      "decode_ms_per_token": 28.715761570150363
+    },
+    {
+      "id": 5,
+      "input_sha256": "558a09c7610b28d2e0aa49f64e60701ae37391e0704b0edd7e45e259182cd9e2",
+      "input_tokens": 130464,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **imaginary-decoration**: 1999183\n*   **curved-grill**: 6716988\n*   **wistful-scholar**: 3977282\n*   **accurate-breadcrumb**: 3478196",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19567382447,
+          439413389231,
+          50098176
+        ],
+        "decode": [
+          46038414,
+          58389006,
+          27264
+        ]
+      },
+      "elapsed_s": 19.79425715096295,
+      "ttft_s": 17.785661220550537,
+      "decode_ms_per_token": 28.724717694733823
+    },
+    {
+      "id": 6,
+      "input_sha256": "40c2c4418cbd1c048f82179729f2eb99ef5a0467db62433b73cd4699947bd5cc",
+      "input_tokens": 130473,
+      "output_tokens": 74,
+      "prediction": ":\n\n*   **illustrious-amenity:** 3289279\n*   **sore-sprat:** 2695038\n*   **didactic-slope:** 8329435\n*   **instinctive-dust storm:** 6062779",
+      "returned_tokens": 74,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19632631228,
+          439534065340,
+          50101632
+        ],
+        "decode": [
+          49531068,
+          62701884,
+          28416
+        ]
+      },
+      "elapsed_s": 19.870923273265362,
+      "ttft_s": 17.782527923583984,
+      "decode_ms_per_token": 28.614930680965724
+    },
+    {
+      "id": 7,
+      "input_sha256": "e5498a70bd0059ead06d1940edacf715339254c25002b0af6323e9b1b037e82c",
+      "input_tokens": 130464,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **yellow-karate:** 1030163\n*   **wasteful-engineer:** 7569981\n*   **horrible-leisure:** 5941179\n*   **cuddly-linkage:** 3981450",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19529573014,
+          439375579798,
+          50098176
+        ],
+        "decode": [
+          48815106,
+          61165698,
+          27264
+        ]
+      },
+      "elapsed_s": 19.79822157509625,
+      "ttft_s": 17.7875657081604,
+      "decode_ms_per_token": 28.731291767741954
+    },
+    {
+      "id": 8,
+      "input_sha256": "aa49b297562da02841909cf1dc91daeabe8787b87b1bf7fc1e7a6e24b5bffbbe",
+      "input_tokens": 130464,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **foregoing-gamebird:** 6818508\n*   **protective-recipe:** 3359604\n*   **idiotic-corsage:** 3816683\n*   **incompetent-outlook:** 2305378",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19762460230,
+          439608467014,
+          50098176
+        ],
+        "decode": [
+          47817630,
+          60355998,
+          27648
+        ]
+      },
+      "elapsed_s": 19.8335767891258,
+      "ttft_s": 17.795851945877075,
+      "decode_ms_per_token": 28.701986881418968
+    },
+    {
+      "id": 9,
+      "input_sha256": "a0f6ec5cc8e9683ae4bf03830b4e2e103b06bb4dd413fdba08a86d86d162ce2c",
+      "input_tokens": 130461,
+      "output_tokens": 70,
+      "prediction": ":\n\n*   **anxious-membership**: 7474950\n*   **null-ant**: 8040612\n*   **cloudy-pair**: 1021494\n*   **juvenile-lemonade**: 5306005",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19673679912,
+          439501217832,
+          50097024
+        ],
+        "decode": [
+          47087028,
+          59169588,
+          26880
+        ]
+      },
+      "elapsed_s": 19.78333517536521,
+      "ttft_s": 17.801648378372192,
+      "decode_ms_per_token": 28.728645348894425
+    },
+    {
+      "id": 10,
+      "input_sha256": "efb45c18d122da8d90e3c91b4af61f37385f63e3e979eb52ae571ede9610e246",
+      "input_tokens": 130479,
+      "output_tokens": 75,
+      "prediction": ":\n\n*   **blue-eyed-spruce:** 1560573\n*   **picayune-behavior:** 4784650\n*   **discreet-complement:** 8571346\n*   **hellish-saucer:** 1336852",
+      "returned_tokens": 75,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19574749128,
+          439513152072,
+          50103936
+        ],
+        "decode": [
+          52079352,
+          65615352,
+          28800
+        ]
+      },
+      "elapsed_s": 19.911665549501777,
+      "ttft_s": 17.786274433135986,
+      "decode_ms_per_token": 28.725985437631607
+    },
+    {
+      "id": 11,
+      "input_sha256": "d37916504edd99e0f29c0c80e4b74a7e33db8a5ab1741ba1f3fb0c61d47ea263",
+      "input_tokens": 130461,
+      "output_tokens": 70,
+      "prediction": ":\n\n*   **yummy-glider**: 2258331\n*   **satisfying-passport**: 2562037\n*   **weak-grandpa**: 1519979\n*   **invincible-adapter**: 9098979",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19423349203,
+          439250887123,
+          50097024
+        ],
+        "decode": [
+          48251760,
+          60334320,
+          26880
+        ]
+      },
+      "elapsed_s": 19.767550837248564,
+      "ttft_s": 17.78533124923706,
+      "decode_ms_per_token": 28.729924581189085
+    },
+    {
+      "id": 12,
+      "input_sha256": "1f4f2e26152a003ddc7c27375aa872c16a51933365dc74647fd6d9e83ba276b3",
+      "input_tokens": 130464,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **typical-blog:** 5723173\n*   **miscreant-cygnet:** 5450404\n*   **ceaseless-password:** 1832744\n*   **hesitant-stereo:** 4985398",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19712866302,
+          439558873086,
+          50098176
+        ],
+        "decode": [
+          48553260,
+          60903852,
+          27264
+        ]
+      },
+      "elapsed_s": 19.801544899120927,
+      "ttft_s": 17.7915678024292,
+      "decode_ms_per_token": 28.71755606361798
+    },
+    {
+      "id": 13,
+      "input_sha256": "e2f04e9081fda25b084ccda6a7c32e55d8bd29f1499662c7193f4c585e807d27",
+      "input_tokens": 130461,
+      "output_tokens": 70,
+      "prediction": ":\n\n*   **needy-thong**: 2470159\n*   **hellish-experimentation**: 9058573\n*   **erect-weekender**: 2627170\n*   **adamant-speaking**: 4472094",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19588039874,
+          439415577794,
+          50097024
+        ],
+        "decode": [
+          48446934,
+          60529494,
+          26880
+        ]
+      },
+      "elapsed_s": 19.774282913655043,
+      "ttft_s": 17.793880224227905,
+      "decode_ms_per_token": 28.707766365529835
+    },
+    {
+      "id": 14,
+      "input_sha256": "13a9493e94377127fd65779536856d30f7d55908f4553f60349ef9286b21372d",
+      "input_tokens": 130467,
+      "output_tokens": 70,
+      "prediction": ":\n\n*   **low-similarity:** 7197531\n*   **callous-recall:** 7501626\n*   **efficacious-poor:** 7224691\n*   **poor-visitor:** 5446036",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19718640888,
+          439583119992,
+          50099328
+        ],
+        "decode": [
+          52045194,
+          64289034,
+          26880
+        ]
+      },
+      "elapsed_s": 19.76241346076131,
+      "ttft_s": 17.787036180496216,
+      "decode_ms_per_token": 28.62815585905227
+    },
+    {
+      "id": 15,
+      "input_sha256": "2a2c07b535235dac290a272f7130136339bcdfa1be780f1856f56af1e03b1b32",
+      "input_tokens": 130461,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **rural-quota:** 7945543\n*   **broad-adult:** 6767862\n*   **delightful-tub:** 2622400\n*   **greasy-columnist:** 2034137",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19506250569,
+          439333788489,
+          50097024
+        ],
+        "decode": [
+          48784494,
+          61053294,
+          27264
+        ]
+      },
+      "elapsed_s": 19.7865067794919,
+      "ttft_s": 17.7851824760437,
+      "decode_ms_per_token": 28.5942797682115
+    },
+    {
+      "id": 16,
+      "input_sha256": "356962d17d68e0b455e2e619e237ee937bd797af163499e470d4f2f33abe539b",
+      "input_tokens": 130467,
+      "output_tokens": 73,
+      "prediction": ":\n\n*   **permissible-bitter:** 6013906\n*   **slippery-glance:** 4953417\n*   **willing-llama:** 1582647\n*   **boundless-piety:** 7623718",
+      "returned_tokens": 73,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19685834311,
+          439550313415,
+          50099328
+        ],
+        "decode": [
+          49167126,
+          61977750,
+          28032
+        ]
+      },
+      "elapsed_s": 19.862414173781872,
+      "ttft_s": 17.8032705783844,
+      "decode_ms_per_token": 28.603583108633757
+    },
+    {
+      "id": 17,
+      "input_sha256": "6d110defd2a1fadfe505c0442ca4511f299395b4b1ad71c50970e8bfbea6c427",
+      "input_tokens": 130461,
+      "output_tokens": 70,
+      "prediction": ":\n\n*   **amuck-selling:** 8103052\n*   **boring-tulip:** 8304686\n*   **disturbed-sailing:** 4554926\n*   **enchanting-generator:** 3117049",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19637652689,
+          439465190609,
+          50097024
+        ],
+        "decode": [
+          49315140,
+          61397700,
+          26880
+        ]
+      },
+      "elapsed_s": 19.993222825229168,
+      "ttft_s": 17.99492597579956,
+      "decode_ms_per_token": 28.964076191186905
+    },
+    {
+      "id": 18,
+      "input_sha256": "01e8412b495110b49308d02b91caf50377d5c0ce45c4b73d192017506a72126d",
+      "input_tokens": 130470,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **macho-application:** 7666510\n*   **scintillating-speaker:** 6471499\n*   **ordinary-primate:** 1207430\n*   **gruesome-papaya:** 9718920",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19696964342,
+          439579919222,
+          50100480
+        ],
+        "decode": [
+          47926254,
+          60630510,
+          27648
+        ]
+      },
+      "elapsed_s": 20.096751617267728,
+      "ttft_s": 18.065767765045166,
+      "decode_ms_per_token": 28.60628254711628
+    },
+    {
+      "id": 19,
+      "input_sha256": "3dda6a5e85a95ca4260ca589e0c57c82fc46983be03e3467b13c56819b959056",
+      "input_tokens": 130473,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **jittery-eyebrows:** 7893590\n*   **silent-smell:** 2681144\n*   **handsomely-subtitle:** 9986438\n*   **clear-pig:** 2694338",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19634947695,
+          439536381807,
+          50101632
+        ],
+        "decode": [
+          49833480,
+          62620680,
+          27648
+        ]
+      },
+      "elapsed_s": 19.813230173662305,
+      "ttft_s": 17.782986164093018,
+      "decode_ms_per_token": 28.600936729303548
+    },
+    {
+      "id": 20,
+      "input_sha256": "4828c15113beab0e6ee4a12cdc9d5a7b900c2df9fb62f2fa7839183e013d5b62",
+      "input_tokens": 130479,
+      "output_tokens": 75,
+      "prediction": ":\n\n*   **melodic-horseradish**: 3413447\n*   **sweet-protest**: 7739741\n*   **alleged-wasabi**: 7640300\n*   **inconclusive-alpenglow**: 4985919",
+      "returned_tokens": 75,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19524321345,
+          439462724289,
+          50103936
+        ],
+        "decode": [
+          52399092,
+          65935092,
+          28800
+        ]
+      },
+      "elapsed_s": 19.900552541017532,
+      "ttft_s": 17.783292770385742,
+      "decode_ms_per_token": 28.61486390434407
+    },
+    {
+      "id": 21,
+      "input_sha256": "fd782d4c0a40eca17bf3b03e9a63f9dbcaa6884e71757916a8d574435ada40b8",
+      "input_tokens": 130479,
+      "output_tokens": 75,
+      "prediction": ":\n\n*   **gusty-routine:** 9248001\n*   **hilarious-pineapple:** 8434162\n*   **waggish-bratwurst:** 2647814\n*   **finicky-violet:** 3254614",
+      "returned_tokens": 75,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19674447610,
+          439612850554,
+          50103936
+        ],
+        "decode": [
+          49266300,
+          62802300,
+          28800
+        ]
+      },
+      "elapsed_s": 19.90263536758721,
+      "ttft_s": 17.786859273910522,
+      "decode_ms_per_token": 28.594946992155666
+    },
+    {
+      "id": 22,
+      "input_sha256": "569aab19208762f6cf4b579ff1ccc054387522fc88d6a59ead427272de799fa3",
+      "input_tokens": 130470,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **mindless-pagoda:** 9127895\n*   **difficult-paradise:** 2100870\n*   **auspicious-lobby:** 9644791\n*   **rapid-storm:** 7273172",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19656172478,
+          439539127358,
+          50100480
+        ],
+        "decode": [
+          50492040,
+          63196296,
+          27648
+        ]
+      },
+      "elapsed_s": 19.826427087187767,
+      "ttft_s": 17.794580698013306,
+      "decode_ms_per_token": 28.621284055038238
+    },
+    {
+      "id": 23,
+      "input_sha256": "e5889f70b30de1df01a8e260037ee5d9fcde8ca5a68294fa2b0f2d64628749be",
+      "input_tokens": 130473,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **weak-metabolite:** 4340507\n*   **aromatic-mambo:** 7046090\n*   **average-doubling:** 5185752\n*   **agonizing-thunderbolt:** 8657937",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19706484456,
+          439607918568,
+          50101632
+        ],
+        "decode": [
+          49210158,
+          61997358,
+          27648
+        ]
+      },
+      "elapsed_s": 19.821395868435502,
+      "ttft_s": 17.78868794441223,
+      "decode_ms_per_token": 28.63197755330885
+    },
+    {
+      "id": 24,
+      "input_sha256": "c7fe26c46b6d0ab0c11e591aeb0eaa131ea002a0ba27e193f982a8230f819441",
+      "input_tokens": 130461,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **dysfunctional-personnel:** 8962169\n*   **frantic-derby:** 7248955\n*   **poor-morning:** 8484373\n*   **sour-timeline:** 6867997",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19627419222,
+          439454957142,
+          50097024
+        ],
+        "decode": [
+          50684532,
+          62953332,
+          27264
+        ]
+      },
+      "elapsed_s": 19.791367661207914,
+      "ttft_s": 17.788792848587036,
+      "decode_ms_per_token": 28.61341025148119
+    },
+    {
+      "id": 25,
+      "input_sha256": "bd6b87ca2456792de2f8be1ffd40b95f96a3ad8a14a69d3552d8414c0677926b",
+      "input_tokens": 130464,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **fearless-sensitivity:** 4776753\n*   **uppity-dad:** 4468370\n*   **discreet-laparoscope:** 4595669\n*   **greasy-sort:** 7870390",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19673159710,
+          439519166494,
+          50098176
+        ],
+        "decode": [
+          43534260,
+          56072628,
+          27648
+        ]
+      },
+      "elapsed_s": 19.811530666425824,
+      "ttft_s": 17.782211542129517,
+      "decode_ms_per_token": 28.587007921346476
+    },
+    {
+      "id": 26,
+      "input_sha256": "6e8b1f122a5a6f531c79ed8ab20e02bc9304cb41c201a183d5adf230f05960f1",
+      "input_tokens": 130461,
+      "output_tokens": 70,
+      "prediction": ":\n\n*   **naughty-convection:** 7316209\n*   **strange-incubation:** 6124763\n*   **wide-museum:** 5620085\n*   **festive-scripture:** 5234408",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19733479985,
+          439561017905,
+          50097024
+        ],
+        "decode": [
+          48938898,
+          61021458,
+          26880
+        ]
+      },
+      "elapsed_s": 19.761624539270997,
+      "ttft_s": 17.788625955581665,
+      "decode_ms_per_token": 28.59846224495466
+    },
+    {
+      "id": 27,
+      "input_sha256": "5dc17e61a02f6f8bc38189894627e0759cc211fb3f9fdf70da32912ea0790724",
+      "input_tokens": 130473,
+      "output_tokens": 72,
+      "prediction": ":\n\n*   **shiny-injustice:** 5742531\n*   **ugliest-dimple:** 7278533\n*   **high-pitched-listening:** 2813693\n*   **ablaze-blinker:** 9581776",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19361977712,
+          439263411824,
+          50101632
+        ],
+        "decode": [
+          50920086,
+          63707286,
+          27648
+        ]
+      },
+      "elapsed_s": 19.830290703102946,
+      "ttft_s": 17.791711807250977,
+      "decode_ms_per_token": 28.71447699275655
+    },
+    {
+      "id": 28,
+      "input_sha256": "af032003a89c66b196542483fbbbd4f1316ec1e44b31751b652cc7823d8264fd",
+      "input_tokens": 130467,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **available-crisp:** 7779646\n*   **rare-spiritual:** 5031599\n*   **typical-accuracy:** 6361758\n*   **elegant-widow:** 3515396",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19699693470,
+          439564172574,
+          50099328
+        ],
+        "decode": [
+          50722512,
+          63154896,
+          27264
+        ]
+      },
+      "elapsed_s": 19.788794649764895,
+      "ttft_s": 17.786624908447266,
+      "decode_ms_per_token": 28.607382598732197
+    },
+    {
+      "id": 29,
+      "input_sha256": "822352c3ad3618ba6ebe4fa546778be442468089451329d6f34df8c4ee3b636d",
+      "input_tokens": 130464,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **jealous-inhabitant:** 4730635\n*   **tense-lounge:** 8981512\n*   **alcoholic-preface:** 4186247\n*   **vast-thigh:** 9969688",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19725546088,
+          439571552872,
+          50098176
+        ],
+        "decode": [
+          47588400,
+          59938992,
+          27264
+        ]
+      },
+      "elapsed_s": 19.788511481136084,
+      "ttft_s": 17.786485195159912,
+      "decode_ms_per_token": 28.604624367186002
+    },
+    {
+      "id": 30,
+      "input_sha256": "deff51d5620e8526ab3aedd7c02977d8b849fb97df89e7adb4eed787c06a0bdd",
+      "input_tokens": 130464,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **uptight-referendum**: 6630978\n*   **wrathful-whale**: 4071377\n*   **tough-instance**: 2498202\n*   **cultured-desk**: 5339457",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19684135768,
+          439530142552,
+          50098176
+        ],
+        "decode": [
+          49897146,
+          62247738,
+          27264
+        ]
+      },
+      "elapsed_s": 19.810252755880356,
+      "ttft_s": 17.808531045913696,
+      "decode_ms_per_token": 28.59901902931077
+    },
+    {
+      "id": 31,
+      "input_sha256": "6b2346a1994960f8e5ffc52b85986385780c9b20b4ee8438a7b8263aef245f31",
+      "input_tokens": 130470,
+      "output_tokens": 71,
+      "prediction": ":\n\n*   **teeny-portion:** 2194801\n*   **parsimonious-access:** 1900549\n*   **overjoyed-overheard:** 2976045\n*   **pathetic-bite:** 4263903",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19697630797,
+          439580585677,
+          50100480
+        ],
+        "decode": [
+          50119902,
+          62634078,
+          27264
+        ]
+      },
+      "elapsed_s": 20.198342256247997,
+      "ttft_s": 18.163428783416748,
+      "decode_ms_per_token": 29.07994772706713
+    }
+  ]
+}

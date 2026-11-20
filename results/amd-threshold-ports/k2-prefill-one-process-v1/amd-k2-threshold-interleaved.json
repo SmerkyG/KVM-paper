@@ -1,0 +1,144 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "ecae35212cf437215a17f39ba138f8e0dc6c6a957e024f174c2c8ab4912b5a5f",
+      "source_file_count": 360
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "settings": {
+    "control": {
+      "LOD_AMD_PREFILL_LEAF_CHIPLET_BLOCKS": "0",
+      "LOD_AMD_PREFILL_WORKERS": "608",
+      "LOD_AMD_PREFILL_PREPARE_RMS": "0",
+      "LOD_AMD_PREFILL_PAD_MASK_ONLY": "0"
+    },
+    "chiplet": {
+      "LOD_AMD_PREFILL_LEAF_CHIPLET_BLOCKS": "76",
+      "LOD_AMD_PREFILL_WORKERS": "2432",
+      "LOD_AMD_PREFILL_PREPARE_RMS": "0",
+      "LOD_AMD_PREFILL_PAD_MASK_ONLY": "0"
+    },
+    "chiplet-rms": {
+      "LOD_AMD_PREFILL_LEAF_CHIPLET_BLOCKS": "76",
+      "LOD_AMD_PREFILL_WORKERS": "2432",
+      "LOD_AMD_PREFILL_PREPARE_RMS": "1",
+      "LOD_AMD_PREFILL_PAD_MASK_ONLY": "1"
+    }
+  },
+  "runs": [
+    {
+      "phase": 0,
+      "setting": "control",
+      "prefill_seconds": 16.679870462045074,
+      "decode_seconds": 0.03816564939916134,
+      "matched": true
+    },
+    {
+      "phase": 0,
+      "setting": "chiplet",
+      "prefill_seconds": 15.232745168730617,
+      "decode_seconds": 0.038905443623661995,
+      "matched": true
+    },
+    {
+      "phase": 0,
+      "setting": "chiplet-rms",
+      "prefill_seconds": 15.231521083042026,
+      "decode_seconds": 0.038944464176893234,
+      "matched": true
+    },
+    {
+      "phase": 1,
+      "setting": "chiplet",
+      "prefill_seconds": 15.254514249041677,
+      "decode_seconds": 0.039292970672249794,
+      "matched": true
+    },
+    {
+      "phase": 1,
+      "setting": "chiplet-rms",
+      "prefill_seconds": 15.232439836487174,
+      "decode_seconds": 0.03902020491659641,
+      "matched": true
+    },
+    {
+      "phase": 1,
+      "setting": "control",
+      "prefill_seconds": 15.258877882733941,
+      "decode_seconds": 0.03911506570875645,
+      "matched": true
+    },
+    {
+      "phase": 2,
+      "setting": "chiplet-rms",
+      "prefill_seconds": 15.218414044007659,
+      "decode_seconds": 0.03892781771719456,
+      "matched": true
+    },
+    {
+      "phase": 2,
+      "setting": "control",
+      "prefill_seconds": 15.236826183274388,
+      "decode_seconds": 0.039292555302381516,
+      "matched": true
+    },
+    {
+      "phase": 2,
+      "setting": "chiplet",
+      "prefill_seconds": 15.265116799622774,
+      "decode_seconds": 0.03904949128627777,
+      "matched": true
+    },
+    {
+      "phase": 3,
+      "setting": "control",
+      "prefill_seconds": 15.243816196918488,
+      "decode_seconds": 0.03902014344930649,
+      "matched": true
+    },
+    {
+      "phase": 3,
+      "setting": "chiplet",
+      "prefill_seconds": 15.268693437799811,
+      "decode_seconds": 0.03911152482032776,
+      "matched": true
+    },
+    {
+      "phase": 3,
+      "setting": "chiplet-rms",
+      "prefill_seconds": 15.229500217363238,
+      "decode_seconds": 0.03894231468439102,
+      "matched": true
+    }
+  ],
+  "medians": {
+    "control": 15.243816196918488,
+    "chiplet": 15.265116799622774,
+    "chiplet-rms": 15.229500217363238
+  }
+}

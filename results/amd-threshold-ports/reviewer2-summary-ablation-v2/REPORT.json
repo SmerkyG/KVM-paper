@@ -1,0 +1,329 @@
+{
+  "stage": "complete",
+  "tasks": {
+    "niah_single_1": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "niah_single_2": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "niah_single_3": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "niah_multikey_1": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "niah_multikey_2": {
+      "weighted": 93.75,
+      "sparse": 87.5,
+      "unweighted": 87.5,
+      "dense": 100.0
+    },
+    "niah_multikey_3": {
+      "weighted": 93.75,
+      "sparse": 71.875,
+      "unweighted": 68.75,
+      "dense": 100.0
+    },
+    "niah_multiquery": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "niah_multivalue": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "ruler_cwe": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "ruler_fwe": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "ruler_qa_hotpot": {
+      "weighted": 53.125,
+      "sparse": 53.125,
+      "unweighted": 53.125,
+      "dense": 65.625
+    },
+    "ruler_qa_squad": {
+      "weighted": 74.21875,
+      "sparse": 69.01041666666666,
+      "unweighted": 71.09375,
+      "dense": 74.21875
+    },
+    "ruler_vt": {
+      "weighted": 100.0,
+      "sparse": 100.0,
+      "unweighted": 100.0,
+      "dense": 100.0
+    },
+    "longbench-v2": {
+      "weighted": 59.375,
+      "sparse": 65.625,
+      "unweighted": 64.58333333333334,
+      "dense": 62.5
+    }
+  },
+  "outcomes": {
+    "128K RULER": {
+      "scores": {
+        "weighted": 93.44951923076923,
+        "sparse": 90.88541666666667,
+        "unweighted": 90.80528846153847,
+        "dense": 95.37259615384616
+      },
+      "comparisons": {
+        "weighted-sparse": {
+          "delta_pp": 2.564102564102564,
+          "ci95_pp": [
+            0.4807692307692308,
+            4.647435897435898
+          ]
+        },
+        "weighted-unweighted": {
+          "delta_pp": 2.644230769230769,
+          "ci95_pp": [
+            0.8814102564102564,
+            4.487179487179487
+          ]
+        },
+        "dense-weighted": {
+          "delta_pp": 1.9230769230769231,
+          "ci95_pp": [
+            0.4807692307692308,
+            3.3653846153846154
+          ]
+        }
+      },
+      "work_and_latency": {
+        "weighted": {
+          "prefill_remote": 528.3867283884903,
+          "prefill_total": 8877.726463462159,
+          "decode_remote": 1909.0237150671578,
+          "decode_total": 2313.57215527513,
+          "ttft_s": 16.515695214271545,
+          "elapsed_s": 17.06372656673193,
+          "decode_ms": 27.683389151380176
+        },
+        "sparse": {
+          "prefill_remote": 533.2203244698414,
+          "prefill_total": 8882.56005954351,
+          "decode_remote": 2032.9942294110094,
+          "decode_total": 2437.953479475216,
+          "ttft_s": 16.519833087921143,
+          "elapsed_s": 17.089628412388265,
+          "decode_ms": 28.440586820927592
+        },
+        "unweighted": {
+          "prefill_remote": 535.3736155068073,
+          "prefill_total": 8884.713350580474,
+          "decode_remote": 2029.5788065732759,
+          "decode_total": 2433.324323814655,
+          "ttft_s": 17.61259400844574,
+          "elapsed_s": 18.22624959796667,
+          "decode_ms": 27.755520306527615
+        },
+        "dense": {
+          "prefill_remote": null,
+          "prefill_total": 64740.013613319024,
+          "decode_remote": null,
+          "decode_total": 129787.67094285457,
+          "ttft_s": 42.0755957365036,
+          "elapsed_s": 42.870006249286234,
+          "decode_ms": 34.228537542124585
+        }
+      },
+      "paired_latency": {
+        "weighted-sparse": {
+          "ttft_s": {
+            "delta_s": 0.02053239311163242,
+            "ci95_s": [
+              0.007746057441601386,
+              0.03341183295616737
+            ]
+          },
+          "elapsed_s": {
+            "delta_s": 0.004674321062898694,
+            "ci95_s": [
+              -0.018338566766872715,
+              0.025357252927138828
+            ]
+          }
+        },
+        "weighted-unweighted": {
+          "ttft_s": {
+            "delta_s": -1.1001228191531622,
+            "ci95_s": [
+              -1.1145501182629511,
+              -1.0861063009271255
+            ]
+          },
+          "elapsed_s": {
+            "delta_s": -1.120218329950988,
+            "ci95_s": [
+              -1.1419059359289419,
+              -1.1015071061511452
+            ]
+          }
+        },
+        "dense-weighted": {
+          "ttft_s": {
+            "delta_s": 25.247226813091682,
+            "ci95_s": [
+              25.189958807367546,
+              25.30553796371588
+            ]
+          },
+          "elapsed_s": {
+            "delta_s": 25.418131064516135,
+            "ci95_s": [
+              25.359890314441426,
+              25.47794846973221
+            ]
+          }
+        }
+      }
+    },
+    "LongBench v2 untruncated subset": {
+      "scores": {
+        "weighted": 59.375,
+        "sparse": 65.625,
+        "unweighted": 64.58333333333334,
+        "dense": 62.5
+      },
+      "comparisons": {
+        "weighted-sparse": {
+          "delta_pp": -6.25,
+          "ci95_pp": [
+            -11.458333333333332,
+            -2.083333333333333
+          ]
+        },
+        "weighted-unweighted": {
+          "delta_pp": -5.208333333333334,
+          "ci95_pp": [
+            -10.416666666666668,
+            0.0
+          ]
+        },
+        "dense-weighted": {
+          "delta_pp": 3.125,
+          "ci95_pp": [
+            -1.0416666666666665,
+            8.333333333333332
+          ]
+        }
+      },
+      "work_and_latency": {
+        "weighted": {
+          "prefill_remote": 273.48075531961484,
+          "prefill_total": 8263.933317694846,
+          "decode_remote": 969.0054524739584,
+          "decode_total": 1338.109619140625,
+          "ttft_s": 5.513482451438904,
+          "elapsed_s": 5.709003647789359,
+          "decode_ms": 28.467137233487197
+        },
+        "sparse": {
+          "prefill_remote": 274.5892539768533,
+          "prefill_total": 8265.041816352084,
+          "decode_remote": 1000.2880249023438,
+          "decode_total": 1369.3921915690105,
+          "ttft_s": 5.545433282852173,
+          "elapsed_s": 5.743770621716976,
+          "decode_ms": 28.45657803118229
+        },
+        "unweighted": {
+          "prefill_remote": 275.6307405178304,
+          "prefill_total": 8266.083302893063,
+          "decode_remote": 999.1057332356771,
+          "decode_total": 1368.2098999023438,
+          "ttft_s": 5.737044453620911,
+          "elapsed_s": 5.928084962069988,
+          "decode_ms": 28.37590793413775
+        },
+        "dense": {
+          "prefill_remote": null,
+          "prefill_total": 39786.19211551157,
+          "decode_remote": null,
+          "decode_total": 56760.21875,
+          "ttft_s": 8.363957405090332,
+          "elapsed_s": 8.5774802910164,
+          "decode_ms": 30.690510225083145
+        }
+      },
+      "paired_latency": {
+        "weighted-sparse": {
+          "ttft_s": {
+            "delta_s": -0.012967710693677267,
+            "ci95_s": [
+              -0.03120110183954239,
+              0.008724771440029144
+            ]
+          },
+          "elapsed_s": {
+            "delta_s": -0.0139317035015362,
+            "ci95_s": [
+              -0.0322023441355365,
+              0.00787083738638709
+            ]
+          }
+        },
+        "weighted-unweighted": {
+          "ttft_s": {
+            "delta_s": -0.32784415036439896,
+            "ci95_s": [
+              -0.39059106757243467,
+              -0.26448894292116165
+            ]
+          },
+          "elapsed_s": {
+            "delta_s": -0.32744450519870344,
+            "ci95_s": [
+              -0.38972785795340315,
+              -0.26397601241478696
+            ]
+          }
+        },
+        "dense-weighted": {
+          "ttft_s": {
+            "delta_s": 6.5898984124263125,
+            "ci95_s": [
+              5.1864591365059205,
+              8.003880773981413
+            ]
+          },
+          "elapsed_s": {
+            "delta_s": 6.610587632458191,
+            "ci95_s": [
+              5.20597454009112,
+              8.0259097366749
+            ]
+          }
+        }
+      }
+    }
+  }
+}

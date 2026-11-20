@@ -1,0 +1,106 @@
+K2 Horizon hyperparameter ablations at 64K
+
+The studies use K2 Horizon with FP8 weights and BF16 KV on MI325X, at
+batch one. The full RULER sweeps match the same requests across settings.
+The dotted line in the RULER panels is archived full attention quality on
+the same requests. The latency measurements use separate batch-one
+serving runs.
+
+01  Region mass threshold
+
+We varied the region mass cutoff in prefill and decode separately, keeping
+the other phase at the standard threshold. The cutoff is the mean region
+mass multiplied by c. Lower cutoffs let more regions
+open, and scores stayed close to the standard setting. Tightening the
+cutoff too far hurt both phases, with a pronounced Multikey-2 drop in
+prefill. The middle setting gave the best overall quality on this panel.
+
+02  Fixed region budgets
+
+We tried opening the best four, eight, or sixteen eligible regions per
+query head, using the same normalized region scores as threshold routing.
+Changing one phase at a time kept the comparison focused on the budget rule.
+The smallest budget saved a little prefill time but caused the clearest
+quality loss. Larger budgets recovered some quality. The widest decode
+budget came closest to threshold quality. All three tested fixed selectors
+took longer in decode than their paired threshold controls.
+
+03  Centroid growth schedule
+
+We halved and doubled the standard multiplier in the square-root centroid
+schedule, holding threshold routing and the decode window fixed. Fewer
+centroids sped up prefill but reduced quality. More centroids modestly
+improved quality over the standard LoD setting while increasing prefill
+time. The small score difference versus dense was within the paired
+uncertainty and came mainly from two requests. Decode time changed
+much less in the preliminary serving timings.
+
+04  Decode window size
+
+We varied the maximum length of the exact local window while holding the
+BSWA block size and cache catch-up interval fixed. A wider window keeps
+more preceding blocks exact throughout the current block. The smaller and
+larger windows both scored close to the standard window, and the
+preliminary decode timings were nearly the same.
+
+05  BSWA block size
+
+We tested shorter and longer decode blocks, sweeping from no complete
+preceding blocks through three. The cache catch-up interval followed the
+block size. Each series used its own fresh control at the standard block
+and window. Keeping no preceding block gave the weakest quality in each
+series. Keeping at least one brought the scores close to the controls.
+The paired serving measurements showed little change in decode speed.
+
+06  Prefill block length
+
+We changed the first exact block, scheduler chunk, and prefill cache
+catch-up together, with the later exact lookback held fixed. We measured
+prompt loss on paired ProLong documents and latency through the first
+decode token to include deferred cache work. The dashed line marks the
+16K LoD control. The dotted line shows dense full attention loss on
+the same documents and is close to the 16K loss. The 1K block used
+substantially less reserved memory than 16K, with higher latency and
+nearly unchanged prompt loss. The original 512 result used stale
+cache entries. After the handoff repair, its loss stayed close to the
+16K control. It saved a little more memory than 1K and took longer.
+The 256-token block saved a little more memory again, with slightly
+higher loss and more than twice the 16K latency. The 2K block gave a smaller memory saving and a smaller latency
+penalty than 1K. The 4K and 8K blocks saved little memory. The
+32K block had similar latency to 16K and used substantially more
+reserved memory.
+
+07  Three-tier page refinement
+
+We compared two-tier region opening with one, two, or four pages per
+opened region and an adaptive page cutoff. The arms shared the same
+prefill policy, region threshold, and prompts across all RULER tasks.
+One page caused the largest quality loss, concentrated in Multikey-2
+and Multikey-3. Two pages recovered much of the loss. Four pages and
+the adaptive cutoff matched the two-tier scores on both Multikey tasks
+and stayed close to it across the full panel. In the Multikey diagnostic,
+four pages used far fewer exact entries than adaptive refinement. In
+the separate serving timings, four pages took longer to decode than
+adaptive refinement. Two-tier had the lowest measured decode latency.
+
+08  Region mass threshold Pareto frontier
+
+Each frontier shows the best measured quality as the latency budget
+increases. We varied the threshold in one phase at a time and measured
+absolute latency on the same ProLong prompt used to time dense full
+attention. The standard threshold scored close to dense on the matched
+RULER cohort. Looser prefill cutoffs took substantially longer with
+little change in quality. The loosest prefill setting needed a smaller
+internal query tile to fit in memory. Tightening the prefill cutoff saved time at
+the cost of RULER accuracy. Tightening the decode cutoff changed
+latency much less.
+
+09  BSWA block size Pareto frontier
+
+The chart plots absolute decode latency for each local-window recipe
+and for dense full attention. The standard LoD points summarize the
+paired 256-token control timings. Keeping at least one preceding block
+recovered most of the quality lost when only the current block was
+exact. Differences within the same-GPU LoD pairs stayed below one
+percent, and dense decode took longer than the LoD settings on this
+prompt.

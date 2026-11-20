@@ -1,0 +1,163 @@
+{
+  "stage": "complete",
+  "means": {
+    "threshold": 93.06490384615384,
+    "prefill-top4": 90.30849358974359,
+    "decode-top4": 90.05208333333333,
+    "prefill-top8": 92.2676282051282,
+    "decode-top8": 92.64423076923077,
+    "prefill-top16": 92.04727564102564,
+    "decode-top16": 92.88461538461539
+  },
+  "tasks": {
+    "threshold": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 96.875,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 97.65625,
+      "ruler_cwe": 95.0,
+      "ruler_fwe": 86.45833333333334,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "prefill-top4": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 96.875,
+      "niah_multikey_2": 84.375,
+      "niah_multikey_3": 90.625,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 96.09375,
+      "ruler_cwe": 94.0625,
+      "ruler_fwe": 85.41666666666666,
+      "ruler_qa_hotpot": 59.375,
+      "ruler_qa_squad": 67.1875,
+      "ruler_vt": 100.0
+    },
+    "decode-top4": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 87.5,
+      "niah_multikey_3": 81.25,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 96.09375,
+      "ruler_cwe": 92.8125,
+      "ruler_fwe": 85.41666666666666,
+      "ruler_qa_hotpot": 62.5,
+      "ruler_qa_squad": 65.10416666666666,
+      "ruler_vt": 100.0
+    },
+    "prefill-top8": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 96.875,
+      "niah_multikey_2": 93.75,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 96.875,
+      "ruler_cwe": 93.75,
+      "ruler_fwe": 87.5,
+      "ruler_qa_hotpot": 59.375,
+      "ruler_qa_squad": 71.35416666666666,
+      "ruler_vt": 100.0
+    },
+    "decode-top8": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 96.875,
+      "niah_multikey_3": 93.75,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 98.4375,
+      "ruler_cwe": 95.0,
+      "ruler_fwe": 86.45833333333334,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "prefill-top16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 93.75,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 99.21875,
+      "ruler_cwe": 93.75,
+      "ruler_fwe": 83.33333333333333,
+      "ruler_qa_hotpot": 59.375,
+      "ruler_qa_squad": 67.1875,
+      "ruler_vt": 100.0
+    },
+    "decode-top16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 96.875,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 98.4375,
+      "ruler_cwe": 95.0,
+      "ruler_fwe": 86.45833333333334,
+      "ruler_qa_hotpot": 62.5,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    }
+  },
+  "comparisons": {
+    "prefill-top4": {
+      "delta_points": -2.7564102564102564,
+      "paired_bootstrap_95_interval_points": [
+        -4.270833333333333,
+        -1.4102564102564104
+      ]
+    },
+    "decode-top4": {
+      "delta_points": -3.0128205128205128,
+      "paired_bootstrap_95_interval_points": [
+        -4.5793269230769225,
+        -1.5104166666666667
+      ]
+    },
+    "prefill-top8": {
+      "delta_points": -0.797275641025641,
+      "paired_bootstrap_95_interval_points": [
+        -1.971153846153846,
+        0.2403846153846154
+      ]
+    },
+    "decode-top8": {
+      "delta_points": -0.4206730769230769,
+      "paired_bootstrap_95_interval_points": [
+        -1.217948717948718,
+        0.19631410256410262
+      ]
+    },
+    "prefill-top16": {
+      "delta_points": -1.017628205128205,
+      "paired_bootstrap_95_interval_points": [
+        -2.0232371794871797,
+        -0.2043269230769231
+      ]
+    },
+    "decode-top16": {
+      "delta_points": -0.18028846153846154,
+      "paired_bootstrap_95_interval_points": [
+        -0.7331730769230769,
+        0.18028846153846154
+      ]
+    }
+  }
+}

@@ -1,0 +1,212 @@
+{
+  "stage": "complete",
+  "examples_per_task": 500,
+  "tasks": {
+    "archived_dense": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 100.0,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 100.0,
+      "ruler_cwe": 99.98,
+      "ruler_fwe": 99.4,
+      "ruler_qa_hotpot": 72.0,
+      "ruler_qa_squad": 78.85,
+      "ruler_vt": 100.0
+    },
+    "1024": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 97.39999999999999,
+      "niah_multikey_3": 99.6,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 99.65,
+      "ruler_cwe": 100.0,
+      "ruler_fwe": 99.06666666666666,
+      "ruler_qa_hotpot": 67.80000000000001,
+      "ruler_qa_squad": 76.78333333333333,
+      "ruler_vt": 100.0
+    },
+    "16384": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 99.8,
+      "niah_single_3": 99.8,
+      "niah_multikey_1": 99.8,
+      "niah_multikey_2": 98.0,
+      "niah_multikey_3": 97.8,
+      "niah_multiquery": 99.95,
+      "niah_multivalue": 99.35000000000001,
+      "ruler_cwe": 100.0,
+      "ruler_fwe": 98.73333333333333,
+      "ruler_qa_hotpot": 65.60000000000001,
+      "ruler_qa_squad": 74.41666666666666,
+      "ruler_vt": 99.96000000000001
+    }
+  },
+  "means": {
+    "archived_dense": 96.17153846153846,
+    "1024": 95.4076923076923,
+    "16384": 94.8623076923077
+  },
+  "delta_points": 0.5453846153846058,
+  "paired_bootstrap_95_interval_points": [
+    0.24128205128205127,
+    0.8756410256410256
+  ],
+  "per_task_pairing": {
+    "niah_single_1": {
+      "delta_points": 0.0,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.0
+      ],
+      "improved": 0,
+      "declined": 0
+    },
+    "niah_single_2": {
+      "delta_points": 0.2,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.6
+      ],
+      "improved": 1,
+      "declined": 0
+    },
+    "niah_single_3": {
+      "delta_points": 0.2,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.6
+      ],
+      "improved": 1,
+      "declined": 0
+    },
+    "niah_multikey_1": {
+      "delta_points": 0.2,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.6
+      ],
+      "improved": 1,
+      "declined": 0
+    },
+    "niah_multikey_2": {
+      "delta_points": -0.6,
+      "paired_bootstrap_95_interval_points": [
+        -2.1999999999999997,
+        1.0
+      ],
+      "improved": 8,
+      "declined": 11
+    },
+    "niah_multikey_3": {
+      "delta_points": 1.7999999999999998,
+      "paired_bootstrap_95_interval_points": [
+        0.4,
+        3.4000000000000004
+      ],
+      "improved": 11,
+      "declined": 2
+    },
+    "niah_multiquery": {
+      "delta_points": 0.05,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.15
+      ],
+      "improved": 1,
+      "declined": 0
+    },
+    "niah_multivalue": {
+      "delta_points": 0.3,
+      "paired_bootstrap_95_interval_points": [
+        -0.2,
+        0.8
+      ],
+      "improved": 12,
+      "declined": 5
+    },
+    "ruler_cwe": {
+      "delta_points": 0.0,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.0
+      ],
+      "improved": 0,
+      "declined": 0
+    },
+    "ruler_fwe": {
+      "delta_points": 0.33333333333333337,
+      "paired_bootstrap_95_interval_points": [
+        -0.06666666666666668,
+        0.8
+      ],
+      "improved": 8,
+      "declined": 3
+    },
+    "ruler_qa_hotpot": {
+      "delta_points": 2.1999999999999997,
+      "paired_bootstrap_95_interval_points": [
+        -0.4,
+        4.8
+      ],
+      "improved": 32,
+      "declined": 21
+    },
+    "ruler_qa_squad": {
+      "delta_points": 2.3666666666666667,
+      "paired_bootstrap_95_interval_points": [
+        0.46666666666666673,
+        4.2
+      ],
+      "improved": 22,
+      "declined": 10
+    },
+    "ruler_vt": {
+      "delta_points": 0.039999999999999994,
+      "paired_bootstrap_95_interval_points": [
+        0.0,
+        0.11999999999999997
+      ],
+      "improved": 1,
+      "declined": 0
+    }
+  },
+  "pilot_score_changes": {
+    "16384": {
+      "niah_single_1": 0,
+      "niah_single_2": 0,
+      "niah_single_3": 0,
+      "niah_multikey_1": 1,
+      "niah_multikey_2": 1,
+      "niah_multikey_3": 1,
+      "niah_multiquery": 0,
+      "niah_multivalue": 0,
+      "ruler_cwe": 0,
+      "ruler_fwe": 0,
+      "ruler_qa_hotpot": 2,
+      "ruler_qa_squad": 3,
+      "ruler_vt": 0
+    },
+    "1024": {
+      "niah_single_1": 0,
+      "niah_single_2": 0,
+      "niah_single_3": 0,
+      "niah_multikey_1": 0,
+      "niah_multikey_2": 0,
+      "niah_multikey_3": 1,
+      "niah_multiquery": 0,
+      "niah_multivalue": 0,
+      "ruler_cwe": 1,
+      "ruler_fwe": 1,
+      "ruler_qa_hotpot": 1,
+      "ruler_qa_squad": 1,
+      "ruler_vt": 0
+    }
+  }
+}

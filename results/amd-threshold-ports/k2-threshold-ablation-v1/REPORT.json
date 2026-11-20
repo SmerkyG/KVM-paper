@@ -1,0 +1,127 @@
+{
+  "stage": "complete",
+  "context": 65536,
+  "examples_per_task": 32,
+  "task_scores": {
+    "p16-d16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 100.0,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 96.875,
+      "ruler_cwe": 94.6875,
+      "ruler_fwe": 86.45833333333334,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "p16-d8": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 96.875,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 98.4375,
+      "ruler_cwe": 95.3125,
+      "ruler_fwe": 86.45833333333334,
+      "ruler_qa_hotpot": 62.5,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "p16-d32": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 96.875,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 96.875,
+      "ruler_cwe": 94.375,
+      "ruler_fwe": 87.5,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    },
+    "p8-d16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 100.0,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 98.4375,
+      "ruler_cwe": 93.125,
+      "ruler_fwe": 87.5,
+      "ruler_qa_hotpot": 65.625,
+      "ruler_qa_squad": 66.40625,
+      "ruler_vt": 100.0
+    },
+    "p32-d16": {
+      "niah_single_1": 100.0,
+      "niah_single_2": 100.0,
+      "niah_single_3": 100.0,
+      "niah_multikey_1": 100.0,
+      "niah_multikey_2": 93.75,
+      "niah_multikey_3": 100.0,
+      "niah_multiquery": 100.0,
+      "niah_multivalue": 97.65625,
+      "ruler_cwe": 94.0625,
+      "ruler_fwe": 85.41666666666666,
+      "ruler_qa_hotpot": 62.5,
+      "ruler_qa_squad": 68.22916666666666,
+      "ruler_vt": 100.0
+    }
+  },
+  "means": {
+    "p16-d16": 93.22115384615384,
+    "p16-d8": 92.90865384615384,
+    "p16-d32": 93.03685897435898,
+    "p8-d16": 93.1610576923077,
+    "p32-d16": 92.43189102564102
+  },
+  "comparisons": {
+    "p16-d8": {
+      "delta_points": -0.3125,
+      "improved": 6,
+      "declined": 4,
+      "paired_bootstrap_95_interval_points": [
+        -1.1498397435897436,
+        0.296474358974359
+      ]
+    },
+    "p16-d32": {
+      "delta_points": -0.1842948717948616,
+      "improved": 5,
+      "declined": 6,
+      "paired_bootstrap_95_interval_points": [
+        -0.8533653846153847,
+        0.24839743589743588
+      ]
+    },
+    "p8-d16": {
+      "delta_points": -0.060096153846146194,
+      "improved": 8,
+      "declined": 4,
+      "paired_bootstrap_95_interval_points": [
+        -0.6650641025641025,
+        0.41266025641025644
+      ]
+    },
+    "p32-d16": {
+      "delta_points": -0.7892628205128176,
+      "improved": 6,
+      "declined": 9,
+      "paired_bootstrap_95_interval_points": [
+        -1.7187500000000002,
+        -0.056089743589743606
+      ]
+    }
+  }
+}

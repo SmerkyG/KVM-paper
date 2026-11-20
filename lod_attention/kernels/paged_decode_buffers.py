@@ -954,6 +954,7 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     arena_bias,
     page_descriptors,
     context_lens,
+    exact_work,
     COUNT_BATCH_STRIDE,
     COUNT_HEAD_STRIDE,
     COUNT_TOKEN_STRIDE,
@@ -980,6 +981,9 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
     INCLUDE_NEW: tl.constexpr,
     USE_STATE_LENS: tl.constexpr,
     EXACT_DECODE_THRESHOLD: tl.constexpr = 0,
+    SUMMARY_MODE: tl.constexpr = "weighted",
+    TRACK_EXACT_WORK: tl.constexpr = False,
+    QUERY_HEADS_PER_KV: tl.constexpr = 1,
 ):
     """Build one compact descriptor per selected persistent leaf page.
 
@@ -1087,12 +1091,21 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
 
     local_base = LOCAL_OFFSET + kv_row * LOCAL_CAPACITY
     coarse_base = COARSE_OFFSET + kv_row * STATE_CAPACITY
-    prefix_length = local_and_new + SINK_LEN + active_state_len
+    prefix_length = local_and_new + SINK_LEN
+    if SUMMARY_MODE != "sparse":
+        prefix_length += active_state_len
     token = tl.arange(0, BLOCK_K)
     if work == 0:
         padded_leaf_count = descriptor_count * PAGE_SIZE
         tl.store(union_token_counts + sequence, padded_leaf_count)
         tl.store(context_lens + sequence, prefix_length + padded_leaf_count)
+        if TRACK_EXACT_WORK:
+            pages_before = tl.cumsum(selected_pages) - selected_pages
+            retained = tl.minimum(selected_lengths, tl.maximum(descriptor_count - pages_before, 0) * PAGE_SIZE)
+            remote = tl.where(use_exact, tl.minimum(fixed_leaf_count, padded_leaf_count), tl.sum(retained, 0))
+            tl.atomic_add(exact_work + 3, remote.to(tl.int64) * QUERY_HEADS_PER_KV)
+            tl.atomic_add(exact_work + 4, (remote + local_and_new + SINK_LEN).to(tl.int64) * QUERY_HEADS_PER_KV)
+            tl.atomic_add(exact_work + 5, tl.full((), QUERY_HEADS_PER_KV, tl.int64))
         if INCLUDE_NEW:
             dimension = tl.arange(0, HEAD_DIM)
             current_key = tl.load(
@@ -1112,7 +1125,7 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
             tl.store(arena_v + local_storage, current_value)
 
     coarse_begin = work * BLOCK_K
-    if coarse_begin < active_state_len:
+    if SUMMARY_MODE != "sparse" and coarse_begin < active_state_len:
         slot = coarse_begin + token
         in_state = slot < active_state_len
         count = tl.load(
@@ -1133,9 +1146,10 @@ def _materialize_decode_gqa_union_page_descriptors_kernel(
             == epoch
         )
         active = in_state & (count > 0.0) & ~opened & ~use_exact
+        bias = tl.log(count) if SUMMARY_MODE == "weighted" else 0.0
         tl.store(
             arena_bias + coarse_base + slot,
-            tl.where(active, tl.log(count), -float("inf")),
+            tl.where(active, bias, -float("inf")),
             mask=in_state,
         )
 

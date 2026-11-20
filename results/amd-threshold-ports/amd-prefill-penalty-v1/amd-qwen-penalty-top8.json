@@ -1,0 +1,87 @@
+{
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "length": 65536,
+  "lod_layers": 16,
+  "warmup_seconds": 9.240450723096728,
+  "prefill_seconds": 7.8990866634994745,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 0.3568252964019775,
+      "calls": 48,
+      "query_tokens": 786432
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 0.16020852088928222,
+      "calls": 48,
+      "query_tokens": 786432
+    },
+    "remote_path": {
+      "seconds": 0.5591460943222045,
+      "calls": 48,
+      "query_tokens": 786432
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0002669169991277158,
+      "calls": 48
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.01518778608739376,
+      "calls": 48
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.00021923599950969219,
+      "calls": 48
+    },
+    "leaf_dispatch": {
+      "seconds": 0.015895536944270133,
+      "calls": 48
+    },
+    "leaf_pack": {
+      "seconds": 0.0002786379992030561,
+      "calls": 48
+    },
+    "leaf_kernel": {
+      "seconds": 0.14353291511535646,
+      "calls": 48
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "97a808d84949bc9acd4e4971f21b90451dd787fbc7e0fa2406a24df43052d740",
+      "source_file_count": 347
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  },
+  "leaf_work": {
+    "query_region_pairs": 150350063,
+    "query_kv_pairs": 7780152642,
+    "padded_query_kv_pairs": 9225893376,
+    "tiled_kv_entries": 288309168,
+    "query_head_rows": 18874368
+  }
+}

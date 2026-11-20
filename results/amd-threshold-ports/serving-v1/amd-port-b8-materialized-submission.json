@@ -1,0 +1,33 @@
+{
+  "command": [
+    "cluster-run",
+    "--detach",
+    "--name",
+    "amd-port-b8-materialized",
+    "--num-gpus",
+    "1",
+    "--",
+    "env",
+    "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/serving-v1/source:/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/serving-v1/source/integrations/vllm_lod",
+    "HF_HUB_OFFLINE=1",
+    "HF_DATASETS_OFFLINE=1",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION=materialized",
+    "LOD_AMD_THRESHOLD_PRECISE=1",
+    "uv",
+    "run",
+    "--offline",
+    "--no-project",
+    "--python",
+    "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+    "python",
+    "-P",
+    "-m",
+    "benchmarks.amd_threshold_serving_batch_check",
+    "--mode",
+    "two",
+    "--output",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/serving-v1/amd-port-b8-materialized.json"
+  ],
+  "submission": "Submitted 25085-amd-port-b8-materialized\nCluster ID: dan-agent-25085-amd-port-b8-materialized\nSubuser: agent\nName: amd-port-b8-materialized\nPlacement: auto\nHard filters: node(s) * GPU(s) *\nPreferences: node(s) - GPU(s) -\nGPU count: 1\nRequested ports: 1\nLog: /home/dan/subusers/agent/.cluster-run/agent/logs/25085-amd-port-b8-materialized.log\n",
+  "exit_code": 0
+}

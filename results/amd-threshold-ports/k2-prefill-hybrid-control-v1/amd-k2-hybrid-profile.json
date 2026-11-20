@@ -1,0 +1,153 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 65536,
+  "lod_layers": 64,
+  "warmup_seconds": 14.898773087188601,
+  "prefill_seconds": 14.328395100310445,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 2.2723693895339974,
+      "calls": 192,
+      "query_tokens": 3145728,
+      "by_state_len_seconds": {
+        "2048": 0.49678977394103996,
+        "2896": 0.6970098867416381,
+        "3547": 1.0785697288513185
+      }
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 1.3182117748260505,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "remote_path": {
+      "seconds": 4.110312697410586,
+      "calls": 192,
+      "query_tokens": 3145728
+    },
+    "route_means": {
+      "seconds": 0.0020528250019997358,
+      "calls": 64,
+      "query_tokens": 1048576,
+      "by_state_len_seconds": {
+        "3547": 0.0020528250019997358
+      }
+    },
+    "route_blas_qk": {
+      "seconds": 0.2673988211154938,
+      "calls": 64,
+      "query_tokens": 1048576,
+      "by_state_len_seconds": {
+        "3547": 0.2673988211154938
+      }
+    },
+    "route_prepare_live_count": {
+      "seconds": 0.0004902780018746853,
+      "calls": 64,
+      "query_tokens": 1048576,
+      "by_state_len_seconds": {
+        "3547": 0.0004902780018746853
+      }
+    },
+    "route_select_region_bits": {
+      "seconds": 0.586289547920227,
+      "calls": 64,
+      "query_tokens": 1048576,
+      "by_state_len_seconds": {
+        "3547": 0.586289547920227
+      }
+    },
+    "route_compact_bits": {
+      "seconds": 0.06524305135011672,
+      "calls": 64,
+      "query_tokens": 1048576,
+      "by_state_len_seconds": {
+        "3547": 0.06524305135011672
+      }
+    },
+    "route_blas_pv": {
+      "seconds": 0.12150043523311617,
+      "calls": 64,
+      "query_tokens": 1048576,
+      "by_state_len_seconds": {
+        "3547": 0.12150043523311617
+      }
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.001100114001426846,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.19662705993652344,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009221520009450614,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.19957119369506837,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0011646259967237707,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 1.1154535398483276,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1
+      ],
+      "token_sha256": "54da8feca4cdd4d2f50f26f4e666e70e5d67602ae5e400b6b25cb0e089e5ab5f",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "2511e67309a06d4407a8a25af1e6a32b8fb2c1957220789209a0ade76907f3cf",
+      "source_file_count": 351
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "0",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_QK_BLAS": "hipblas",
+    "LOD_AMD_PREFILL_QUERY_TILE": "16384",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_PREFILL_THRESHOLD_MIN_REGIONS": "3072",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "layer": 32,
+  "query_heads": 1048576,
+  "results": [
+    {
+      "variant": "packed-and-live",
+      "changed_route_rows": 0,
+      "coarse_bitwise_equal": true,
+      "coarse_lse_bitwise_equal": true,
+      "output_bitwise_equal": true,
+      "max_output_difference": 0.0
+    },
+    {
+      "variant": "hipblas",
+      "changed_route_rows": 10,
+      "coarse_bitwise_equal": false,
+      "coarse_lse_bitwise_equal": false,
+      "output_bitwise_equal": false,
+      "max_output_difference": 0.232421875
+    }
+  ]
+}

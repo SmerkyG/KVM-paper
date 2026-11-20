@@ -1,0 +1,828 @@
+{
+  "task": "longbench-v2",
+  "arm": "unweighted",
+  "mode": "two-tier",
+  "input_sha256": "1ec3d0600371e548fde50fd5b3d187859aa0616a9900ae2e75cd67eef891fa52",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": "66f3abe6821e116aacb2e1d2",
+      "input_sha256": "b353915479a03800f98a698cf1c42c9b44c6bc3163b0d383f9c5c0c05c56eadb",
+      "input_tokens": 11480,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          0,
+          25305960960,
+          4408320
+        ],
+        "decode": [
+          1037298,
+          1840626,
+          3072
+        ]
+      },
+      "elapsed_s": 1.469331657513976,
+      "ttft_s": 1.2786664962768555,
+      "decode_ms_per_token": 27.3288009422166
+    },
+    {
+      "id": "66f41348821e116aacb30c89",
+      "input_sha256": "1b193af95303d4cf80264d7e8883c891f01a4d191a1a83fbb7aa5b1153c54ea0",
+      "input_tokens": 12500,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          0,
+          30002400000,
+          4800000
+        ],
+        "decode": [
+          688788,
+          1492116,
+          3072
+        ]
+      },
+      "elapsed_s": 1.5900891702622175,
+      "ttft_s": 1.3990046977996826,
+      "decode_ms_per_token": 27.361725057874406
+    },
+    {
+      "id": "66ec1de5821e116aacb1adca",
+      "input_sha256": "6c59be36569936c6ddecfd1d879474486d621aabd66c0e25997f3bbf9e75ec35",
+      "input_tokens": 15765,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          0,
+          47721790080,
+          6053760
+        ],
+        "decode": [
+          1482144,
+          2285472,
+          3072
+        ]
+      },
+      "elapsed_s": 1.9833827428519726,
+      "ttft_s": 1.7921912670135498,
+      "decode_ms_per_token": 27.363720749105727
+    },
+    {
+      "id": "66ebd49a5a08c7b9b35e0550",
+      "input_sha256": "cb49d4fa16e7ab43d98795144460e49d9ffe80e6dc07750f7b80f2dae0c1cbcd",
+      "input_tokens": 16992,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          46160149,
+          51720007957,
+          6524928
+        ],
+        "decode": [
+          1039488,
+          2137728,
+          3072
+        ]
+      },
+      "elapsed_s": 2.176454395055771,
+      "ttft_s": 1.98465895652771,
+      "decode_ms_per_token": 27.425222897103854
+    },
+    {
+      "id": "66ebd22e5a08c7b9b35e0126",
+      "input_sha256": "f8c590cbd6d558a5a2d5c939e2826c1745a3f1c4eff34fe8bbbd666cbdbe3a24",
+      "input_tokens": 18665,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          189428464,
+          52956695536,
+          7167360
+        ],
+        "decode": [
+          1408068,
+          2927172,
+          3072
+        ]
+      },
+      "elapsed_s": 2.9620204344391823,
+      "ttft_s": 2.7649102210998535,
+      "decode_ms_per_token": 27.457058163625852
+    },
+    {
+      "id": "66ebd5125a08c7b9b35e0616",
+      "input_sha256": "210bd698222b488960060d030bf350a34743528357ccf108a9ac7a66755edaa5",
+      "input_tokens": 20452,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          430637900,
+          55552970828,
+          7853568
+        ],
+        "decode": [
+          1215780,
+          2719524,
+          3072
+        ]
+      },
+      "elapsed_s": 3.145685989409685,
+      "ttft_s": 2.9535012245178223,
+      "decode_ms_per_token": 27.44624870164054
+    },
+    {
+      "id": "66ec2fde821e116aacb1bd18",
+      "input_sha256": "bbae6e53f83dece4cb8e2285b816003a454b3a5189e5ccbf1cd32d0d825cac9f",
+      "input_tokens": 21422,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          403060923,
+          57317208891,
+          8226048
+        ],
+        "decode": [
+          1437378,
+          2775234,
+          3072
+        ]
+      },
+      "elapsed_s": 2.7317233216017485,
+      "ttft_s": 2.539839744567871,
+      "decode_ms_per_token": 27.447396091052465
+    },
+    {
+      "id": "66ec0f3c821e116aacb19d70",
+      "input_sha256": "b8b558ac4bb9b1ae771223d16f3eaaffa30b74a6d35c6d1d31a0f088d529e612",
+      "input_tokens": 27023,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          991360412,
+          75318255644,
+          10376832
+        ],
+        "decode": [
+          2181450,
+          3424074,
+          3072
+        ]
+      },
+      "elapsed_s": 3.397686578333378,
+      "ttft_s": 3.2067015171051025,
+      "decode_ms_per_token": 27.44873719555991
+    },
+    {
+      "id": "671b08c8bb02136c067d4e19",
+      "input_sha256": "c987b1dcea03b19d63a43cb0c95a7a9f03e19b9a9d1e366aef01e23d98da570f",
+      "input_tokens": 28986,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          1210186986,
+          84490623594,
+          11130624
+        ],
+        "decode": [
+          1822200,
+          2803704,
+          3072
+        ]
+      },
+      "elapsed_s": 3.6527112126350403,
+      "ttft_s": 3.4611501693725586,
+      "decode_ms_per_token": 27.465148429785454
+    },
+    {
+      "id": "671b13f5bb02136c067d4ee3",
+      "input_sha256": "d805c2ef553db6bb42747dfc8c27396b8eadf000b2ec6fb1b112e25a3572afbc",
+      "input_tokens": 29087,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          1104534744,
+          84885672792,
+          11169408
+        ],
+        "decode": [
+          1746042,
+          3037818,
+          3072
+        ]
+      },
+      "elapsed_s": 3.675527721643448,
+      "ttft_s": 3.4845478534698486,
+      "decode_ms_per_token": 27.44228339620999
+    },
+    {
+      "id": "66ebc0c95a08c7b9b35de7f3",
+      "input_sha256": "55057087a451d98d3f2e4fa0728f0111191519dabf6d659c5ee812d0d8daed75",
+      "input_tokens": 29700,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          1302675880,
+          88206759592,
+          11404800
+        ],
+        "decode": [
+          1977054,
+          2792670,
+          3072
+        ]
+      },
+      "elapsed_s": 3.7670854069292545,
+      "ttft_s": 3.576240062713623,
+      "decode_ms_per_token": 27.454444340297155
+    },
+    {
+      "id": "66eefe85821e116aacb228dc",
+      "input_sha256": "c21e53b38a7539d5e55a530a2d937bc81ccdc33253b8ba9d47b0293780fe3678",
+      "input_tokens": 31022,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          1297168177,
+          95427367345,
+          11912448
+        ],
+        "decode": [
+          2140566,
+          3085206,
+          3072
+        ]
+      },
+      "elapsed_s": 3.950185753405094,
+      "ttft_s": 3.7589447498321533,
+      "decode_ms_per_token": 27.452498940484865
+    },
+    {
+      "id": "66ebd9895a08c7b9b35e0c7c",
+      "input_sha256": "c3fe2016f840520f1118ac07a2cd0903c77f6d1f7098bef78cc5986bb76b2a2b",
+      "input_tokens": 38121,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          2378997272,
+          113112397592,
+          14638464
+        ],
+        "decode": [
+          2623608,
+          4142712,
+          3072
+        ]
+      },
+      "elapsed_s": 4.844567129388452,
+      "ttft_s": 4.652935743331909,
+      "decode_ms_per_token": 27.47384033032826
+    },
+    {
+      "id": "66ec5af0821e116aacb1ce41",
+      "input_sha256": "daead20e96716001232df75a9360c795a7bedbf78129fa1986713d98d62b07b7",
+      "input_tokens": 40915,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          2435622315,
+          120687341355,
+          15711360
+        ],
+        "decode": [
+          2424630,
+          3876150,
+          3072
+        ]
+      },
+      "elapsed_s": 5.222624680027366,
+      "ttft_s": 5.031673192977905,
+      "decode_ms_per_token": 27.450861941490853
+    },
+    {
+      "id": "66f53f2b821e116aacb3335a",
+      "input_sha256": "17cc39f01eaee0b7ceebdda70c9c483b5e64ad8608220b8f4aa55d28ac495471",
+      "input_tokens": 41739,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          2030450068,
+          123071850772,
+          16027776
+        ],
+        "decode": [
+          1722282,
+          2559402,
+          3072
+        ]
+      },
+      "elapsed_s": 5.315919063985348,
+      "ttft_s": 5.124255657196045,
+      "decode_ms_per_token": 27.45129753436361
+    },
+    {
+      "id": "670493d4bb02136c067cdcd9",
+      "input_sha256": "5864931eeb448d60d198a847c573a361d70b2007b574e2bb3f2c5850b2850646",
+      "input_tokens": 42009,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          2246590304,
+          124258798688,
+          16131456
+        ],
+        "decode": [
+          1821840,
+          2701968,
+          3072
+        ]
+      },
+      "elapsed_s": 5.357011629268527,
+      "ttft_s": 5.1657586097717285,
+      "decode_ms_per_token": 27.48308171119009
+    },
+    {
+      "id": "66eecc45821e116aacb225c3",
+      "input_sha256": "be6c168dfa7c02da78f44624d4553e949639c0c54cb8a651d38d403764dcda54",
+      "input_tokens": 46128,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          2756886133,
+          143050336885,
+          17713152
+        ],
+        "decode": [
+          1782336,
+          2733120,
+          3072
+        ]
+      },
+      "elapsed_s": 5.951253198087215,
+      "ttft_s": 5.76008415222168,
+      "decode_ms_per_token": 27.46464205639703
+    },
+    {
+      "id": "67078ecabb02136c067d0b89",
+      "input_sha256": "f19c0a15b4e123513d8eefa8aa8fdcaf4b407bd194db2f54076b5b66a746629e",
+      "input_tokens": 47746,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          3500929959,
+          152757738279,
+          18334464
+        ],
+        "decode": [
+          2976672,
+          4179360,
+          3072
+        ]
+      },
+      "elapsed_s": 6.150702357292175,
+      "ttft_s": 5.9594340324401855,
+      "decode_ms_per_token": 27.472818802509988
+    },
+    {
+      "id": "66ece28e821e116aacb1db1f",
+      "input_sha256": "1d321f522d24536de12f4c1043173646977ca1bcf010100537b68fffb0b651c6",
+      "input_tokens": 55787,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          4550514489,
+          171521110713,
+          21422208
+        ],
+        "decode": [
+          2528130,
+          4053378,
+          3072
+        ]
+      },
+      "elapsed_s": 7.181931285187602,
+      "ttft_s": 6.9896392822265625,
+      "decode_ms_per_token": 27.506138597215926
+    },
+    {
+      "id": "67062a63bb02136c067cf5ac",
+      "input_sha256": "040a6c3f1b0a60663230ad09d72f958e44ce426532d17ce2efc5f551c3bf1916",
+      "input_tokens": 58386,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          7112700886,
+          182259044182,
+          22420224
+        ],
+        "decode": [
+          3657420,
+          4516044,
+          3072
+        ]
+      },
+      "elapsed_s": 7.7341932486742735,
+      "ttft_s": 7.540757894515991,
+      "decode_ms_per_token": 27.769385703972407
+    },
+    {
+      "id": "66ec1aef821e116aacb1aa1a",
+      "input_sha256": "0966a38bfdd48406411583c6a742edcc2f8260c87bd43545796d240baec23458",
+      "input_tokens": 64515,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          6557317888,
+          211254659200,
+          24773760
+        ],
+        "decode": [
+          1975158,
+          2787702,
+          3072
+        ]
+      },
+      "elapsed_s": 8.679805876687169,
+      "ttft_s": 8.486222743988037,
+      "decode_ms_per_token": 27.831090880291804
+    },
+    {
+      "id": "66ed3e90821e116aacb1f82f",
+      "input_sha256": "b4c18d48a839a7dfc045887caf86368a546e939c6989087bba6eaed76f9304d1",
+      "input_tokens": 64874,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          5836873527,
+          212712339639,
+          24911616
+        ],
+        "decode": [
+          3766806,
+          4895766,
+          3072
+        ]
+      },
+      "elapsed_s": 8.48612591996789,
+      "ttft_s": 8.295032978057861,
+      "decode_ms_per_token": 27.471304738095828
+    },
+    {
+      "id": "670fbd96bb02136c067d2d49",
+      "input_sha256": "9873f2db66c41f1f696285e50f2bbe92507d32e6bd273e746c947860a4f71a51",
+      "input_tokens": 78076,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          7996909033,
+          250450897129,
+          29981184
+        ],
+        "decode": [
+          4172604,
+          5356860,
+          3072
+        ]
+      },
+      "elapsed_s": 10.22192496061325,
+      "ttft_s": 10.021691799163818,
+      "decode_ms_per_token": 28.248538130096026
+    },
+    {
+      "id": "66ec3aff821e116aacb1c52e",
+      "input_sha256": "ab0eaaf54edfe4fff7c85a0c425b37d0ecaa8fed88da946f077b79aedb494e90",
+      "input_tokens": 85320,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          9353564269,
+          276090659437,
+          32762880
+        ],
+        "decode": [
+          4938936,
+          5963448,
+          3072
+        ]
+      },
+      "elapsed_s": 11.233847396448255,
+      "ttft_s": 11.04205846786499,
+      "decode_ms_per_token": 27.52940755869661
+    },
+    {
+      "id": "66ec4370821e116aacb1c905",
+      "input_sha256": "79a264819f2b16c1d6950c3e8cee6823db0efda0efda8e065562d485631bf742",
+      "input_tokens": 88865,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          11967251852,
+          286096097420,
+          34124160
+        ],
+        "decode": [
+          3324432,
+          4229136,
+          3072
+        ]
+      },
+      "elapsed_s": 11.73071420006454,
+      "ttft_s": 11.538465738296509,
+      "decode_ms_per_token": 27.53428156886782
+    },
+    {
+      "id": "66ec6582821e116aacb1cf7a",
+      "input_sha256": "067707a329361a6b42229b44b8c2d91bf6e0f55178b2349c26a91479eaedeecf",
+      "input_tokens": 98768,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          12498591952,
+          329926849744,
+          37926912
+        ],
+        "decode": [
+          4968930,
+          6411234,
+          3072
+        ]
+      },
+      "elapsed_s": 13.1181795950979,
+      "ttft_s": 12.924862623214722,
+      "decode_ms_per_token": 27.59691540684019
+    },
+    {
+      "id": "66fa700bbb02136c067c6c06",
+      "input_sha256": "ee4e80be4ce815fec6fa7e8682ec7d7bc49e8e516f0a4fd3f42d8616a758de7b",
+      "input_tokens": 107223,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          13588575850,
+          347084850922,
+          41173632
+        ],
+        "decode": [
+          4688910,
+          6152718,
+          3072
+        ]
+      },
+      "elapsed_s": 14.316877136006951,
+      "ttft_s": 14.123863935470581,
+      "decode_ms_per_token": 27.622915538293974
+    },
+    {
+      "id": "66f2b5ec821e116aacb2b1ec",
+      "input_sha256": "b29e4130a29cc0d5c8565cba2626a65f6b3a9d0a74817e39b513682602868189",
+      "input_tokens": 110379,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          24029212577,
+          370558909217,
+          42385536
+        ],
+        "decode": [
+          7891470,
+          8826894,
+          3072
+        ]
+      },
+      "elapsed_s": 14.85758101195097,
+      "ttft_s": 14.66550588607788,
+      "decode_ms_per_token": 27.655772332634246
+    },
+    {
+      "id": "66f016e6821e116aacb25497",
+      "input_sha256": "c869d40ac7774d3d7530569fc99232b3b99a41d3bc7bf0730bd621c0d76afbca",
+      "input_tokens": 115963,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          14757297930,
+          385696188042,
+          44529792
+        ],
+        "decode": [
+          3362604,
+          4642092,
+          3072
+        ]
+      },
+      "elapsed_s": 15.539084052667022,
+      "ttft_s": 15.340023517608643,
+      "decode_ms_per_token": 28.402780049613543
+    },
+    {
+      "id": "671b5d49bb02136c067d55fb",
+      "input_sha256": "27d84c2b81291dc09cd49a9aaf368b80228f63afc147c923fdcfdfa820e85ef1",
+      "input_tokens": 121797,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19793879438,
+          400700788622,
+          46770048
+        ],
+        "decode": [
+          8543316,
+          9951828,
+          3072
+        ]
+      },
+      "elapsed_s": 16.422308292239904,
+      "ttft_s": 16.230005502700806,
+      "decode_ms_per_token": 27.692426262157305
+    },
+    {
+      "id": "6718a43fbb02136c067d3ca8",
+      "input_sha256": "1e82aeeb1401a02989daedcb113be9b177bc6d899aad3486b678050717a72735",
+      "input_tokens": 122082,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          21288884932,
+          403017579076,
+          46879488
+        ],
+        "decode": [
+          7792578,
+          9290178,
+          3072
+        ]
+      },
+      "elapsed_s": 16.468083856627345,
+      "ttft_s": 16.274499654769897,
+      "decode_ms_per_token": 27.703049459627696
+    },
+    {
+      "id": "66f4f87b821e116aacb31d62",
+      "input_sha256": "fa32956ce2e13e43816fa35751afaa45bd740fcfc97d7a4e4eef8fcd4fde0fb4",
+      "input_tokens": 131026,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          19727800757,
+          443094607157,
+          50313984
+        ],
+        "decode": [
+          6746148,
+          8194596,
+          3072
+        ]
+      },
+      "elapsed_s": 17.871921245008707,
+      "ttft_s": 17.679877042770386,
+      "decode_ms_per_token": 27.687052796993935
+    }
+  ]
+}

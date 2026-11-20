@@ -1,0 +1,44 @@
+{
+  "stage": "complete",
+  "records": [
+    {
+      "dimension": 128,
+      "group": 8,
+      "mode": "three-bf16",
+      "rule": "region",
+      "batch_size": 8,
+      "pool_size": 10,
+      "graph_replays": 3,
+      "max_abs": 0.001953125
+    },
+    {
+      "dimension": 256,
+      "group": 6,
+      "mode": "three-bf16",
+      "rule": "region",
+      "batch_size": 8,
+      "pool_size": 10,
+      "graph_replays": 3,
+      "max_abs": 0.00048828125
+    }
+  ],
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=62333065-6362-3361-3962-336138653265, pci_bus_id=21, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "d35cbb44036c2ecf1b0d0ed0f0ed8be3ff28f7f9cf539585cd903af7e033c6d2",
+      "source_file_count": 342
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

@@ -1,0 +1,641 @@
+{
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "length": 131072,
+  "lod_layers": 64,
+  "warmup_seconds": 30.120229747146368,
+  "prefill_seconds": 30.136777881532907,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 6.505471094608307,
+      "calls": 448,
+      "query_tokens": 7340032,
+      "by_state_len_seconds": {
+        "2048": 0.4983164620399475,
+        "2896": 0.7035175743103026,
+        "3547": 0.8380283823013306,
+        "4096": 0.9531969594955444,
+        "4579": 1.0752891273498533,
+        "5016": 1.1785482845306392,
+        "5418": 1.2585743045806885
+      }
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 2.4223573224544523,
+      "calls": 448,
+      "query_tokens": 7340032
+    },
+    "remote_path": {
+      "seconds": 9.506543930053718,
+      "calls": 448,
+      "query_tokens": 7340032
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0025488509922288356,
+      "calls": 448
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.2735943983793259,
+      "calls": 448
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0020809719958342606,
+      "calls": 448
+    },
+    "leaf_dispatch": {
+      "seconds": 0.280301771759987,
+      "calls": 448
+    },
+    "leaf_pack": {
+      "seconds": 0.0026528549930080773,
+      "calls": 448
+    },
+    "leaf_kernel": {
+      "seconds": 2.13473464179039,
+      "calls": 448
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0,
+        1,
+        2
+      ],
+      "token_sha256": "15cafe64f0088643bb23f960a56a565fcaf1bc148283d5b1f77e68d002a7d534",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "5a44a3d3f6c85f3fbc5ae05d8190139bcc6218ac342436c8d779039aec225c8b",
+      "source_file_count": 356
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  },
+  "leaf_work": {
+    "query_region_pairs": 3619271972,
+    "query_kv_pairs": 462953583744,
+    "padded_query_kv_pairs": 555274502144,
+    "tiled_kv_entries": 4338082048,
+    "query_head_rows": 469762048
+  },
+  "device_kernels": {
+    "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)": {
+      "seconds": 67.3817984429999,
+      "calls": 4562
+    },
+    "void at::native::vectorized_elementwise_kernel<8, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)": {
+      "seconds": 14.943066945000004,
+      "calls": 128
+    },
+    "_w8a8_triton_block_scaled_mm": {
+      "seconds": 14.640399155999981,
+      "calls": 2304
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)": {
+      "seconds": 7.471916763999991,
+      "calls": 96
+    },
+    "std::enable_if<!(kattr_no_packed_fp32_ops_v<ck_tile::gfx9_t>), void>::type ck_tile::kentry<ck_tile::gfx9_t, 1, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >, ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs>(ck_tile::FmhaFwdKernel<ck_tile::BlockFmhaPipelineQRKSVS<ck_tile::BlockFmhaPipelineProblem<std::bfloat16_t, std::bfloat16_t, std::bfloat16_t, float, float, std::bfloat16_t, unsigned char, float, std::bfloat16_t, float, std::bfloat16_t, ck_tile::TileFmhaShape<ck_tile::sequence<128, 128, 32, 128, 32, 128>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 32>, ck_tile::sequence<8, 1, 1>, ck_tile::sequence<16, 16, 16>, true>, false, ck_tile::ComposedAttention<0u, true>, ck_tile::SimplifiedGenericAttentionMask<false>, false, ck_tile::TileFmhaTraits<false, false, false, false, false, (ck_tile::BlockAttentionBiasEnum)1, false, true, false, (ck_tile::BlockAttentionQuantScaleEnum)0, -1, false, false> >, ck_tile::BlockFmhaPipelineQXKSVSCustomPolicy<true, false, 1, 1>, false>, ck_tile::Default2DEpilogue<ck_tile::Default2DEpilogueProblem<float, std::bfloat16_t, false, false, true>, void> >::FmhaFwdBatchModeKargs)": {
+      "seconds": 5.904569281999995,
+      "calls": 640
+    },
+    "aiter::fmha_fwd_hd128_bf16_causal_rtna": {
+      "seconds": 3.664037048000023,
+      "calls": 512
+    },
+    "_paged_leaf_attention_kernel": {
+      "seconds": 2.134466922000017,
+      "calls": 448
+    },
+    "void per_token_group_quant_8bit_kernel<c10::BFloat16, c10::Float8_e4m3fnuz, false, false, float>(c10::BFloat16 const*, void*, float*, int, int, int, float, float, float, int, int)": {
+      "seconds": 0.4329054950000624,
+      "calls": 2304
+    },
+    "triton_poi_fused_mul_per_token_group_fp8_quant_silu_slice_4": {
+      "seconds": 0.4210978329999892,
+      "calls": 576
+    },
+    "_merge_route_refinement_kernel": {
+      "seconds": 0.4007424179999854,
+      "calls": 448
+    },
+    "_reduce_split_route_candidates_kernel": {
+      "seconds": 0.2979396100000068,
+      "calls": 192
+    },
+    "_reduce_route_candidates_kernel": {
+      "seconds": 0.2868742580000123,
+      "calls": 256
+    },
+    "_count_expert_routes_kernel": {
+      "seconds": 0.22910308200002555,
+      "calls": 448
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.1412679140000156,
+      "calls": 3712
+    },
+    "triton_poi_fused_5": {
+      "seconds": 0.13810390699998848,
+      "calls": 567
+    },
+    "triton_poi_fused_add_0": {
+      "seconds": 0.13036937899999704,
+      "calls": 1152
+    },
+    "void vllm::rms_norm_kernel<c10::BFloat16, 8, 2, true>(c10::BFloat16*, c10::BFloat16 const*, long, long, long, long, long, c10::BFloat16 const*, long, float, int, int)": {
+      "seconds": 0.10125919700001701,
+      "calls": 1161
+    },
+    "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x384x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_12_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1": {
+      "seconds": 0.0968335319999979,
+      "calls": 12
+    },
+    "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 4, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+      "seconds": 0.09469190399995614,
+      "calls": 960
+    },
+    "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x384x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_12_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1": {
+      "seconds": 0.0936520480000004,
+      "calls": 8
+    },
+    "triton_poi_fused_mul_per_token_group_fp8_quant_view_3": {
+      "seconds": 0.09174813200000236,
+      "calls": 1152
+    },
+    "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<c10::BFloat16, at::native::MaxOps<c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4> >(at::native::ReduceOp<c10::BFloat16, at::native::MaxOps<c10::BFloat16>, unsigned int, c10::BFloat16, 4, 4>)": {
+      "seconds": 0.08831196200001243,
+      "calls": 192
+    },
+    "_accumulate_state_deltas_kernel": {
+      "seconds": 0.05965143400000793,
+      "calls": 32
+    },
+    "_maximum": {
+      "seconds": 0.05356038800000038,
+      "calls": 20
+    },
+    "triton_poi_fused_add_ones_view_1": {
+      "seconds": 0.05204297000000466,
+      "calls": 585
+    },
+    "_tiled_dot_maxsim_kernel": {
+      "seconds": 0.043866281999997904,
+      "calls": 32
+    },
+    "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1": {
+      "seconds": 0.04179949799999967,
+      "calls": 4
+    },
+    "_write_virtual_page_indices_kernel": {
+      "seconds": 0.033757092000000544,
+      "calls": 576
+    },
+    "_publish_page_ids_kernel": {
+      "seconds": 0.03287698799999397,
+      "calls": 576
+    },
+    "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<2>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<2>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+      "seconds": 0.026850818000005446,
+      "calls": 128
+    },
+    "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x256x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG16_16_1": {
+      "seconds": 0.024409128000000495,
+      "calls": 4
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16tofloat32_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.023685707999993807,
+      "calls": 160
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1}, std::array<char*, 4ul> >(int, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1}, std::array<char*, 4ul>)": {
+      "seconds": 0.022659849999995908,
+      "calls": 480
+    },
+    "triton_poi_fused_6": {
+      "seconds": 0.021751678000012674,
+      "calls": 567
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.019362676000011854,
+      "calls": 64
+    },
+    "_scatter_expert_routes_kernel": {
+      "seconds": 0.017957854000021697,
+      "calls": 448
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::pow_tensor_scalar_kernel_impl<float, float>(at::TensorIteratorBase&, float)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::pow_tensor_scalar_kernel_impl<float, float>(at::TensorIteratorBase&, float)::{lambda(float)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.01718050599998946,
+      "calls": 64
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.015038811999972906,
+      "calls": 448
+    },
+    "Cijk_Alik_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1": {
+      "seconds": 0.014716475999999791,
+      "calls": 4
+    },
+    "_prepare_aiter_state_kernel": {
+      "seconds": 0.014145490000032816,
+      "calls": 448
+    },
+    "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+      "seconds": 0.014028852000013943,
+      "calls": 1056
+    },
+    "_prepare_state_clustering_keys_kernel": {
+      "seconds": 0.012548953999988385,
+      "calls": 32
+    },
+    "void rocprim::ROCPRIM_400200_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400200_NS::detail::wrapped_segmented_radix_sort_config<rocprim::ROCPRIM_400200_NS::default_config, long, long>, (rocprim::ROCPRIM_400200_NS::detail::target_arch)942, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(auto:1)#1}, rocprim::ROCPRIM_400200_NS::detail::default_config_selector>(rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(auto:1)#1})": {
+      "seconds": 0.012500590000005208,
+      "calls": 32
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.012101172000009682,
+      "calls": 96
+    },
+    "_apply_state_deltas_kernel": {
+      "seconds": 0.011924835999996865,
+      "calls": 32
+    },
+    "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::MeanOps<float, float, float, float>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::MeanOps<float, float, float, float>, unsigned int, float, 4, 4>)": {
+      "seconds": 0.011497319999997624,
+      "calls": 64
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)": {
+      "seconds": 0.009288649999987107,
+      "calls": 576
+    },
+    "void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 4, 128, 1>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+      "seconds": 0.008820842000005064,
+      "calls": 64
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::compare_scalar_kernel<long>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, long)::{lambda(long)#1}, std::array<char*, 2ul> >(int, at::native::compare_scalar_kernel<long>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, long)::{lambda(long)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.007712059999981896,
+      "calls": 448
+    },
+    "void rocprim::ROCPRIM_400200_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400200_NS::detail::wrapped_scan_config<rocprim::ROCPRIM_400200_NS::default_config, int>, (rocprim::ROCPRIM_400200_NS::detail::target_arch)942, rocprim::ROCPRIM_400200_NS::detail::scan_impl<(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400200_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1}, rocprim::ROCPRIM_400200_NS::detail::default_config_selector>(rocprim::ROCPRIM_400200_NS::detail::scan_impl<(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_determinism)0, false, false, rocprim::ROCPRIM_400200_NS::default_config, int const*, int*, int, std::plus<int>, int>(void*, unsigned long&, int const*, int*, int, unsigned long, std::plus<int>, ihipStream_t*, bool)::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1})": {
+      "seconds": 0.0063299079999951735,
+      "calls": 896
+    },
+    "triton_poi_fused_ones_2": {
+      "seconds": 0.00584669299995368,
+      "calls": 1152
+    },
+    "_materialize_page1_coarse_means_kernel": {
+      "seconds": 0.005071297999957916,
+      "calls": 512
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::compare_scalar_kernel<int>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, int)::{lambda(int)#1}, std::array<char*, 2ul> >(int, at::native::compare_scalar_kernel<int>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, int)::{lambda(int)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.004997590000015215,
+      "calls": 448
+    },
+    "void wvSplitK_hf_sml_<__hip_bfloat16, 64, 2, 16, 8, 2, 1>(int, int, int, int, int, int, __hip_bfloat16 const*, __hip_bfloat16 const*, __hip_bfloat16 const*, __hip_bfloat16*, int, int)": {
+      "seconds": 0.004647862999998032,
+      "calls": 9
+    },
+    "_reduce_tiled_dot_maxsim_kernel": {
+      "seconds": 0.004326833999998869,
+      "calls": 32
+    },
+    "void rocprim::ROCPRIM_400200_NS::detail::init_lookback_scan_state_kernel<rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true> >(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<int, false, true>::value_type*)": {
+      "seconds": 0.004082206000017028,
+      "calls": 896
+    },
+    "void at::native::tensor_kernel_scan_innermost_dim_with_indices<long, std::greater_equal<long> >(long const*, long*, long*, int, int, unsigned int, unsigned int, long, std::greater_equal<long>)": {
+      "seconds": 0.003415463999996894,
+      "calls": 96
+    },
+    "void at::native::vectorized_elementwise_kernel<16, at::native::BinaryFunctor<bool, bool, bool, at::native::BitwiseAndFunctor<bool> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<bool, bool, bool, at::native::BitwiseAndFunctor<bool> >, std::array<char*, 3ul>)": {
+      "seconds": 0.0033418219999903757,
+      "calls": 448
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0030542200000259283,
+      "calls": 576
+    },
+    "void at::native::tensor_kernel_scan_outer_dim<int, unsigned int, std::plus<int> >(int*, int const*, unsigned int, unsigned int, unsigned int, int, std::plus<int>)": {
+      "seconds": 0.0027060039999685253,
+      "calls": 448
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul>)": {
+      "seconds": 0.002573892000033053,
+      "calls": 448
+    },
+    "void at::native::radixSortKVInPlace<2, -1, 128, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool)": {
+      "seconds": 0.0024270379999972655,
+      "calls": 92
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul>)": {
+      "seconds": 0.0024163100000191466,
+      "calls": 576
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.002397525999993447,
+      "calls": 576
+    },
+    "triton_poi_fused_3": {
+      "seconds": 0.002270967000003464,
+      "calls": 9
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul>)": {
+      "seconds": 0.0022662360000181934,
+      "calls": 448
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)": {
+      "seconds": 0.0022468500000243086,
+      "calls": 448
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0022153820000188396,
+      "calls": 448
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.002176312000017501,
+      "calls": 544
+    },
+    "Memcpy DtoD (Device -> Device)": {
+      "seconds": 0.0019025070000009167,
+      "calls": 399
+    },
+    "void at::native::mbtopk::computeBlockDigitCounts<float, unsigned int, unsigned int, 2>(at::cuda::detail::TensorInfo<float const, unsigned int>, unsigned int, unsigned int*, unsigned int, unsigned int, int, int, unsigned int, unsigned int, unsigned int*, short*)": {
+      "seconds": 0.0018138180000236031,
+      "calls": 128
+    },
+    "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4>)": {
+      "seconds": 0.0018023219999726856,
+      "calls": 256
+    },
+    "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+      "seconds": 0.0014581669999917499,
+      "calls": 137
+    },
+    "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<true, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<true, at::native::OpaqueType<8>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+      "seconds": 0.0013260220000192056,
+      "calls": 128
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<long> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<long> const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<long> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<long> const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0012366299999970938,
+      "calls": 192
+    },
+    "void at::native::vectorized_elementwise_kernel<16, at::native::FillFunctor<bool>, std::array<char*, 1ul> >(int, at::native::FillFunctor<bool>, std::array<char*, 1ul>)": {
+      "seconds": 0.0008206010000058942,
+      "calls": 105
+    },
+    "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4>)": {
+      "seconds": 0.0007913419999964535,
+      "calls": 128
+    },
+    "triton_poi_fused_mul_per_token_group_fp8_quant_view_2": {
+      "seconds": 0.0007889389999990235,
+      "calls": 9
+    },
+    "void at::native::mbtopk::computeBlockwiseWithinKCounts<unsigned int, float>(unsigned int*, short*, unsigned int*, unsigned int, int, bool, unsigned int*, float*, unsigned int*, unsigned int*, unsigned int*, unsigned int)": {
+      "seconds": 0.0007656660000015981,
+      "calls": 128
+    },
+    "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*)": {
+      "seconds": 0.0007488620000039228,
+      "calls": 288
+    },
+    "kernel_page1_attention_3d_bias": {
+      "seconds": 0.0007117699999921024,
+      "calls": 64
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0006706660000064877,
+      "calls": 160
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<long, long, bool, at::native::(anonymous namespace)::CompareEqFunctor<long> > const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0006327800000001444,
+      "calls": 96
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul>)": {
+      "seconds": 0.0006017759999970438,
+      "calls": 96
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<c10::BFloat16, c10::BFloat16, c10::BFloat16, at::native::binary_internal::DivFunctor<c10::BFloat16> > const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0005887239999934101,
+      "calls": 32
+    },
+    "triton_poi_fused_0": {
+      "seconds": 0.0005885869999910866,
+      "calls": 9
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#8}::operator()() const::{lambda(bool, long, long)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0005132520000010263,
+      "calls": 96
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::reciprocal_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::reciprocal_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.00046881199999793897,
+      "calls": 64
+    },
+    "_decode_route_coarse_gqa_groups_kernel": {
+      "seconds": 0.0004622520000003279,
+      "calls": 64
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::sqrt_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::sqrt_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.00043865200000244665,
+      "calls": 64
+    },
+    "_materialize_decode_gqa_union_arena_kernel": {
+      "seconds": 0.0004362499999925493,
+      "calls": 64
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#11}::operator()() const::{lambda(bool)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0004359819999997271,
+      "calls": 96
+    },
+    "void at::native::reduce_kernel<256, 2, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::sum_functor<int, int, int>::operator()(at::TensorIterator&)::{lambda(int, int)#1}>, unsigned int, int, 4, 4>)": {
+      "seconds": 0.0004033720000013709,
+      "calls": 64
+    },
+    "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.0003981759999964851,
+      "calls": 64
+    },
+    "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<8u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+      "seconds": 0.00038196799998928326,
+      "calls": 32
+    },
+    "void at::native::mbtopk::gatherTopK<float, unsigned int, 2>(at::cuda::detail::TensorInfo<float const, unsigned int>, unsigned int, unsigned int, bool, unsigned int, unsigned int, at::cuda::detail::TensorInfo<float, unsigned int>, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, float*, unsigned int*, unsigned int*, unsigned int)": {
+      "seconds": 0.00037884200000611604,
+      "calls": 32
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::FillFunctor<float> >(at::TensorIteratorBase&, at::native::FillFunctor<float> const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::FillFunctor<float> >(at::TensorIteratorBase&, at::native::FillFunctor<float> const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.00033157199999856677,
+      "calls": 64
+    },
+    "_reduce_decode_route_topk_kernel": {
+      "seconds": 0.0003312919999994336,
+      "calls": 64
+    },
+    "triton_poi_fused_4": {
+      "seconds": 0.0003264670000021615,
+      "calls": 9
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctorOnSelf_add<long> >(at::TensorIteratorBase&, at::native::CUDAFunctorOnSelf_add<long> const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctorOnSelf_add<long> >(at::TensorIteratorBase&, at::native::CUDAFunctorOnSelf_add<long> const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.00032260599999921403,
+      "calls": 32
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::CompareFunctor<c10::BFloat16> >(at::TensorIteratorBase&, at::native::(anonymous namespace)::CompareFunctor<c10::BFloat16> const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::CompareFunctor<c10::BFloat16> >(at::TensorIteratorBase&, at::native::(anonymous namespace)::CompareFunctor<c10::BFloat16> const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0003122479999933857,
+      "calls": 32
+    },
+    "_write_append_complement_kernel": {
+      "seconds": 0.0003068439999906113,
+      "calls": 32
+    },
+    "reduce_page1_segments_advance_local": {
+      "seconds": 0.00028529300000518557,
+      "calls": 64
+    },
+    "Memset (Device)": {
+      "seconds": 0.00026853600000427104,
+      "calls": 64
+    },
+    "void rocprim::ROCPRIM_400200_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400200_NS::detail::wrapped_partition_config<rocprim::ROCPRIM_400200_NS::select_config<256u, 13u, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_scan_algorithm)0, 4294967295u>, (rocprim::ROCPRIM_400200_NS::detail::partition_subalgo)4, unsigned int, rocprim::ROCPRIM_400200_NS::empty_type>, (rocprim::ROCPRIM_400200_NS::detail::target_arch)942, rocprim::ROCPRIM_400200_NS::detail::partition_impl<(rocprim::ROCPRIM_400200_NS::detail::partition_subalgo)4, false, rocprim::ROCPRIM_400200_NS::select_config<256u, 13u, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_scan_algorithm)0, 4294967295u>, HIP_vector_type<unsigned int, 2u>, rocprim::ROCPRIM_400200_NS::counting_iterator<unsigned int, long>, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::tuple<unsigned int*, unsigned int*, rocprim::ROCPRIM_400200_NS::reverse_iterator<unsigned int*> >, rocprim::ROCPRIM_400200_NS::tuple<rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*>, rocprim::ROCPRIM_400200_NS::empty_type, unsigned int*, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#1}, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#2}>(void*, unsigned long&, rocprim::ROCPRIM_400200_NS::counting_iterator<unsigned int, long>, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::tuple<unsigned int*, unsigned int*, rocprim::ROCPRIM_400200_NS::reverse_iterator<unsigned int*> >, rocprim::ROCPRIM_400200_NS::tuple<rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*>, unsigned int*, unsigned long, rocprim::ROCPRIM_400200_NS::empty_type, ihipStream_t*, bool, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#1}, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#2})::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1}, rocprim::ROCPRIM_400200_NS::detail::default_config_selector>(rocprim::ROCPRIM_400200_NS::detail::partition_impl<(rocprim::ROCPRIM_400200_NS::detail::partition_subalgo)4, false, rocprim::ROCPRIM_400200_NS::select_config<256u, 13u, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_load_method)3, (rocprim::ROCPRIM_400200_NS::block_scan_algorithm)0, 4294967295u>, HIP_vector_type<unsigned int, 2u>, rocprim::ROCPRIM_400200_NS::counting_iterator<unsigned int, long>, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::tuple<unsigned int*, unsigned int*, rocprim::ROCPRIM_400200_NS::reverse_iterator<unsigned int*> >, rocprim::ROCPRIM_400200_NS::tuple<rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*>, rocprim::ROCPRIM_400200_NS::empty_type, unsigned int*, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#1}, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#2}>(void*, unsigned long&, rocprim::ROCPRIM_400200_NS::counting_iterator<unsigned int, long>, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::tuple<unsigned int*, unsigned int*, rocprim::ROCPRIM_400200_NS::reverse_iterator<unsigned int*> >, rocprim::ROCPRIM_400200_NS::tuple<rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*, rocprim::ROCPRIM_400200_NS::empty_type*>, unsigned int*, unsigned long, rocprim::ROCPRIM_400200_NS::empty_type, ihipStream_t*, bool, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#1}, rocprim::ROCPRIM_400200_NS::detail::segmented_radix_sort_impl<rocprim::ROCPRIM_400200_NS::default_config, false, long const*, long*, long const*, long*, at::native::(anonymous namespace)::offset_t>(void*, unsigned long&, long const*, std::iterator_traits<long const*>::value_type*, long*, long const*, std::iterator_traits<long const*>::value_type*, long*, unsigned int, bool&, unsigned int, at::native::(anonymous namespace)::offset_t, at::native::(anonymous namespace)::offset_t, unsigned int, unsigned int, ihipStream_t*, bool)::{lambda(unsigned int)#2})::{lambda(auto:1, auto:2)#1}::operator()<std::integral_constant<bool, false>, std::integral_constant<bool, true> >(std::integral_constant<bool, false>, std::integral_constant<bool, true>) const::{lambda(auto:1)#1})": {
+      "seconds": 0.0002541280000054976,
+      "calls": 32
+    },
+    "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, c10::BFloat16, c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, c10::BFloat16, c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, c10::BFloat16, c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::where_kernel_impl(at::TensorIterator&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(bool, c10::BFloat16, c10::BFloat16)#1} const&)::{lambda(int, bool)#1})": {
+      "seconds": 0.0002342420000009006,
+      "calls": 32
+    },
+    "at::native::(anonymous namespace)::fill_reverse_indices_kernel(long*, int, at::cuda::detail::IntDivider<unsigned int>)": {
+      "seconds": 0.00023320399999793146,
+      "calls": 32
+    },
+    "_count_append_complement_blocks_kernel": {
+      "seconds": 0.00022920799999660813,
+      "calls": 32
+    },
+    "void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 4, 128, 1>(at::native::(anonymous namespace)::OpaqueType<4u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+      "seconds": 0.00022144600001035723,
+      "calls": 32
+    },
+    "_prepare_prefill_inputs_kernel": {
+      "seconds": 0.00020363000000102148,
+      "calls": 8
+    },
+    "Memcpy DtoH (Device -> Host)": {
+      "seconds": 0.0001892479999926873,
+      "calls": 32
+    },
+    "void at::native::vectorized_elementwise_kernel<8, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#9}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#9}::operator()() const::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)": {
+      "seconds": 0.0001891620000003604,
+      "calls": 32
+    },
+    "void rocprim::ROCPRIM_400200_NS::detail::trampoline_kernel<rocprim::ROCPRIM_400200_NS::detail::wrapped_transform_config<rocprim::ROCPRIM_400200_NS::default_config, unsigned long, true>, (rocprim::ROCPRIM_400200_NS::detail::target_arch)942, rocprim::ROCPRIM_400200_NS::detail::transform_impl<true, rocprim::ROCPRIM_400200_NS::default_config, unsigned long*, unsigned int*, rocprim::ROCPRIM_400200_NS::identity<void> >(unsigned long*, unsigned int*, unsigned long, rocprim::ROCPRIM_400200_NS::identity<void>, ihipStream_t*, bool)::{lambda(auto:1)#1}, rocprim::ROCPRIM_400200_NS::detail::default_config_selector>(rocprim::ROCPRIM_400200_NS::detail::transform_impl<true, rocprim::ROCPRIM_400200_NS::default_config, unsigned long*, unsigned int*, rocprim::ROCPRIM_400200_NS::identity<void> >(unsigned long*, unsigned int*, unsigned long, rocprim::ROCPRIM_400200_NS::identity<void>, ihipStream_t*, bool)::{lambda(auto:1)#1})": {
+      "seconds": 0.00016272799999930433,
+      "calls": 32
+    },
+    "_compute_slot_mappings_kernel": {
+      "seconds": 0.00015991099999567086,
+      "calls": 9
+    },
+    "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_fill_internal_kernel<at::native::OpaqueType<1>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, at::native::OpaqueType<1>, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_fill_internal_kernel<at::native::OpaqueType<1>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, at::native::OpaqueType<1>, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+      "seconds": 0.0001596840000009397,
+      "calls": 32
+    },
+    "void at::native::vectorized_elementwise_kernel<16, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul> >(int, at::native::FillFunctor<unsigned char>, std::array<char*, 1ul>)": {
+      "seconds": 0.00015712800000293646,
+      "calls": 32
+    },
+    "_prefix_append_complement_blocks_kernel": {
+      "seconds": 0.00015528600000694863,
+      "calls": 32
+    },
+    "void at::native::mbtopk::fill<unsigned int, unsigned int>(unsigned int*, unsigned int, unsigned int)": {
+      "seconds": 0.0001493660000103991,
+      "calls": 32
+    },
+    "_apply_write_kernel": {
+      "seconds": 0.0001380219999993369,
+      "calls": 12
+    },
+    "void rocprim::ROCPRIM_400200_NS::detail::init_lookback_scan_state_kernel<rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<HIP_vector_type<unsigned int, 2u>, false, true>, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true> >(rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<HIP_vector_type<unsigned int, 2u>, false, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::block_id_wrapper<unsigned int, true>, unsigned int, rocprim::ROCPRIM_400200_NS::detail::lookback_scan_state<HIP_vector_type<unsigned int, 2u>, false, true>::value_type*)": {
+      "seconds": 0.00012924199999601115,
+      "calls": 32
+    },
+    "void at::native::radixSortKVInPlace<2, -1, 256, 8, long, long, unsigned int>(at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, unsigned int, unsigned int, at::cuda::detail::TensorInfo<long, unsigned int>, unsigned int, bool)": {
+      "seconds": 0.000124633999999729,
+      "calls": 4
+    },
+    "_gumbel_sample_kernel": {
+      "seconds": 0.00011459100000094623,
+      "calls": 9
+    },
+    "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4> >(at::native::ReduceOp<float, at::native::ArgMaxOps<float>, unsigned int, long, 4, 4>)": {
+      "seconds": 7.283099999977276e-05,
+      "calls": 9
+    },
+    "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<2> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+      "seconds": 5.8229000005405406e-05,
+      "calls": 9
+    },
+    "_post_update_kernel": {
+      "seconds": 5.5990999998990445e-05,
+      "calls": 9
+    },
+    "_gather_block_tables_kernel": {
+      "seconds": 5.111100000109218e-05,
+      "calls": 9
+    },
+    "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+      "seconds": 4.827100000111387e-05,
+      "calls": 9
+    },
+    "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+      "seconds": 4.774900000123307e-05,
+      "calls": 9
+    },
+    "triton_poi_fused_1": {
+      "seconds": 4.559100000200305e-05,
+      "calls": 9
+    },
+    "_prepare_pos_seq_lens_kernel": {
+      "seconds": 4.403099999587538e-05,
+      "calls": 9
+    },
+    "_combine_sampled_and_draft_tokens_kernel": {
+      "seconds": 4.339100000420331e-05,
+      "calls": 9
+    },
+    "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)": {
+      "seconds": 3.866899999999987e-05,
+      "calls": 9
+    },
+    "_get_num_sampled_and_rejected_kernel": {
+      "seconds": 3.799099999479949e-05,
+      "calls": 9
+    },
+    "Memcpy HtoD (Host -> Device)": {
+      "seconds": 2.4007000000001425e-05,
+      "calls": 1
+    },
+    "__amd_rocclr_copyBuffer": {
+      "seconds": 4.6789999976754185e-06,
+      "calls": 1
+    }
+  },
+  "device_profile_prefill_seconds": 30.19401326775551
+}

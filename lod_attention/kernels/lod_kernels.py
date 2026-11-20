@@ -10,10 +10,12 @@ query-by-state score tensor.
 from __future__ import annotations
 
 import math
+import os
 
 import torch
 import triton
 import triton.language as tl
+from .prefill_tc_reduce import weighted_value_sum
 
 
 def _launch_kwargs(num_warps: int) -> dict[str, int]:
@@ -21,6 +23,101 @@ def _launch_kwargs(num_warps: int) -> dict[str, int]:
     if torch.version.hip is not None:
         kwargs["waves_per_eu"] = 1
     return kwargs
+
+
+def state_score_max(scores):
+    """Optionally reduce BF16 scores with identical first-index semantics."""
+    hip = torch.version.hip is not None
+    flag = 'LOD_AMD_STATE_PACKED_MAX' if hip else 'LOD_H100_STATE_PACKED_MAX'
+    # Wider AMD rows can spill registers and lose to the native reduction.
+    max_columns = 4096 if hip else 65535
+    if (os.environ.get(flag) == '1' and scores.is_cuda and scores.dtype == torch.bfloat16
+            and scores.is_contiguous() and 0 < scores.size(-1) <= max_columns):
+        from .state_maxsim import maximum
+        return maximum(scores)
+    result=scores.max(dim=-1)
+    return result.values,result.indices
+
+
+@triton.jit
+def _prefill_route_value_tile(Values, score, live, position, maximum, D: tl.constexpr,
+                               ROWS: tl.constexpr, BLOCK: tl.constexpr, MMA_PARTS: tl.constexpr):
+    dim = tl.arange(0, D)
+    weight = tl.exp(score - maximum[:, None])
+    value = tl.load(Values + position[:, :, None] * D + dim[None, None, :],
+                    mask=live[:, :, None], other=0)
+    if MMA_PARTS:
+        acc = weighted_value_sum(weight, tl.reshape(value, (ROWS * BLOCK, D)), ROWS, BLOCK, MMA_PARTS)
+        valid_rows = tl.broadcast_to(tl.arange(0, ROWS)[:, None], (ROWS, D))
+        numerator = tl.gather(acc, valid_rows, 0)
+    else:
+        numerator = tl.sum(weight[:, :, None] * value.to(tl.float32), 1)
+    return numerator, tl.sum(weight, 1)
+
+
+@triton.jit
+def _prefill_exact_reduction(Values, LSE, Counts, RowStarts, row, active,
+                             WIDTH: tl.constexpr, D: tl.constexpr, ROWS: tl.constexpr,
+                             BLOCK: tl.constexpr, MMA_PARTS: tl.constexpr, COMPACT: tl.constexpr,
+                             SHORT_MMA: tl.constexpr = False):
+    """Reduce the live prefix while keeping the exact branch's BF16 rounding."""
+    count = tl.load(Counts + row, mask=active, other=0)
+    if COMPACT:
+        row_start = tl.load(RowStarts + row, mask=active, other=0).to(tl.int64)
+    else:
+        row_start = row * WIDTH
+    largest = tl.max(count, 0)
+    numerator = tl.zeros((ROWS, D), tl.float32)
+    mass = tl.zeros((ROWS,), tl.float32)
+    maximum = tl.zeros((ROWS,), tl.float32)
+    if largest <= BLOCK:
+        rank = tl.arange(0, BLOCK)
+        live = rank[None, :] < count[:, None]
+        position = row_start[:, None] + rank[None, :]
+        score = tl.load(LSE + position, mask=live, other=-float("inf"))
+        largest_score = tl.max(score, 1)
+        maximum = tl.where(largest_score != -float("inf"), largest_score, 0.)
+        if SHORT_MMA:
+            if largest <= BLOCK // 2:
+                # Preserve the full-width FP32 mass reduction and omit zero
+                # operands from the value MMA when the whole tile is short.
+                full_weight = tl.exp(score - maximum[:, None])
+                mass = tl.sum(full_weight, 1)
+                ranks = tl.arange(0, BLOCK // 2)
+                indices = tl.broadcast_to(ranks[None, :], (ROWS, BLOCK // 2))
+                weights = tl.gather(full_weight, indices, 1)
+                live_short = ranks[None, :] < count[:, None]
+                short_pos = row_start[:, None] + ranks[None, :]
+                dim = tl.arange(0, D)
+                values = tl.load(Values + short_pos[:, :, None] * D + dim[None, None, :],
+                                 mask=live_short[:, :, None], other=0)
+                acc = weighted_value_sum(weights, tl.reshape(values, (ROWS * (BLOCK // 2), D)),
+                                         ROWS, BLOCK // 2, MMA_PARTS)
+                numerator = tl.gather(acc, tl.broadcast_to(tl.arange(0, ROWS)[:, None], (ROWS, D)), 0)
+            else:
+                numerator, mass = _prefill_route_value_tile(
+                    Values, score, live, position, maximum, D, ROWS, BLOCK, MMA_PARTS)
+        else:
+            numerator, mass = _prefill_route_value_tile(
+                Values, score, live, position, maximum, D, ROWS, BLOCK, MMA_PARTS)
+    else:
+        # Read the live LSEs once to find a safe common scale.
+        all_ranks = tl.arange(0, triton.next_power_of_2(WIDTH))
+        all_scores = tl.load(LSE + row_start[:, None] + all_ranks[None, :],
+                             mask=all_ranks[None, :] < count[:, None], other=-float("inf"))
+        largest_score = tl.max(all_scores, 1)
+        maximum = tl.where(largest_score != -float("inf"), largest_score, 0.)
+        for start in range(0, largest, BLOCK):
+            offset = start + tl.arange(0, BLOCK)
+            live = offset[None, :] < count[:, None]
+            position = row_start[:, None] + offset[None, :]
+            tile_scores = tl.load(LSE + position, mask=live, other=-float("inf"))
+            tile, weight = _prefill_route_value_tile(Values, tile_scores, live, position, maximum, D, ROWS, BLOCK, 0)
+            numerator += tile
+            mass += weight
+    value = numerator / tl.maximum(mass[:, None], 1.e-30)
+    lse = tl.where(mass > 0, maximum + tl.log(mass), -float("inf"))
+    return value.to(Values.dtype.element_ty).to(tl.float32), lse
 
 
 @triton.jit(
@@ -69,6 +166,8 @@ def _merge_attention_branches_with_sink_kernel(
     secondary_lse,
     tertiary_out,
     tertiary_lse,
+    route_counts,
+    exact_row_starts,
     output,
     Q_BATCH_STRIDE,
     Q_HEAD_STRIDE,
@@ -110,6 +209,11 @@ def _merge_attention_branches_with_sink_kernel(
     INCLUDE_TERTIARY: tl.constexpr,
     SCALE: tl.constexpr,
     BLOCK_M: tl.constexpr,
+    ROUTE_WIDTH: tl.constexpr,
+    ROUTE_BLOCK: tl.constexpr,
+    ROUTE_MMA_PARTS: tl.constexpr,
+    ROUTE_COMPACT: tl.constexpr,
+    ROUTE_SHORT_MMA: tl.constexpr,
 ):
     """Merge materialized attention branches and an exact side sink once."""
     batch = tl.program_id(0).to(tl.int64)
@@ -200,14 +304,21 @@ def _merge_attention_branches_with_sink_kernel(
         ).to(tl.float32)
         maximum = tl.maximum(maximum, secondary_score)
     if INCLUDE_TERTIARY:
-        tertiary_score = tl.load(
-            tertiary_lse
-            + batch * TERTIARY_LSE_BATCH_STRIDE
-            + query_head * TERTIARY_LSE_HEAD_STRIDE
-            + query * TERTIARY_LSE_TOKEN_STRIDE,
-            mask=query_valid,
-            other=-float("inf"),
-        ).to(tl.float32)
+        if ROUTE_WIDTH:
+            row = (batch * QUERY_HEADS + query_head) * QUERY_LEN + query
+            exact_value, tertiary_score = _prefill_exact_reduction(
+                tertiary_out, tertiary_lse, route_counts, exact_row_starts, row, query_valid,
+                ROUTE_WIDTH, HEAD_DIM, BLOCK_M, ROUTE_BLOCK, ROUTE_MMA_PARTS, ROUTE_COMPACT, ROUTE_SHORT_MMA,
+            )
+        else:
+            tertiary_score = tl.load(
+                tertiary_lse
+                + batch * TERTIARY_LSE_BATCH_STRIDE
+                + query_head * TERTIARY_LSE_HEAD_STRIDE
+                + query * TERTIARY_LSE_TOKEN_STRIDE,
+                mask=query_valid,
+                other=-float("inf"),
+            ).to(tl.float32)
         maximum = tl.maximum(maximum, tertiary_score)
 
     primary_weight = tl.exp(primary_score - maximum)
@@ -242,15 +353,18 @@ def _merge_attention_branches_with_sink_kernel(
         numerator += secondary_weight[:, None] * secondary_value
     if INCLUDE_TERTIARY:
         tertiary_weight = tl.exp(tertiary_score - maximum)
-        tertiary_value = tl.load(
-            tertiary_out
-            + batch * TERTIARY_BATCH_STRIDE
-            + query_head * TERTIARY_HEAD_STRIDE
-            + query[:, None] * TERTIARY_TOKEN_STRIDE
-            + dim[None, :],
-            mask=query_valid[:, None] & dim_valid[None, :],
-            other=0.0,
-        ).to(tl.float32)
+        if ROUTE_WIDTH:
+            tertiary_value = exact_value
+        else:
+            tertiary_value = tl.load(
+                tertiary_out
+                + batch * TERTIARY_BATCH_STRIDE
+                + query_head * TERTIARY_HEAD_STRIDE
+                + query[:, None] * TERTIARY_TOKEN_STRIDE
+                + dim[None, :],
+                mask=query_valid[:, None] & dim_valid[None, :],
+                other=0.0,
+            ).to(tl.float32)
         denominator += tertiary_weight
         numerator += tertiary_weight[:, None] * tertiary_value
     output_offset = (
@@ -1102,6 +1216,10 @@ def _apply_state_deltas_kernel(
         mask=update,
     )
 
+    # Every warp must finish reading touched and the delta buffers before any
+    # warp clears them for the next update.  Otherwise a later warp can see a
+    # cleared slot and silently skip part of its value update on CUDA.
+    tl.debug_barrier()
     tl.store(
         delta_k
         + row * DELTA_K_ROW_STRIDE
@@ -2173,13 +2291,13 @@ def streaming_state_maxsim(
                 # Separate-sink spherical routing uses the same logits for
                 # append selection and merge assignment. Reduce the 512 MiB
                 # score field once instead of launching two identical maxima.
-                route_score, route_index = route_scores_dense.max(dim=-1)
+                route_score, route_index = state_score_max(route_scores_dense)
                 select_score = route_score
             else:
                 if append_scores_dense is not None:
-                    select_score = append_scores_dense.max(dim=-1).values
+                    select_score = state_score_max(append_scores_dense)[0]
                 route_scores_dense[..., :sink_len] = float("-inf")
-                route_score, route_index = route_scores_dense.max(dim=-1)
+                route_score, route_index = state_score_max(route_scores_dense)
             return route_score, route_index, select_score
     raise ValueError(
         "the LoD release requires prepared spherical/coherence state routing"
@@ -2710,6 +2828,11 @@ def merge_attention_branches_with_sink(
     output_buffer: torch.Tensor | None = None,
     block_m: int = 8,
     num_warps: int = 4,
+    route_counts: torch.Tensor | None = None,
+    route_block: int = 32,
+    route_mma_parts: int = 0,
+    route_short_mma: bool = False,
+    exact_row_starts: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Fuse the final LSE reduction with exact side-sink attention."""
     if not q.is_cuda:
@@ -2732,14 +2855,46 @@ def merge_attention_branches_with_sink(
         (secondary_out, secondary_lse, "secondary"),
         (tertiary_out, tertiary_lse, "tertiary"),
     )
+    route_width = 0
+    if route_counts is not None:
+        if (
+            route_counts.shape != expected_lse_shape
+            or route_counts.dtype != torch.int32
+            or route_counts.device != q.device
+            or not route_counts.is_contiguous()
+            or tertiary_out is None
+            or tertiary_lse is None
+            or tertiary_lse.ndim != 4
+            or not tertiary_out.is_contiguous()
+            or not tertiary_lse.is_contiguous()
+            or head_dim not in (128, 256)
+            or route_block not in (16, 32, 64)
+            or route_mma_parts not in (0, 1, 2, 3)
+            or (route_short_mma and (route_mma_parts != 1 or route_block != 64))
+            or (route_mma_parts and (tertiary_out.dtype != torch.bfloat16 or block_m > 16))
+        ):
+            raise ValueError("invalid variable-route prefill merge inputs")
+        route_width = tertiary_lse.size(-1)
+    if exact_row_starts is not None and (
+        route_counts is None or exact_row_starts.numel() != route_counts.numel()
+        or exact_row_starts.dtype != torch.int32 or exact_row_starts.device != q.device
+        or not exact_row_starts.is_contiguous()
+    ):
+        raise ValueError("invalid compact exact row starts")
     for branch_out, branch_lse, name in branches:
         if (branch_out is None) != (branch_lse is None):
             raise ValueError(f"{name} attention output and LSE must be paired")
         if branch_out is None:
             continue
-        if tuple(branch_out.shape) != expected_output_shape:
+        if name == "tertiary" and route_width:
+            expected_lse = (*expected_lse_shape, route_width)
+            expected_out = (*expected_lse, head_dim)
+        else:
+            expected_lse = expected_lse_shape
+            expected_out = expected_output_shape
+        if tuple(branch_out.shape) != expected_out:
             raise ValueError(f"{name} attention output has the wrong shape")
-        if tuple(branch_lse.shape) != expected_lse_shape:
+        if tuple(branch_lse.shape) != expected_lse:
             raise ValueError(f"{name} attention LSE has the wrong shape")
         if not branch_out.is_cuda or not branch_lse.is_cuda:
             raise ValueError("fused sink reduction requires CUDA branch tensors")
@@ -2783,6 +2938,8 @@ def merge_attention_branches_with_sink(
         secondary_lse,
         tertiary_out,
         tertiary_lse,
+        primary_lse if route_counts is None else route_counts,
+        exact_row_starts,
         output,
         q.stride(0),
         q.stride(1),
@@ -2824,6 +2981,11 @@ def merge_attention_branches_with_sink(
         INCLUDE_TERTIARY=include_tertiary,
         SCALE=scale,
         BLOCK_M=block_m,
+        ROUTE_WIDTH=route_width,
+        ROUTE_BLOCK=route_block,
+        ROUTE_MMA_PARTS=route_mma_parts,
+        ROUTE_COMPACT=exact_row_starts is not None,
+        ROUTE_SHORT_MMA=route_short_mma,
         **_launch_kwargs(num_warps),
     )
     return output

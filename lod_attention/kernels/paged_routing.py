@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from ._launch import hip_launch_kwargs
+
 import torch
 import triton
 import triton.language as tl
@@ -478,7 +480,7 @@ def materialized_state_route_gqa(
         BYPASS_K_L1=True,
         num_warps=2,
         num_stages=3,
-        waves_per_eu=2,
+        **hip_launch_kwargs(waves_per_eu=2),
     )
     end("route_state_scores", start)
     start = begin()
@@ -503,7 +505,7 @@ def materialized_state_route_gqa(
         PROTECTED_LEN=protected_len,
         MAX_LEAF_TOKENS=max_leaf_tokens or 0,
         num_warps=2,
-        waves_per_eu=waves_per_eu,
+        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
     )
     end("route_state_topk_lse_tile", start)
     start = begin()
@@ -522,7 +524,7 @@ def materialized_state_route_gqa(
         OPEN_COUNT=open_count,
         ROUTE_COUNT=route_count,
         num_warps=2,
-        waves_per_eu=waves_per_eu,
+        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
     )
     end("route_state_topk_lse_reduce", start)
     pv_splits = min(8, int(buffers["partial_out"].size(2)))
@@ -552,7 +554,7 @@ def materialized_state_route_gqa(
         BLOCK_N=64,
         BLOCK_D=128,
         num_warps=2,
-        waves_per_eu=waves_per_eu,
+        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
     )
     end("route_state_normalized_pv_split", start)
     start = begin()
@@ -564,7 +566,7 @@ def materialized_state_route_gqa(
         PV_SPLITS=pv_splits,
         BLOCK_D=128,
         num_warps=1,
-        waves_per_eu=waves_per_eu,
+        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
     )
     end("route_state_pv_reduce", start)
     return (top_slots, top_scores, coarse_out, coarse_lse)
@@ -630,6 +632,7 @@ def _decode_route_coarse_gqa_groups_kernel(
     INCLUDE_NEW: tl.constexpr = False,
     PREPARE_BASELINE: tl.constexpr = False,
     BASELINE_SINK_LEN: tl.constexpr = 0,
+    NORMALIZE_ROUTE_QUERY: tl.constexpr = False,
 ):
     """Share each state K/V tile across all query heads in one GQA group."""
     batch_kv = tl.program_id(0).to(tl.int64)
@@ -773,9 +776,18 @@ def _decode_route_coarse_gqa_groups_kernel(
         ).to(tl.float32)
     else:
         count_bias = tl.log(count)
+    route_logits = scores
+    if NORMALIZE_ROUTE_QUERY:
+        query_float = queries.to(tl.float32)
+        inverse_rms = tl.rsqrt(tl.maximum(tl.sum(query_float * query_float, 1) / HEAD_DIM, 1.e-12))
+        route_logits = route_logits * inverse_rms[:, None]
     scores += count_bias[None, :]
     scores = tl.where(query_valid[:, None] & valid[None, :], scores, -float("inf"))
-    route_scores = tl.where(slot[None, :] >= PROTECTED_LEN, scores, -float("inf"))
+    route_scores = tl.where(
+        query_valid[:, None] & valid[None, :] & (slot[None, :] >= PROTECTED_LEN),
+        route_logits + count_bias[None, :],
+        -float("inf"),
+    )
     if MAX_LEAF_TOKENS:
         route_scores = tl.where(
             count[None, :] < MAX_LEAF_TOKENS,

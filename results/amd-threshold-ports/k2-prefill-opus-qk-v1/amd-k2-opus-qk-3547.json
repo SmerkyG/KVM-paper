@@ -1,0 +1,62 @@
+{
+  "layer": 32,
+  "queries": 16384,
+  "regions": 3547,
+  "rows": 131072,
+  "runs": [
+    {
+      "args": null,
+      "backend": "default",
+      "tile_rows": 131072,
+      "qk_ms": 5.550040292739868
+    },
+    {
+      "args": null,
+      "backend": "hipblas",
+      "tile_rows": 131072,
+      "qk_ms": 4.0694404983520505
+    },
+    {
+      "args": null,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter_meta/csrc/opus_gemm/opus_gemm.cu:423 splitk workspace not initialized for the current CUDA stream. Call aiter.opus_gemm_workspace_init() inside `with torch.cuda.stream(s):` (and warm with the largest expected gemm) before HIP graph capture."
+    },
+    {
+      "args": 10001,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter_meta/csrc/opus_gemm/include/gfx942/opus_gemm_arch_gfx942.cuh:158 Kernel id 10001 not found in a16w16 fp32 tune lookup table (gfx942)"
+    },
+    {
+      "args": 10002,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter_meta/csrc/opus_gemm/include/gfx942/opus_gemm_arch_gfx942.cuh:158 Kernel id 10002 not found in a16w16 fp32 tune lookup table (gfx942)"
+    },
+    {
+      "args": 10003,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter_meta/csrc/opus_gemm/include/gfx942/opus_gemm_arch_gfx942.cuh:158 Kernel id 10003 not found in a16w16 fp32 tune lookup table (gfx942)"
+    },
+    {
+      "args": 10201,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter_meta/csrc/opus_gemm/opus_gemm.cu:423 splitk workspace not initialized for the current CUDA stream. Call aiter.opus_gemm_workspace_init() inside `with torch.cuda.stream(s):` (and warm with the largest expected gemm) before HIP graph capture."
+    },
+    {
+      "args": 10202,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter_meta/csrc/opus_gemm/include/gfx942/opus_gemm_arch_gfx942.cuh:158 Kernel id 10202 not found in a16w16 fp32 tune lookup table (gfx942)"
+    },
+    {
+      "args": 10203,
+      "backend": "opus",
+      "tile_rows": 131072,
+      "error": "[AITER] /app/aiter/aiter/jit/build/module_deepgemm_opus/blob/impl/opus_gemm_gfx942_splitk_p1_bk128_256x64x64x128_2x2_16x16x16_0x0x0.cuh:146 K=128 too small for a16w16_kbuf2v_bk128_sk B_K=128: need K >= 256"
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "batch_size": 8,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      },
+      "python": "3.12.13"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_file_count": 342,
+      "source_sha256": "d35cbb44036c2ecf1b0d0ed0f0ed8be3ff28f7f9cf539585cd903af7e033c6d2"
+    }
+  },
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_routes": null,
+  "decode_threshold_entry_block": 32,
+  "decode_threshold_entry_warps": 4,
+  "decode_threshold_implementation": "legacy",
+  "decode_threshold_multiplier": 16.0,
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_CACHED_MEANS": "1",
+    "LOD_AMD_THRESHOLD_FIXED_SCAN": "8",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16"
+  },
+  "decode_threshold_rule": "region",
+  "decode_threshold_splits": 64,
+  "decode_threshold_tile": 64,
+  "decode_threshold_union": false,
+  "decode_tokens": 1025,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.8,
+  "measure": "speed",
+  "measurements": {
+    "32768": {
+      "cohort_decode_timings_seconds": [
+        52.441866068169475,
+        52.41931330785155
+      ],
+      "cohort_prefill_timings_seconds": [
+        50.72030327655375,
+        50.69571756385267
+      ],
+      "decode_ms_per_batch_step": 51.20174774219777,
+      "decode_timings_seconds": [
+        52.441866068169475,
+        52.41931330785155
+      ],
+      "decode_tokens_per_second": 156.24466649615601,
+      "first_mismatch_positions": [
+        [
+          16,
+          19,
+          10,
+          null,
+          67,
+          null,
+          null,
+          350
+        ],
+        [
+          16,
+          29,
+          10,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "30b68b2fe5e6bbffebd9fcec6dd9d9c5802b2adf37e159b54db35ac858d18e2b",
+          "94a00f5e6bdaaa4a99b086070d9f9cee03455646002364dc006fac2f0de20221",
+          "1f30b870be64dbc8e8139387f911b0958627fbeb41e392b6ed028262e0d1ebb1",
+          "0d2bf84efdc5d083ce52ad05350fcc4deb020f01e522f740d2e21af0587014c1",
+          "5dfb911dcf22f484002b933c8b4c042f7921209dadbdc8450754eac371105917",
+          "0e19b7dc3bc0b48e4c60d2a7cb6566d6f015c93f705f84e874235087a98ba7f4",
+          "9f6bd919b342ceeea425eba7d472b0aab3afcd46afe9fa7593bfac9ec295e0bb",
+          "cf9dce5186fe7bdb7c8a7a65956fe28c50e4fe2784b96ade87ce1f1072a5a6e1"
+        ],
+        [
+          "796a4212007f84437413481debb6ac33bec36d49506c527feb66da76f7020ae2",
+          "5590c511541037d993ec70a4e7dbb7e8ef58c08ceb3c96bf3f4cd065c07395b1",
+          "74fb55ccf69920c09b47ebde1949383c0a37da9a2079796ebeee1de15d33424b",
+          "0d2bf84efdc5d083ce52ad05350fcc4deb020f01e522f740d2e21af0587014c1",
+          "efc6849c11b76e18392695cdf4d8e798865bb5d293d5168c66d3cb7428e9e0fc",
+          "0e19b7dc3bc0b48e4c60d2a7cb6566d6f015c93f705f84e874235087a98ba7f4",
+          "9f6bd919b342ceeea425eba7d472b0aab3afcd46afe9fa7593bfac9ec295e0bb",
+          "682419020f4c5ff2046976bf0d30713b02fe7ca13ab31232061bb2ac676759b0"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 5169.676306123735,
+      "prefill_seconds": 50.70801042020321,
+      "prefill_timings_seconds": [
+        50.72030327655375,
+        50.69571756385267
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "10139fabc89e9510da1c6f34b9c429a853aec32450a6df901602c904766d926a",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 1,
+          "source_stream_indices": [
+            1
+          ],
+          "token_sha256": "1e64986516ec323b7919aa0d236817b7e319eb1599187a27e93f47117efd663a",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 2,
+          "source_stream_indices": [
+            2
+          ],
+          "token_sha256": "ae7e4c1d18197fff9e7644d8986c2953170466ae163a9b2e059dc88fafb60539",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 3,
+          "source_stream_indices": [
+            3
+          ],
+          "token_sha256": "55f7afc4a24218859691654cf3319e38e23b3be6f965044d8354931742d27dac",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 4,
+          "source_stream_indices": [
+            5
+          ],
+          "token_sha256": "a2f98d1b4a370f664bbc770404be0190340b2cfa66fb7322717c07ea593f257a",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 5,
+          "source_stream_indices": [
+            6,
+            7
+          ],
+          "token_sha256": "a453e6aba3b4f3dd5db160489bb76f2e762f9dd980c6dc01c2d0899d0f33f124",
+          "unique_16_token_block_ratio": 0.998046875
+        },
+        {
+          "request_index": 6,
+          "source_stream_indices": [
+            8
+          ],
+          "token_sha256": "3e8311d81c7e0bffc4b118c3adec6f5ce55b2623df54817573b7f88c5d58b426",
+          "unique_16_token_block_ratio": 1.0
+        },
+        {
+          "request_index": 7,
+          "source_stream_indices": [
+            9
+          ],
+          "token_sha256": "95b9f51b1d2a8393381e02eddeffd599dd9519fe45cfa438d622cf0af0c973d7",
+          "unique_16_token_block_ratio": 0.99951171875
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "2d36000638a627cb8f04edb20b67489261b7a058a15cf7f787d1f7ded7edb77c",
+        "bee561ba45d0d7fa2688d6c79173736aca4bd1ecaf46ea2457002ec6645f773d",
+        "816704b811c1fc89445de18178a259b1b966afa64ab6e85db18c30c390646131",
+        "0d2bf84efdc5d083ce52ad05350fcc4deb020f01e522f740d2e21af0587014c1",
+        "efc6849c11b76e18392695cdf4d8e798865bb5d293d5168c66d3cb7428e9e0fc",
+        "0e19b7dc3bc0b48e4c60d2a7cb6566d6f015c93f705f84e874235087a98ba7f4",
+        "9f6bd919b342ceeea425eba7d472b0aab3afcd46afe9fa7593bfac9ec295e0bb",
+        "682419020f4c5ff2046976bf0d30713b02fe7ca13ab31232061bb2ac676759b0"
+      ]
+    }
+  },
+  "mode": "three-tier-bf16",
+  "num_speculative_tokens": null,
+  "prefill_threshold_options": {},
+  "scheduler_budget_tokens": 16392,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 8,
+  "tensor_parallel_size": 1
+}

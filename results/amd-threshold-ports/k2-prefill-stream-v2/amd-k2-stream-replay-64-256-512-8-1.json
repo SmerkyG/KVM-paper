@@ -1,0 +1,248 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a1ab73c4623625d7d3b007fce7054d51a7d107215a423d83816d585597191c65",
+      "source_file_count": 343
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 32,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 5.98037649790446,
+      "leaves_ms": 5.421395987051505,
+      "remote_attention_ms": 12.177614307403564,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008086681365966797
+      },
+      "route_workspace_mib": 5902.108245849609,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 102.47700000000003
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 102.47700000000003
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 20.797000000000025
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 2,
+          "self_us": 1949.038
+        },
+        {
+          "name": "Cijk_Alik_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT256x128x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA4_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA512_LBSPPB256_LBSPPM0_LPA4_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT8_4_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS16_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW8_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO1_USL1_UIOFGRO0_USFGROn1_VSn1_VWA8_VWB4_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1444.3290000000002
+        },
+        {
+          "name": "_select_grouped",
+          "calls": 1,
+          "self_us": 4393.2210000000005
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BBS_BH_Bias_HA_S_SAV_UserArgs_MT128x288x64_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB8_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA2048_LBSPPB128_LBSPPM0_LPA0_LPB16_LPM0_LRVW8_LWPMn1_MIAV0_MIWT4_9_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 504.70899999999983
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 65.45434951782227,
+      "leaves_ms": 5.482450753671151,
+      "remote_attention_ms": 72.55766677856445,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_blas": 0.03125,
+        "different_route_rows_from_blas": 0
+      },
+      "route_workspace_mib": 1562.9637451171875,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 1,
+          "self_us": 100.79699999999997
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 100.79699999999997
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 25.317000000000007
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 3.0389999999999873
+        },
+        {
+          "name": "_route_partials",
+          "calls": 1,
+          "self_us": 1359.607
+        },
+        {
+          "name": "_route_cutoff",
+          "calls": 1,
+          "self_us": 8.238999999999805
+        },
+        {
+          "name": "_coarse_partials",
+          "calls": 1,
+          "self_us": 63068.333
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 214.95300000000134
+        },
+        {
+          "name": "_merge_coarse",
+          "calls": 1,
+          "self_us": 435.1889999999912
+        }
+      ]
+    },
+    {
+      "layer": 32,
+      "variant": "stream-blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.43311337557706,
+      "leaves_ms": 5.460899748625579,
+      "remote_attention_ms": 12.489946964808873,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_blas": 0.03125,
+        "different_route_rows_from_blas": 0
+      },
+      "route_workspace_mib": 4285.9637451171875,
+      "route_device_profile": [
+        {
+          "name": "aten::fill_",
+          "calls": 2,
+          "self_us": 110.39600000000002
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<long>, std::array<char*, 1ul> >(int, at::native::FillFunctor<long>, std::array<char*, 1ul>)",
+          "calls": 1,
+          "self_us": 106.15699999999998
+        },
+        {
+          "name": "_means",
+          "calls": 1,
+          "self_us": 22.276999999999987
+        },
+        {
+          "name": "_prepare_live_count",
+          "calls": 1,
+          "self_us": 4.7590000000000146
+        },
+        {
+          "name": "_route_partials",
+          "calls": 1,
+          "self_us": 1507.167
+        },
+        {
+          "name": "aten::copy_",
+          "calls": 2,
+          "self_us": 16.557999999999993
+        },
+        {
+          "name": "aten::bmm",
+          "calls": 1,
+          "self_us": 1064.2169999999996
+        },
+        {
+          "name": "_route_cutoff",
+          "calls": 1,
+          "self_us": 12.879000000000133
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})",
+          "calls": 2,
+          "self_us": 16.557999999999993
+        },
+        {
+          "name": "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::FillFunctor<c10::BFloat16> >(at::TensorIteratorBase&, at::native::FillFunctor<c10::BFloat16> const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::FillFunctor<c10::BFloat16> >(at::TensorIteratorBase&, at::native::FillFunctor<c10::BFloat16> const&)::{lambda(int, bool)#1})",
+          "calls": 1,
+          "self_us": 4.239000000000033
+        },
+        {
+          "name": "_split_weights",
+          "calls": 1,
+          "self_us": 2828.895
+        },
+        {
+          "name": "Cijk_Ailk_Bljk_BSS_BH_Bias_HA_S_SAV_UserArgs_MT128x224x32_MI16x16x1_SN_LDSB1_AFC1_AFEM1_AFEM1_ASEM1_CLR1_CADS0_DTLA0_DTLB0_DTVA0_DTVB0_EPS0_FDSI0_GRPM1_GRVWA8_GRVWB4_GSUAMBSK_GLS0_ISA942_IU1_K1_LDSTI0_LBSPPA1024_LBSPPB128_LBSPPM0_LPA0_LPB4_LPM0_LRVW4_LWPMn1_MIAV0_MIWT4_7_MO40_NTn1_NTA0_NTB0_NTC0_NTD4_NTM0_NEPBS8_NLCA1_NLCB1_ONLL1_PGR2_PLR1_PKA1_SIA3_SS1_SPO0_SRVW0_SSO0_SVW4_SK0_SKFTR0_SKXCCM0_TLDS1_ULSGRO0_USL1_UIOFGRO0_USFGROn1_VSn1_VWA4_VWB1_WSGRA0_WSGRB0_WS64_WG32_8_1",
+          "calls": 1,
+          "self_us": 1064.2169999999996
+        },
+        {
+          "name": "_compact_bits",
+          "calls": 1,
+          "self_us": 236.95299999999952
+        },
+        {
+          "name": "_merge_coarse",
+          "calls": 1,
+          "self_us": 558.3069999999998
+        }
+      ]
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt"
+  ]
+}

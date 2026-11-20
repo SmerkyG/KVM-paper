@@ -1,0 +1,400 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "a9386abf966e1d68244cc26d864b2ada5a68b2985d15216cd97c6f2d92ee77f0",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "2048",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "2"
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 16,
+  "selection": "prefix",
+  "tasks": [
+    "niah_multiquery"
+  ],
+  "records": [
+    {
+      "task": "niah_multiquery",
+      "doc_id": 16,
+      "prompt_hash": "85bb8bcbaf7db55ef552197723d1ff88b18d18d6fb3d5e15336791b2a83eb551",
+      "doc_hash": "bc3f36a51faaffc71f6b06391e5fd1d33129179126e47fd9014fa6c91b67fba6",
+      "target_hash": "c4e7c5f981d9d11ba5ce9fb34fb602f9d6e3ec5ce19b435a905caae133292c04",
+      "input_tokens": 65088,
+      "input_token_sha256": "0d10fda1eb3db401e2379525b9ecd9600edc1c51547fa699cda288f309c61072",
+      "targets": [
+        "1388833",
+        "8831858",
+        "7597509",
+        "6176450"
+      ],
+      "prediction": ":\n\n- **psychedelic-conductor**: 1388833\n- **rambunctious-pigpen**: 8831858\n- **cagey-gene**: 7597509\n- **psychotic-toll**: 6176450",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 46.414
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 17,
+      "prompt_hash": "97536c8ffcfa4d4a045fb188c6d8a514acff9e3f3a11c134366a873adeda0c55",
+      "doc_hash": "2d84c59283a57234fade3d98e9fe6e60abbf20f40bf97a5f5a064f312d8c344f",
+      "target_hash": "3c07773e8f066943ce7d28952f3ba2765ccbc12c2c71fb55dc6a290c6fd8c573",
+      "input_tokens": 65082,
+      "input_token_sha256": "1bb3d3c00283bfe36cc4688319465abdde8147c43874a05e0fd0fd02db83a388",
+      "targets": [
+        "1137194",
+        "5437118",
+        "8229768",
+        "8895137"
+      ],
+      "prediction": ":\n\n- handsomely-hugger: 1137194\n- daily-pint: 5437118\n- cloistered-vol: 8229768\n- profuse-career: 8895137",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.563
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 18,
+      "prompt_hash": "c22ff7f94dc7b368bf010a7159ccebbcdd176d560a026754c5e935924f2a62b8",
+      "doc_hash": "f2a59107bbb72ac10ff07d8e19a01f09777619c1b3c59dbed559429a478ea7f3",
+      "target_hash": "3acb31c265c5334ea2ae4d58981179e12fc93944aa6808a09c09e1c381367131",
+      "input_tokens": 65076,
+      "input_token_sha256": "621fb67e16d9a88262699f4ad24da6c9b0e37ade72100e283bb635ff15c8641f",
+      "targets": [
+        "2993318",
+        "9460003",
+        "2622046",
+        "5692934"
+      ],
+      "prediction": ":\n\n- **tacit-tackle**: 2993318\n- **lying-supervisor**: 9460003\n- **curious-centre**: 2622046\n- **odd-archives**: 5692934\n\nThese numbers are explicitly stated in the text as \"One of the special magic numbers for [name] is: [number].\"",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 42.871
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 19,
+      "prompt_hash": "e47ebab215f91290b689b293138835add088d9cbb5cc1c98f0b026a76275ce7c",
+      "doc_hash": "66035b6516ef212af84092f3d4dc091c6300502b3fc6821c2a55098cc7293573",
+      "target_hash": "806c21ba78dc590537fa3c4c013bb572c9a68c52a18a1c814d2bcbf05389f26a",
+      "input_tokens": 65076,
+      "input_token_sha256": "a3e2003d491863afa3f5a59c7e40f26cf270658e43fe9d0e0c810a4de615c2bf",
+      "targets": [
+        "1652868",
+        "9712957",
+        "6587495",
+        "1675365"
+      ],
+      "prediction": ":\n\n- **animated-appeal**: 1652868\n- **peaceful-wasp**: 9712957\n- **dangerous-laptop**: 6587495\n- **pumped-mark**: 1675365",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.776
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 20,
+      "prompt_hash": "dc18215a48234cfb671bb14ef09b9c1b1d54501d03f41369b137781586042046",
+      "doc_hash": "539c24633eb24041d2f24bca30cbcf4609eefe613026e19cc651bbe654bd16c9",
+      "target_hash": "671e13c29cc1f9eb13b7217e3646da8c82ddc9e6a77b4c8543e02a8d98bd2589",
+      "input_tokens": 65073,
+      "input_token_sha256": "70e157fb3d39ebd993e4fdc034c62908372b3edc405e1af3815ea1ef723889a5",
+      "targets": [
+        "9551583",
+        "6643410",
+        "6020319",
+        "9218263"
+      ],
+      "prediction": ":\n\n- **quick-kumquat**: 9551583\n- **spurious-gaffer**: 6643410\n- **majestic-arrangement**: 6020319\n- **ripe-icon**: 9218263",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.715
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 21,
+      "prompt_hash": "567284c3b18314ee6ed56f6869b2606a70ac5ce83d663fcfa1ab70cff5c6a827",
+      "doc_hash": "8811fba4dd351a6dcc87d2f6293d5fa8dd262f9454e9863a790234949f7cb484",
+      "target_hash": "defbd4cae2300c28c1defa4d3c4a33f858ec9eeb3554ddffe5dea69c9db0d047",
+      "input_tokens": 65082,
+      "input_token_sha256": "e194fdc5fc320b5b02001736a0155cb679aa88699101d572ae7f30fa48a6e817",
+      "targets": [
+        "4817541",
+        "6161977",
+        "8962302",
+        "1447065"
+      ],
+      "prediction": ":\n\n- **goofy-homosexuality**: 4817541\n- **solid-well**: 6161977\n- **squeamish-epoch**: 8962302\n- **wretched-characteristic**: 1447065",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.796
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 22,
+      "prompt_hash": "9f38e2cc9410cc4ad126ae76bb3bd617e538e50298dbd6d0c0178156c8067db8",
+      "doc_hash": "fc9200461d88eedbf28e3f4417f9fa0e03b8edad3ae489afdcab62930d03b436",
+      "target_hash": "98506f13940fdbe80a55e9625137b5dde249eb681bfcbed87e8caabb2904225b",
+      "input_tokens": 65088,
+      "input_token_sha256": "78a779706a24076d87c3a9ef4e3b7a7bf7190fc2db8658f39b3229e9cd262927",
+      "targets": [
+        "3540594",
+        "6262886",
+        "2843740",
+        "1317716"
+      ],
+      "prediction": ":\n\n- **mushy-witch-hunt**: 3540594\n- **nutritious-liquidity**: 6262886\n- **slippery-corn**: 2843740\n- **embarrassed-whiskey**: 1317716",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.959
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 23,
+      "prompt_hash": "f80bbccc9118a0074d25169b9d5e51a2ee9d3bd8e4073977297a1dde8c1ab490",
+      "doc_hash": "957c03767de2682a825e4f7ec17b7d26a20d4b1222c60a5326b7e2d58ed8a470",
+      "target_hash": "85356ccd708515ab4e7c4dddffb3a803b0949fc966bd18d6d7e5c226757b890b",
+      "input_tokens": 65085,
+      "input_token_sha256": "15893abeb333ac3c040efd7a13af81e834950a745bedc0bc23fec92eae6147a3",
+      "targets": [
+        "9025733",
+        "7322070",
+        "6453426",
+        "4478616"
+      ],
+      "prediction": ":\n\n- **ugliest-bread**: 9025733\n- **relieved-violet**: 7322070\n- **sharp-roommate**: 6453426\n- **ratty-meringue**: 4478616",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.935
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 24,
+      "prompt_hash": "cb6a4c405db548483bda24141adf08f9f756970734fc8a55385b743c0a39e30e",
+      "doc_hash": "017c44d2313caff694684d2ebcc460f71babf3daeb67a2edf4d7040906b3ddd4",
+      "target_hash": "94ef59ef07333bf5093576b88619c9fb5ecdf9995df2b3e41c9ba4e5f0d319a2",
+      "input_tokens": 65073,
+      "input_token_sha256": "0e742e69fdf1c90e6e52e34d65a869b3a856314e8235b0a526215b8e0a3a9339",
+      "targets": [
+        "5993143",
+        "5135904",
+        "6007984",
+        "9123194"
+      ],
+      "prediction": ":\n\n- **fierce-cast**: 5993143\n- **empty-skeleton**: 5135904\n- **gullible-boy**: 6007984\n- **stupid-notepad**: 9123194",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.61
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 25,
+      "prompt_hash": "b0ae036bada156af8dbf6cf61101cf283a40802e5175a66a78e18a3d0e07139d",
+      "doc_hash": "f58165b590e53a24d9a8a0cc66624a9ededa3a093066d4f1b3c4fff4a8e9ace8",
+      "target_hash": "abef7352d5f3b25e29db7bce365bd0c9ac42fe4e644bf19658cb192a580990c6",
+      "input_tokens": 65085,
+      "input_token_sha256": "e8feda2fae166df22efacbf61765dc8940113f51c4d541bafc5a19b425981ebd",
+      "targets": [
+        "5825636",
+        "7370211",
+        "5872986",
+        "6790398"
+      ],
+      "prediction": " 5825636, 7370211, 5872986, and 6790398, respectively.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 40.607
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 26,
+      "prompt_hash": "2996067a28455300d1a0ce94a2a4467fd64f6898c8b782306165be326e72211a",
+      "doc_hash": "323cb9e58d3df747531498679582a79bc78b0d4779980bd1b6700f3f0aca916a",
+      "target_hash": "30835fa6d30b593966bbb81c79685b7e24c49a9531052400cd3a9bdac2f6d34d",
+      "input_tokens": 65079,
+      "input_token_sha256": "9f777563b791dd63b348c8246b68aa4a41bfe271d060e25a3e62c60e8bb7f560",
+      "targets": [
+        "1851702",
+        "2832517",
+        "5014486",
+        "5557052"
+      ],
+      "prediction": ":\n\n- **frantic-tender**: 1851702\n- **dangerous-shackle**: 2832517\n- **super-luck**: 5014486\n- **shivering-chin**: 5557052",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.882
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 27,
+      "prompt_hash": "39acfcb791d7be930d0db7cb37238827929cf19f8dcb3fd225f9845b853cded9",
+      "doc_hash": "a858bed0703b56e633ab1c307acfcb1ce4266ca65a71264e977d99243018ec39",
+      "target_hash": "cf13e7a5676ee1241a23ead8b89a6e379217ab5c6f4980ab2756995416913861",
+      "input_tokens": 65088,
+      "input_token_sha256": "e3fe32dd08cc2df22ad8d8eec9e145a697f557803ea25995977e2482dc008122",
+      "targets": [
+        "3649811",
+        "8980915",
+        "3306314",
+        "4346315"
+      ],
+      "prediction": ":\n\n- **abhorrent-half**: 3649811\n- **mindless-elephant**: 8980915\n- **utopian-milk**: 3306314\n- **perpetual-melatonin**: 4346315",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.727
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 28,
+      "prompt_hash": "041e2f98ee4beab5d4a733e735703080478a06c4e312d51a9186ce4bf0c4566b",
+      "doc_hash": "789199a3a50a53f9dd929652535ece578e2996ba3faf295bd0d623e581eeb1d2",
+      "target_hash": "82c60747c929ddefd064a8526c229a86878a82c932d912bd99f6f1adb97e6b66",
+      "input_tokens": 65079,
+      "input_token_sha256": "a57c1ebe8a430cd90ac7930d6c43d187b14af56cecbfb3529194a027230a9a0e",
+      "targets": [
+        "3949245",
+        "7660463",
+        "4125790",
+        "1628578"
+      ],
+      "prediction": ":\n\n- **murky-switchboard**: 3949245\n- **alert-variable**: 7660463\n- **profuse-reminder**: 4125790\n- **harsh-archeology**: 1628578",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.706
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 29,
+      "prompt_hash": "a52b6f1796c0b62f142fb7bab369f0eaf72fab74ca96180b51cae70a9084eda6",
+      "doc_hash": "69b6fad24be3c0c99ab41d82572faa01045e71cfc29e4d24d4e29bc4176da1ba",
+      "target_hash": "a72ccd8ec8a3ec3c07617f01c9fce483b52987ceabe31c325fe15c378ec7a0d2",
+      "input_tokens": 65085,
+      "input_token_sha256": "480fcc6a218deb3362f716f4823dabb40aa29bfe2a4a6db0234bf259873d90d5",
+      "targets": [
+        "8852085",
+        "4234838",
+        "9796605",
+        "3251501"
+      ],
+      "prediction": ":\n\n- **quack-pick**: 8852085\n- **groovy-interject**: 4234838\n- **testy-cyclamen**: 9796605\n- **prickly-tortoise**: 3251501",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.704
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 30,
+      "prompt_hash": "e747a8fbb9e4db77e77003f88d63588412b3f59a0cafdd3cc453cdeeab120760",
+      "doc_hash": "2e5443bd979b44be5a7e9351de988fdfbe38b5efa5f92f94c6b2119665e47a44",
+      "target_hash": "e9a4486f2c3c4d16bbe8b9c4526122e1d871371fb7408a2f76674450cfe14e4c",
+      "input_tokens": 65079,
+      "input_token_sha256": "2dec8cfd8d95d112acb45bdd1eb8bcfc9c07dcac64a33e49eb6ad2a382c7569a",
+      "targets": [
+        "4240708",
+        "5949685",
+        "9644974",
+        "7802999"
+      ],
+      "prediction": ":\n\n- **silly-drinking**: 4240708\n- **instinctive-watchmaker**: 5949685\n- **neighborly-alphabet**: 9644974\n- **dusty-baseline**: 7802999",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.624
+    },
+    {
+      "task": "niah_multiquery",
+      "doc_id": 31,
+      "prompt_hash": "04f306979390ac12cb10ab91cdb9619b29806e3963b7f45eef6a775812338e33",
+      "doc_hash": "e1ca7ff67b4d9f0e467eb4c2862881c036e162077474aac8535aafcf8c273f5c",
+      "target_hash": "483e5c3eb76797fc44f60ea93ffda0e90037ba91da0963dd78bd9a63f331cfe2",
+      "input_tokens": 65079,
+      "input_token_sha256": "a75d8eb8d7550337d753438265903e0d386910507c834d10dbe08fc52866163f",
+      "targets": [
+        "8494978",
+        "6530194",
+        "7435310",
+        "1114590"
+      ],
+      "prediction": ":\n- **8494978** for fluttering-equivalent\n- **6530194** for graceful-decimal\n- **7435310** for gleaming-mind\n- **1114590** for funny-sin",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 41.69
+    }
+  ],
+  "task_scores": {
+    "niah_multiquery": 100.0
+  }
+}

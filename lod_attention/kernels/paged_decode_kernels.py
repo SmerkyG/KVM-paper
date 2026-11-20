@@ -789,6 +789,7 @@ def _materialize_page1_coarse_means_kernel(
     STATE_CAPACITY: tl.constexpr,
     HEAD_DIM: tl.constexpr,
     BLOCK_N: tl.constexpr,
+    ROUND_COUNTS_BF16: tl.constexpr = False,
 ):
     kv_row = tl.program_id(0).to(tl.int64)
     slot = tl.program_id(1).to(tl.int64) * BLOCK_N + tl.arange(0, BLOCK_N)
@@ -804,6 +805,8 @@ def _materialize_page1_coarse_means_kernel(
     key_sum = tl.load(state_k + storage, mask=active[:, None], other=0.0)
     value_sum = tl.load(state_v + storage, mask=active[:, None], other=0.0)
     denominator = tl.where(active, count, 1.0)
+    if ROUND_COUNTS_BF16:
+        denominator = denominator.to(tl.bfloat16).to(tl.float32)
     tl.store(
         coarse_k + storage,
         key_sum.to(tl.float32) / denominator[:, None],
@@ -830,6 +833,7 @@ def materialize_page1_coarse_means(
     coarse_bias: torch.Tensor,
     *,
     active_state_len: int | None = None,
+    round_counts_bf16: bool = False,
 ) -> None:
     """Refresh persistent centroid means and their natural-log mass bias."""
     if tuple(state_v.shape) != tuple(state_k.shape) or (
@@ -872,6 +876,7 @@ def materialize_page1_coarse_means(
         STATE_CAPACITY=state_capacity,
         HEAD_DIM=head_dim,
         BLOCK_N=block_n,
+        ROUND_COUNTS_BF16=round_counts_bf16,
         num_warps=4,
     )
 

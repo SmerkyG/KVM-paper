@@ -1,5 +1,11 @@
 # ProLong quality and speed
 
+**Kernel validation:** A race in the shared LoD state-update kernel was
+reproduced on H100 and fixed. Reference checks on ROCm passed both before and
+after the fix for 128- and 256-dimensional heads at batches 1, 4 and 8; those
+checks do not replace a full rerun of the model evaluations below.
+[ROCm check records](../results/h100-baselines/provenance/rocm-state-validation/)
+
 ProLong serves two purposes here. Prompt log-probabilities measure the
 token-weighted cross-entropy and perplexity of long natural text. A separate
 generation sweep measures prefill wall time and decode latency on exact-length

@@ -1,0 +1,174 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "400a7855a3c2c46ec12a13288370a1fc684190c5396eca8cf09bae8534b1fbfa",
+      "source_file_count": 344
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 6.120611445109049,
+      "leaves_ms": 8.013569641113282,
+      "remote_attention_ms": 14.392543147160456,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.007620096206665039,
+        "max_abs_remote_difference_from_stream": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 0.31231859917421223,
+      "frontier_over_32_fraction": 0.24320220947265625,
+      "frontier_over_64_fraction": 1.1444091796875e-05
+    },
+    {
+      "layer": 0,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 26.040283203125,
+      "mean_open_entries": 5020.19921875,
+      "route_coarse_ms": 6.125909614562988,
+      "leaves_ms": 5.84480078125,
+      "remote_attention_ms": 13.516837201799666,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.007620096206665039,
+        "max_abs_remote_difference_from_stream": 0.015625
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.5204043739720394,
+      "frontier_over_32_fraction": 0.24320220947265625,
+      "frontier_over_64_fraction": 1.1444091796875e-05
+    },
+    {
+      "layer": 32,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.119864336649576,
+      "leaves_ms": 5.423782122576679,
+      "remote_attention_ms": 11.846986770629883,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 0.3076013331674825,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06
+    },
+    {
+      "layer": 32,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 21.650306701660156,
+      "mean_open_entries": 1440.445556640625,
+      "route_coarse_ms": 6.117938296000163,
+      "leaves_ms": 3.4176763262067524,
+      "remote_attention_ms": 11.103364293715533,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008475542068481445,
+        "max_abs_remote_difference_from_stream": 0.03125
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.4957978710685809,
+      "frontier_over_32_fraction": 0.17377471923828125,
+      "frontier_over_64_fraction": 3.814697265625e-06
+    },
+    {
+      "layer": 63,
+      "variant": "stream",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 14.484539031982422,
+      "mean_open_entries": 2079.64697265625,
+      "route_coarse_ms": 6.107177098592122,
+      "leaves_ms": 4.961657969156901,
+      "remote_attention_ms": 11.367961389878218,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008179903030395508,
+        "max_abs_remote_difference_from_stream": 0.0
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 0.3096327383306962,
+      "frontier_over_32_fraction": 0.09106826782226562,
+      "frontier_over_64_fraction": 0.0
+    },
+    {
+      "layer": 63,
+      "variant": "stream-fused",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 128,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 14.484539031982422,
+      "mean_open_entries": 2079.64697265625,
+      "route_coarse_ms": 6.107872327168782,
+      "leaves_ms": 3.232903815375434,
+      "remote_attention_ms": 10.898238203260634,
+      "validation": {
+        "sampled_query_heads": 1024,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.008179903030395508,
+        "max_abs_remote_difference_from_stream": 0.015625
+      },
+      "route_workspace_mib": 1158.9637451171875,
+      "final_merge_ms": 1.4747779541015624,
+      "frontier_over_32_fraction": 0.09106826782226562,
+      "frontier_over_64_fraction": 0.0
+    }
+  ],
+  "scope": "Replay real-model prefill snapshots without reloading the model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-32.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/amd-threshold-ports/KVM-paper/results/amd-threshold-ports/k2-prefill-breakdown-v1/snapshots/layer-63.pt"
+  ]
+}

@@ -1,5 +1,11 @@
 # RULER NIAH-S3
 
+**Kernel validation:** A race in the shared LoD state-update kernel was
+reproduced on H100 and fixed. Reference checks on ROCm passed both before and
+after the fix for 128- and 256-dimensional heads at batches 1, 4 and 8; those
+checks do not replace a full rerun of the model-quality evaluations below.
+[ROCm check records](../results/h100-baselines/provenance/rocm-state-validation/)
+
 NIAH-S3 is the single-key, UUID-valued RULER needle task. The public runner uses
 the generator from `lm-eval==0.4.12`, essay haystacks, word keys, UUID values,
 the canonical random seeds, each model's chat template, and thinking disabled.

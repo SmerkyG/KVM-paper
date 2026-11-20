@@ -1,0 +1,91 @@
+{
+  "layer": 32,
+  "queries": 16384,
+  "regions": 3547,
+  "runs": [
+    {
+      "mode": "current",
+      "milliseconds": 16.102053070068358
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,64,1024,2,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011672523396555334,
+      "changed_coarse_values": 26929134,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 18.23417110443115
+    },
+    {
+      "mode": "bf16",
+      "tile": "64,64,1024,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011672523396555334,
+      "changed_coarse_values": 26929134,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 18.140428733825683
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,64,0,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00012126938963774592,
+      "changed_coarse_values": 27657942,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 17.238931083679198
+    },
+    {
+      "mode": "bf16",
+      "tile": "64,64,0,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00012126938963774592,
+      "changed_coarse_values": 27657942,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 17.299172401428223
+    },
+    {
+      "mode": "fp16",
+      "tile": "32,64,1024,2,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 9.63756610872224e-05,
+      "changed_coarse_values": 23269397,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 18.684867668151856
+    },
+    {
+      "mode": "fp16",
+      "tile": "64,64,1024,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 9.63756610872224e-05,
+      "changed_coarse_values": 23269397,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 18.251258277893065
+    },
+    {
+      "mode": "fp16",
+      "tile": "32,64,0,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 9.646845865063369e-05,
+      "changed_coarse_values": 23283521,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 17.658911323547365
+    },
+    {
+      "mode": "fp16",
+      "tile": "64,64,0,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 9.646845865063369e-05,
+      "changed_coarse_values": 23283521,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 17.52446918487549
+    }
+  ]
+}

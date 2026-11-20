@@ -1,0 +1,733 @@
+{
+  "stage": "running",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "2c51ebdfb03f92d80aa218b4ce64910bb9bde4d551c251036966387a8524f1cc",
+      "source_file_count": 355
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "prefill_threshold_options": {},
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "threshold_implementation": "legacy",
+  "threshold_rule": "region",
+  "decode_threshold_options": {},
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 1024,
+  "batch_size": 1,
+  "limit_per_task": 100,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_vt"
+  ],
+  "records": [
+    {
+      "task": "ruler_vt",
+      "doc_id": 200,
+      "prompt_hash": "e263c2dfa75b881e7c0ce9878afb44ef7ce7e1e2781bd9cab8ffd566f27f6aca",
+      "doc_hash": "e3855727572e2da4dd469791dee1f2a2e40985bf8da2bab93583842414105449",
+      "target_hash": "1c98a06a64fa59fcc85081b63a1b2e0800564d598a5238c00bb7aa9c04beb1e3",
+      "input_tokens": 65265,
+      "input_token_sha256": "666056a14169809a027d9901c7eca6b6c0c50eeed059a57dd9ee5b33fb1e2244",
+      "targets": [
+        "PLGUG",
+        "KJDQU",
+        "IHCQP",
+        "JYAYL",
+        "WDDET"
+      ],
+      "prediction": "  PLGUG KJDQU IHCQP JYAYL WDDET",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 12.484
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 201,
+      "prompt_hash": "735a71b2fd99dd945a5de78b51d00c14fddb9ea7ce0c670a2a321e6f6c20648b",
+      "doc_hash": "30a5ba3b08adc91de3a8d1fdb44ec58e9fe3c4c70f22473e00928e875b8d78d8",
+      "target_hash": "5b56b965e48a427b0bc7f64b1e8d84238149412d5756408583b34f1ab8fe90e6",
+      "input_tokens": 65269,
+      "input_token_sha256": "2eaa07bd34b173edfbc7049d0f722a64bbd08a6e0b01c96882b4b61476122e21",
+      "targets": [
+        "BTZAM",
+        "NKSZD",
+        "WEPYL",
+        "UAULZ",
+        "KGEVB"
+      ],
+      "prediction": "  BTZAM NKSZD WEPYL UAULZ KGEVB",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.468
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 202,
+      "prompt_hash": "223e3e9515290f07685bd6777b814e476cae9096a569ebb959f1b8da6e7c2d7c",
+      "doc_hash": "9162af0712a3a9a4a9a07f8f506fbb7bb81e07f0493d5e1a888a984f31841e90",
+      "target_hash": "fb066bf600317314d3fed9b1f6f1d3f616f8035738ab9602f04189292400d92c",
+      "input_tokens": 65267,
+      "input_token_sha256": "6930ef1a8f013eb882da3a2d2b02b6a61535c67d14955c1237c74633a4d2c651",
+      "targets": [
+        "EDRSG",
+        "IGUZG",
+        "AYGQH",
+        "MTWVB",
+        "DFYZH"
+      ],
+      "prediction": "  EDRSG IGUZG AYGQH MTWVB DFYZH",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.437
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 203,
+      "prompt_hash": "9917d5e113a59ca4a286ffa6f09bcbc9e6d9dd02aee6ed386b10a50fadfe0b21",
+      "doc_hash": "cdeadb0a0f1d7437ce7e9e57a1e60e67ef092d7b780dce54d98e38e698a4de2b",
+      "target_hash": "ce3fd45c54d5cc4bc74a23568daedc1dab4b689476bce5aa7fe4f1c3593dec31",
+      "input_tokens": 65269,
+      "input_token_sha256": "2b711bed34984b09e69140d9afa0c4048480613b077163179a5734534b246ab1",
+      "targets": [
+        "JAOUB",
+        "UZVGS",
+        "FKZZI",
+        "OVGXI",
+        "FHAXS"
+      ],
+      "prediction": "  JAOUB UZVGS FKZZI OVGXI FHAXS",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.451
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 204,
+      "prompt_hash": "792f247c8e74477d4bb37edab70c6af7e6606927e0ed363613fdf7f05e70b7bb",
+      "doc_hash": "b300e6c56c6087552d1c7cc8679439e52cfec7ca54c51f6d37a3c38c68a59560",
+      "target_hash": "274ce3c5a016a48a0e6cc83692d2148c45f4d8d7d50045680a70766fe9a48b10",
+      "input_tokens": 65267,
+      "input_token_sha256": "2b88456956dfaccecaf6b9a3c003955379c6d4cb0bbab93950acb775da2e586b",
+      "targets": [
+        "BPFSO",
+        "ARTUR",
+        "GPDLN",
+        "RWTUO",
+        "LPNEX"
+      ],
+      "prediction": " BPFSO ARTUR GPDLN RWTUO LPNEX",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.405
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 205,
+      "prompt_hash": "bf513bd53b88c082a34cac958ba94736c11a39573b9cd3dd94f9bab2f30120de",
+      "doc_hash": "31d406a13d4af58edb240ec2915b38b5e40a2443b3aaac07b803de482e8100c7",
+      "target_hash": "dd57bc21fb3ba7e4130adb736084c776846d08aef3b3fed32e514404dfbdbd67",
+      "input_tokens": 65269,
+      "input_token_sha256": "77851c2d46cf8c01351499340e83f53c33f602a7e93296fe5a1290d71df2726d",
+      "targets": [
+        "XVQPE",
+        "GOCZZ",
+        "RMKVY",
+        "OZNNB",
+        "PYEDV"
+      ],
+      "prediction": "  XVQPE GOCZZ RMKVY OZNNB PYEDV",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.475
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 206,
+      "prompt_hash": "4e6ee45c9ed9666fa6caa7942c36d19908ab5b7d10a57992d202a9b138663ef9",
+      "doc_hash": "0a7487e0bf662238c3b5b6be04a6f510e44a2ff82511e7ddb6294d46c443e011",
+      "target_hash": "3c763e98bcda182fae0a54285d4641132d4d08be3f6b31ee3552b401efbc947b",
+      "input_tokens": 65267,
+      "input_token_sha256": "25dfdd95c527f746836f849f68fc3197d54078be5969eca9fff73bf4065b2701",
+      "targets": [
+        "HJUHX",
+        "GOYQQ",
+        "CNBMK",
+        "TWQFI",
+        "WPVUA"
+      ],
+      "prediction": "  HJUHX GOYQQ CNBMK TWQFI WPVUA",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.447
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 207,
+      "prompt_hash": "8152262e49b6e507238ad6d1d64e7b6bbf6f8731c8786ec8ffec656ed295779d",
+      "doc_hash": "44650f934273ae4c7bbdac43dcbbe56d6a060326bdf7deffa30e0ed3ea7fdf99",
+      "target_hash": "866637e293661bb756beb49118d36900f997ea0452a8d04dd0fd52f23326b26e",
+      "input_tokens": 65272,
+      "input_token_sha256": "5b51b3d56c9532420676a96e2642ffd5d11d5034ac51e3e35c78168f60d763c4",
+      "targets": [
+        "XKJWS",
+        "SXYZA",
+        "LIKVX",
+        "GQBPJ",
+        "OFKFO"
+      ],
+      "prediction": " XKJWS SXYZA LIKVX GQBPJ OFKFO",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.462
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 208,
+      "prompt_hash": "037a1ebaeb8e52636dd40b3ef0908d08d0f2b658aa832c5863660d45747e9f54",
+      "doc_hash": "59ca43e2668c0c7f84146c2a1c583baec6ca0e4cedf35601002fdba692d2e51c",
+      "target_hash": "e724d6728e749dafbb5e322425bab399b578cadd77fd4d2c3a26850d479005eb",
+      "input_tokens": 65267,
+      "input_token_sha256": "13e289480c388f8e27e0e5dacfd2170604bcbae3560af8ddef66d273e7670749",
+      "targets": [
+        "JPELC",
+        "LJSGA",
+        "CLSZL",
+        "ZNOWJ",
+        "HCWTZ"
+      ],
+      "prediction": " JPELC LJSGA CLSZL ZNOWJ HCWTZ",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.402
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 209,
+      "prompt_hash": "aac75c9667c26a5d23f8961612c85bc488cd78a953f3698b95d6161895968a73",
+      "doc_hash": "efcbea3e077117ebfd1ab15562e9b0c649d3076ac88baab67e9bf3d1f164094e",
+      "target_hash": "b0047ac0c7baa170c0894a058357847d76c55bf5927816a3095876a43f657dbe",
+      "input_tokens": 65270,
+      "input_token_sha256": "46ccdc466d7064a51d528398c4dfc8f2d513b8fafca3caa8e98d05d0885039c6",
+      "targets": [
+        "DCSKD",
+        "GEPMN",
+        "BBSZW",
+        "SJXCO",
+        "RJVBL"
+      ],
+      "prediction": "  DCSKD GEPMN BBSZW SJXCO RJVBL",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.454
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 210,
+      "prompt_hash": "bcc23c7f8e9199118c258b773d712b9898f82266282703536cb04f84d0fd5a93",
+      "doc_hash": "d8a9cfb6f560e07428d8397f5f28833e3dbaa2278931a54da52944e5e5e85131",
+      "target_hash": "5d5bab471be46ba5be1740db8591e65517fedfc43cb8db9dc1579101b012bca9",
+      "input_tokens": 65269,
+      "input_token_sha256": "34037be852f6094512a310eb99357b87d2efb074d02d49caf53bbc9547b0438e",
+      "targets": [
+        "HWZNX",
+        "PXXHB",
+        "MQXNE",
+        "GLCZB",
+        "YOYUA"
+      ],
+      "prediction": "  HWZNX PXXHB MQXNE GLCZB YOYUA",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.487
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 211,
+      "prompt_hash": "89d60af95af7d972bf57733ef069c4b1cd29f413a320769235af2d3fd49adc2b",
+      "doc_hash": "eac575aa52fc46cf6eb9086d015779ab8acba488b7cda4f9564bb8de485499df",
+      "target_hash": "f31b69b9b89291308d1ef359f95153d78ab6e6d751e1dbb04009b33fef8707a3",
+      "input_tokens": 65264,
+      "input_token_sha256": "a086aabf22b5f83180a838aed2b5d668c7df7b2203bc5823cf688f0d5d5b0492",
+      "targets": [
+        "LVDBM",
+        "VPRAM",
+        "XVQWO",
+        "ISSFQ",
+        "UNKOF"
+      ],
+      "prediction": " LVDBM VPRAM XVQWO ISSFQ UNKOF",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.423
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 212,
+      "prompt_hash": "468556d30f41b999bf82000ea7d039d2f5266e005607db8b13df275de82d744a",
+      "doc_hash": "dc05dd51735dc070ae1ecfe408a07c32b9bf221bbededbe25bda35ecb21d434e",
+      "target_hash": "2a1ffb012963aafb91ae32fd6b7408b21aa80d6c67feea6dafffa6d8ca984643",
+      "input_tokens": 65270,
+      "input_token_sha256": "b88a25d2c2a93799997fd64d67fdc1a0d4bc27d0186539ed9b2a9128cd2665c7",
+      "targets": [
+        "AIDUR",
+        "KRBXF",
+        "WUJGT",
+        "VIXKB",
+        "WZLTL"
+      ],
+      "prediction": "  AIDUR KRBXF WUJGT VIXKB WZLTL",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.52
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 213,
+      "prompt_hash": "a76ae52c14ba482a0feddd343573441a6cfc1f9ecc26e1f8a12a8f13e3bf3c83",
+      "doc_hash": "84fef5abdc5bb1cd8305afb757f4036649a57f44a4ae35e6b3f663806cbe7ccc",
+      "target_hash": "0207c17ab47b33fe6789fb42203062f5c98630162bb6c0ef0c9e93c3cd0eb909",
+      "input_tokens": 65266,
+      "input_token_sha256": "e16eda336690de73125a70d4fb39ca98c394e167634cc04878f02965ebbb92a2",
+      "targets": [
+        "LHBJQ",
+        "JJKFE",
+        "VPOIT",
+        "CMSSR",
+        "PXCCC"
+      ],
+      "prediction": "  LHBJQ JJKFE VPOIT CMSSR PXCCC",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.403
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 214,
+      "prompt_hash": "c88354c497fd7f6ee7a32e1afcd1486c3e1800631edc5d90eeb0dcfaa64a0d9c",
+      "doc_hash": "bd50fe1e4847662defff19c6fec5c1c1d1390d1144ab84aaf5c2c6934f21699e",
+      "target_hash": "c7a3561a8ec7fb4c391dc2658a1157f5065ce660b7fd392a5094d65d9f81e0ea",
+      "input_tokens": 65267,
+      "input_token_sha256": "032e36ee19266f9a81aaaea2611a9e6864234944b290a1b82bee131d492002ef",
+      "targets": [
+        "RZXRE",
+        "XUXJZ",
+        "AWTSB",
+        "IIWYX",
+        "JURPL"
+      ],
+      "prediction": " RZXRE XUXJZ AWTSB IIWYX JURPL",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.439
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 215,
+      "prompt_hash": "c4d8018dd3e52dcdedaf9bbe6e5a84a1da405fc7b6e5cb8238433056e112ded0",
+      "doc_hash": "4fc0de84f8b03507e329dbae271633299479e8d64a11e09289840cd93ffd3a8b",
+      "target_hash": "6ea5efaf50423d48f770e1e2e7c48b6bb89183c6e3a96b5973db8fc2f7bd5ea9",
+      "input_tokens": 65271,
+      "input_token_sha256": "45cf661aa6772b3b4a696c8e0fd41452af48e5543513b028f5c365a35d9bcdb1",
+      "targets": [
+        "BZHRF",
+        "HSFXD",
+        "HDAFB",
+        "PZHBH",
+        "PCFRW"
+      ],
+      "prediction": "  BZHRF HSFXD HDAFB PZHBH PCFRW",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.494
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 216,
+      "prompt_hash": "7918b7f0ae14f192b70093e53206fb94ee902bb18731e503f29a10260839bd3e",
+      "doc_hash": "696e17171230452e20a0a03072018e4f4cdbf741b9522bad55010e1d27c26910",
+      "target_hash": "e6175456e9937a99a39a07bdeb35b538b27fd31b2232759373a1fe5dce6992cd",
+      "input_tokens": 65269,
+      "input_token_sha256": "5a880a624853c1a49965623b86a57dfc8fc318f230e3781fca22282f5cd9f41c",
+      "targets": [
+        "VBOSM",
+        "BSGMG",
+        "RSYRO",
+        "HPZJF",
+        "AMJWE"
+      ],
+      "prediction": "  VBOSM BSGMG RSYRO HPZJF AMJWE",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.484
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 217,
+      "prompt_hash": "fba112cb2fb351ad423a4a6624f0215bcd6c655dbf0dae9f58fedcaa9f8774d5",
+      "doc_hash": "508dd03d9b875a06909829552638118cc215e5d2831754d320fa7da63ca0143f",
+      "target_hash": "d0319ece64e33d617b6a0604b27839d04dc8b403b8bbc8c0580ea2f11b445659",
+      "input_tokens": 65268,
+      "input_token_sha256": "fe39431e7bc18c725cc4a218ca282932b0448a12aa81c141eb9dfc1c44b18571",
+      "targets": [
+        "UIWBT",
+        "ABXKR",
+        "JATOX",
+        "NGDXC",
+        "KFDYH"
+      ],
+      "prediction": " UIWBT ABXKR JATOX NGDXC KFDYH",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.462
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 218,
+      "prompt_hash": "e18ac959f37938d3006b41595c8aa8ebbb14f46e0ee48568cd40503fa45d6085",
+      "doc_hash": "401dc6dcb59330f35e360b173c6541b678bccf3ca9641edc90edbb7ba0047ddf",
+      "target_hash": "fc0d5b5de97c1b4bd6349c89fc5b83e0feae39cb09d8d8cf9f6615bd5ae3e5eb",
+      "input_tokens": 65264,
+      "input_token_sha256": "e08975875de9e6887fa632e8ec533901a512d84f1c19723a5d4c8028bcbfabc6",
+      "targets": [
+        "ASLJE",
+        "GZXSD",
+        "XCUVF",
+        "TAESE",
+        "QPRBX"
+      ],
+      "prediction": "  ASLJE GZXSD XCUVF TAESE QPRBX",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.437
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 219,
+      "prompt_hash": "6bc1bcd55cb4d4a8e5c9af8035876b5204416cd6f80b289f0b75037a2c1d383a",
+      "doc_hash": "65647f33fe3537f6034445eaa0efec0475f5e3de08643cc9e1ce1266c3b5a75c",
+      "target_hash": "2617db733749d23a91a1f9ffe1e39a5bb5ba4101fa39267fc9ff7ef0d109d861",
+      "input_tokens": 65267,
+      "input_token_sha256": "efb808eba7c3fcd8d178397a8b08803cfcfa889bc40bc16b268df384ea5409f1",
+      "targets": [
+        "SCOBB",
+        "ZIGNV",
+        "PFOJY",
+        "NPXUH",
+        "YIBCN"
+      ],
+      "prediction": " SCOBB ZIGNV PFOJY NPXUH YIBCN",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.418
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 220,
+      "prompt_hash": "a74d5860498f1cdbfb536a191ce3a4e6d78d106c032148234435d7f896c81784",
+      "doc_hash": "8b3c366a25b85e286358c0b355c01cc6dd4fe6e2bb8cc4392cd223784bb00b26",
+      "target_hash": "1f312865104ddc72c5ccfbb1229e813fbc22866e028c41a8b4bffac9c19c3565",
+      "input_tokens": 65266,
+      "input_token_sha256": "af3a10fce337b8a7ed0bdf024da4c1cd8ab86fe1e0e0ff8b9abfd7961e743ca5",
+      "targets": [
+        "WTBZY",
+        "PSSRT",
+        "TDQZH",
+        "SDWDL",
+        "JYSCJ"
+      ],
+      "prediction": "  WTBZY PSSRT TDQZH SDWDL JYSCJ",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.458
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 221,
+      "prompt_hash": "7a1fd2816f9b3d3d215cd647548b29b037b2e9fe429f1c86e00f710cceda6b15",
+      "doc_hash": "149cf4961689bc397aeedc6bebb97f6e964e79a9237ccaeb6819181f15ad7ff7",
+      "target_hash": "e434d3f47ba58506c1f6a04476910d8b1df41f3a655b483867e95f50ccc0d6e6",
+      "input_tokens": 65275,
+      "input_token_sha256": "6816a8005479cdf98554ab1e736e202b4eef63a50819a0fedc39f5601c695d6d",
+      "targets": [
+        "FTRQZ",
+        "CRVZB",
+        "HWBYP",
+        "YFYAG",
+        "ZOHQK"
+      ],
+      "prediction": "  FTRQZ CRVZB HWBYP YFYAG ZOHQK",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.559
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 222,
+      "prompt_hash": "8f0a2175c647c482721dae26f4223d7ae633de7007370542e17c509da248b8de",
+      "doc_hash": "a1213d88fa1e7d09a725d4af5c0cea93b9322cbaaa595fb02cceb8e7463d303e",
+      "target_hash": "f255c5119d793abd31c24e335283b7c24058f34f59738dff68cd5e6ad0073b32",
+      "input_tokens": 65264,
+      "input_token_sha256": "39794d5465f95f18b7426bcc45d39403e1b6626daa8fc6fbc6e6e6bc99780fe1",
+      "targets": [
+        "OUJBP",
+        "UUHAZ",
+        "KFHUS",
+        "OIHPE",
+        "EWKLV"
+      ],
+      "prediction": "  OUJBP UUHAZ KFHUS OIHPE EWKLV",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.462
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 223,
+      "prompt_hash": "454eb877b2ba4c52839df8b1f46e18afea390c0763cddb5ec58920614fa85b46",
+      "doc_hash": "208106f1d8b89a5f1c0552ba01b6e568bf83f84d82860d7d27f1110ae776e995",
+      "target_hash": "80839bba70834fd4ef2e1bd642a6a8bb535cb16f9d412a8096b53c2737d0d0b2",
+      "input_tokens": 65272,
+      "input_token_sha256": "86fa8a418569856eba5c01e87bc1c443063913c2bc009192dd83166d01d20cbd",
+      "targets": [
+        "PRCQK",
+        "QSXSR",
+        "OJFOU",
+        "XSZHL",
+        "YXRJG"
+      ],
+      "prediction": "  PRCQK QSXSR OJFOU XSZHL YXRJG",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.56
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 224,
+      "prompt_hash": "3f5c0ed29029143a791bea1707757454122663f17ebdb18aaae2bbb93f244fbe",
+      "doc_hash": "ea85e1a4765d44444715e3604a269744bfadc930c8ab1e7067105c25f40246ef",
+      "target_hash": "8767d8e5bfee62f1efd7fc871215fc95cc806cbf7441e31bd4b5a8f5ff6a03bd",
+      "input_tokens": 65271,
+      "input_token_sha256": "d3f2bf90c3ecf54a7b888ac3a78f7774b1fd0cf086c43739f815e8069813f880",
+      "targets": [
+        "KSSZS",
+        "YXIFZ",
+        "LOZHK",
+        "SUJUL",
+        "XDEHA"
+      ],
+      "prediction": " KSSZS YXIFZ LOZHK SUJUL XDEHA",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.485
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 225,
+      "prompt_hash": "16fb3d419eeef7b9cb32c8e20a84a8619c39da5c845581d5c8b0c9e5941facbe",
+      "doc_hash": "d1e0a983cddf9fb48a9f0581e9fdb7e490434716cd5e9ff2b79e5153250d935d",
+      "target_hash": "74d5226d560a582fe05be011812a1b3e6e588f164c3582da2f260420451fbd40",
+      "input_tokens": 65273,
+      "input_token_sha256": "2ae779ba3886fa73629ab88e12f400eefa18d9b607913ae24702496e74473cf9",
+      "targets": [
+        "GUPDE",
+        "DVBRG",
+        "OFUEK",
+        "DUXFV",
+        "LKRLC"
+      ],
+      "prediction": " GUPDE DVBRG OFUEK DUXFV LKRLC",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.481
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 226,
+      "prompt_hash": "51537c63551ac694d5dea043f784ee4a10c3f1144db80924191574d4a5125cb2",
+      "doc_hash": "1f626b394ffa02f23b65a50ae7a4302483dea7597aa670cc915330635c8397b7",
+      "target_hash": "7f1de60c29c2aa7fa8e6ca8e5aabad84f6e93be532073f38e58f0931087b754a",
+      "input_tokens": 65263,
+      "input_token_sha256": "f6ca5441bf9b77316a5bbc952977266364a831c2ddcb51e9f9ae749a146aaedb",
+      "targets": [
+        "LXUGV",
+        "QRBMQ",
+        "EQVAN",
+        "UWVFL",
+        "LPKIE"
+      ],
+      "prediction": " LXUGV QRBMQ EQVAN UWVFL LPKIE",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.394
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 227,
+      "prompt_hash": "9ef96d5aceae3c296b7a8d7612f44b8bff596002246d869716a168364bab0a25",
+      "doc_hash": "b3ae3a9225d228f5a1d837a7cf1bd887137ab95f2c74cb0350ed308dd1de5240",
+      "target_hash": "d926be97dd3d9b04a09ff60c9600eb6b6c1518ca5a4308c3e648d4e647718e10",
+      "input_tokens": 65267,
+      "input_token_sha256": "9a9057116ec3eae40188748eaf55e676346bc78b3846bd153b12c51e33583b8c",
+      "targets": [
+        "WEDII",
+        "RYDAH",
+        "ZRDXT",
+        "NQCZX",
+        "FFQJE"
+      ],
+      "prediction": " WEDII RYDAH ZRDXT NQCZX FFQJE",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.413
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 228,
+      "prompt_hash": "fb9666f66da08e34b5041ec78cb3132dbab1fd220051dc9985dcb3a3f8b31302",
+      "doc_hash": "0b5ee8dbc7af919532eebc7ae22b26d678e700c1b2597e88a5039cef4095961f",
+      "target_hash": "245ee7eba4f8e5d32d806334d15f9c0088389ff943a75e34170071a6b7b9bb21",
+      "input_tokens": 65279,
+      "input_token_sha256": "de86fc71cfc1a8d381e947120dbdfe0b63cb3acd172088c0a888b3ffcf74664c",
+      "targets": [
+        "FQXPE",
+        "HWRVU",
+        "FJDLC",
+        "JAKXO",
+        "LNKMY"
+      ],
+      "prediction": "  FQXPE HWRVU FJDLC JAKXO LNKMY",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.514
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 229,
+      "prompt_hash": "fac14a9059ba2457963662700d667369fd4824ebe9aa1cda371e27d093062579",
+      "doc_hash": "94d52a40eb348f766ae6676f301603beda12bfd54345d4709b25d1764f64ebee",
+      "target_hash": "3b6218a5782cdb9b62ccb03b8c468f89ef24e40e6dcac4c4ea4ebb564f5426f9",
+      "input_tokens": 65272,
+      "input_token_sha256": "cf4d7c8889258c737bc187a0df350048763b9e31f38b1c782dcfe2d0e35d748f",
+      "targets": [
+        "VLSGW",
+        "UMITD",
+        "FZFRD",
+        "YXNQT",
+        "HZIZW"
+      ],
+      "prediction": " VLSGW UMITD FZFRD YXNQT HZIZW",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.513
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 230,
+      "prompt_hash": "1a648d0907e780581af70365574c4cf2c67369bf9dbd7b9119639ec1a18636b2",
+      "doc_hash": "049f919b2b370b3b8d18a2cb94229ba2794b07e7c176a80258739717853ac47e",
+      "target_hash": "1158a605343558e9162b0227a33ee377ce532ab3d879d9b378d9a5d6136a1f91",
+      "input_tokens": 65267,
+      "input_token_sha256": "28a23cd0668773a8bfeffdfab3c419fb55c77826682cc7b106986413ad026b70",
+      "targets": [
+        "WCBKU",
+        "HVARF",
+        "OHDOD",
+        "XBUER",
+        "NHKOS"
+      ],
+      "prediction": "  WCBKU HVARF OHDOD XBUER NHKOS",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.459
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 231,
+      "prompt_hash": "1482a600255bec2b206bda917675e152bfba7979ca29faa9ab378d5b9153c0ca",
+      "doc_hash": "673ab0464b2a3e684e8b77ab0c7e2938d688a708bf463a351f72d34c17a46a70",
+      "target_hash": "55eb1383b8568e77ff44fb29eac4de8b44872f2c81afee1c8882190c07cbace8",
+      "input_tokens": 65264,
+      "input_token_sha256": "19f74d2a972f9a09f00cb608af6013cff3023f93722a050114c8f674e909b4f0",
+      "targets": [
+        "AYCSP",
+        "FIOJE",
+        "MADGL",
+        "EAQQC",
+        "SCHYO"
+      ],
+      "prediction": "  AYCSP FIOJE MADGL EAQQC SCHYO",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.392
+    },
+    {
+      "task": "ruler_vt",
+      "doc_id": 232,
+      "prompt_hash": "54898ca4bf17fc16aaa345e09c1f42a5c087be9e31d88c1e038840e54d6d2ffc",
+      "doc_hash": "c72f371944c2a0e26343843597960b165c48558df88c75a2fb5ba9d3a3f09bd3",
+      "target_hash": "006e9a0b4227d5a81987d366317174c5968afd3d017a8b21a40bc7ce7b668900",
+      "input_tokens": 65269,
+      "input_token_sha256": "0e003dc57d9405893add7780b3b4db8f070f94194af11740e050557bef559d8b",
+      "targets": [
+        "LIONQ",
+        "QKGQF",
+        "QOXSF",
+        "PQJIA",
+        "NSPIG"
+      ],
+      "prediction": "  LIONQ QKGQF QOXSF PQJIA NSPIG",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.494
+    }
+  ]
+}

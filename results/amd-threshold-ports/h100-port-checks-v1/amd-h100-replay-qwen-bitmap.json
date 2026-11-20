@@ -1,0 +1,189 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "5994ec55edc1b1ee41b3b752b62d8006d8932aa0c8014e134dc22c5dd63ab6d3",
+      "source_file_count": 342
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 7.9015302658081055,
+      "mean_open_entries": 493.41351318359375,
+      "route_coarse_ms": 2.393964800918311,
+      "leaves_ms": 1.0918034215127268,
+      "remote_attention_ms": 3.7538433955265926,
+      "validation": {}
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 706.6875,
+      "mean_open_regions": 24.94454002380371,
+      "mean_open_entries": 1641.97607421875,
+      "route_coarse_ms": 4.1384182649500225,
+      "leaves_ms": 4.0760248819986975,
+      "remote_attention_ms": 8.501776720129925,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.004984617233276367
+      }
+    },
+    {
+      "layer": 0,
+      "variant": "bitmap",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 62.4375,
+      "mean_open_regions": 24.94454002380371,
+      "mean_open_entries": 1641.97607421875,
+      "route_coarse_ms": 4.11828779332778,
+      "leaves_ms": 4.085851626925998,
+      "remote_attention_ms": 8.49463414731233,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.004984617233276367,
+        "remote_bitwise_identical": true
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 312.0911560058594,
+      "route_coarse_ms": 2.455011575263843,
+      "leaves_ms": 0.9463343607584636,
+      "remote_attention_ms": 3.6343529467312794,
+      "validation": {}
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 706.6875,
+      "mean_open_regions": 31.64013671875,
+      "mean_open_entries": 1497.1868896484375,
+      "route_coarse_ms": 4.1993637982536764,
+      "leaves_ms": 4.591163110733032,
+      "remote_attention_ms": 9.11418224516369,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.012558460235595703
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "bitmap",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 62.4375,
+      "mean_open_regions": 31.64013671875,
+      "mean_open_entries": 1497.1868896484375,
+      "route_coarse_ms": 4.151808480655446,
+      "leaves_ms": 4.567711257934571,
+      "remote_attention_ms": 9.031278228759765,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.012558460235595703,
+        "remote_bitwise_identical": true
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "top8",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 0.0,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 685.1591796875,
+      "route_coarse_ms": 2.4325574713238214,
+      "leaves_ms": 1.2977201249864367,
+      "remote_attention_ms": 4.042885729731346,
+      "validation": {}
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 706.6875,
+      "mean_open_regions": 21.71565818786621,
+      "mean_open_entries": 2145.5146484375,
+      "route_coarse_ms": 4.187891208424288,
+      "leaves_ms": 4.417766547925544,
+      "remote_attention_ms": 8.885289001464844,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06549263000488281
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "bitmap",
+      "queries": 4096,
+      "regions": 3547,
+      "head_dim": 256,
+      "rank_metadata_mib": 62.4375,
+      "mean_open_regions": 21.71565818786621,
+      "mean_open_entries": 2145.5146484375,
+      "route_coarse_ms": 4.139150641946232,
+      "leaves_ms": 4.4136173132694125,
+      "remote_attention_ms": 8.817012648148971,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06549263000488281,
+        "remote_bitwise_identical": true
+      }
+    }
+  ],
+  "scope": "Replay real Qwen prefill snapshots without reloading the full model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-08.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-15.pt"
+  ]
+}

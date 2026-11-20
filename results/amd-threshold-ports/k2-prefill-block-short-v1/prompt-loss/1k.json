@@ -1,0 +1,166 @@
+{
+  "batch_size": 1,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      },
+      "python": "3.12.13"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_file_count": 355,
+      "source_sha256": "d64f3892b3c086c1f5c4f13cc7784cd6a45f3a7bd9d15f35bf1b2963d74f5874"
+    }
+  },
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_routes": null,
+  "decode_threshold_entry_block": 64,
+  "decode_threshold_entry_warps": 4,
+  "decode_threshold_implementation": "materialized",
+  "decode_threshold_multiplier": 16.0,
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "decode_threshold_rule": "region",
+  "decode_threshold_splits": 128,
+  "decode_threshold_tile": 64,
+  "decode_threshold_union": false,
+  "decode_tokens": null,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.65,
+  "measure": "quality",
+  "measurements": {
+    "elapsed_seconds": 251.19277007319033,
+    "loss": 0.4959197657198005,
+    "perplexity": 1.6420078072188247,
+    "prediction_tokens": 524280,
+    "samples": [
+      {
+        "dataset_index": 14,
+        "document_sha256": "112f4971062d95a7456aec94784baa4f0c01d0f363aa6ab3da20e75c410660fe",
+        "loss": 0.6826277510704151,
+        "perplexity": 1.9790714124149542,
+        "token_sha256": "58190f5cf4ee48b3cbadc137dfc50ebec5ae2f831a0c0204b53447b571351a90",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 19,
+        "document_sha256": "610bf9697c989fa49b41771dacae6bac76bf3a0a64f431bcfedae15242c252f8",
+        "loss": 0.3084693500594428,
+        "perplexity": 1.3613397839246977,
+        "token_sha256": "f7278b42b7fe4019ace84d78faa714f42f4068be623b03c4e7f221ab5277bd56",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 20,
+        "document_sha256": "ee79652c3e07e026466785abbd54f6e6cf39656f9f3e14594719bbd579ad42a5",
+        "loss": 0.46902325685621993,
+        "perplexity": 1.5984321728295836,
+        "token_sha256": "0e8b2f5010b0a8d280588732c0215f1dc5719c3f3effcdec35859179c2c29c6e",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 23,
+        "document_sha256": "8685ff22c692cbaf2087be1775150db8f3aca4b6aa0b623e4e03e8dbf47477f5",
+        "loss": 0.2871563130111085,
+        "perplexity": 1.3326325049954713,
+        "token_sha256": "01e8e5ec2d8bfbef8da77f0e42edd3d300bc3838bac7f749391eacf19fcb15cc",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 24,
+        "document_sha256": "60f6b6d3c6153c1e82717fed18461f54cbeb3f5b4d3e6b20d7d5939733ebc8a2",
+        "loss": 0.7620723130156927,
+        "perplexity": 2.1427119927064977,
+        "token_sha256": "775113c8b7f25dac73dda1b8f8cc4bef4e5841018eb021fef070bb387f4cbfb1",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 25,
+        "document_sha256": "acb1066489b2f252fe700d14e72b35811d3ccababe00a6db1c141e76f39e682f",
+        "loss": 0.34765250763338174,
+        "perplexity": 1.4157402053396682,
+        "token_sha256": "5ff534bb3d5d65a1762b6a5962105ea44217eaaf546ecbb33fa3307d51e8fcce",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 27,
+        "document_sha256": "5a7b62ed35ab16bee40762b2ae8e3edc4d503b4bd8dbedcda666ef073865055d",
+        "loss": 0.3917788461268567,
+        "perplexity": 1.4796104536338963,
+        "token_sha256": "6cb7be42e87860f7e27a3a9774f47ca00644cad363f6d694a39c50c23ec0d16b",
+        "tokens": 65536
+      },
+      {
+        "dataset_index": 28,
+        "document_sha256": "b441ae5d3499eb978f0a1825ed851be2336c8a444f267b289ca997e3d36dd305",
+        "loss": 0.7185777879852874,
+        "perplexity": 2.05151344780133,
+        "token_sha256": "d178871dc43244dbb308d7ecffc2ba3e342e5f068b69ea2868652cb1379ada7a",
+        "tokens": 65536
+      }
+    ]
+  },
+  "mode": "two-tier",
+  "num_speculative_tokens": null,
+  "prefill_threshold_options": {
+    "LOD_AMD_PREFILL_COMPACT_BITS": "1",
+    "LOD_AMD_PREFILL_COMPACT_ROWS": "2",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_GROUP_PACK": "0",
+    "LOD_AMD_PREFILL_LIVE_PREFIX": "1",
+    "LOD_AMD_PREFILL_MATERIALIZE_REGIONS": "1",
+    "LOD_AMD_PREFILL_MATMUL": "blas",
+    "LOD_AMD_PREFILL_MERGE_MMA_PARTS": "1",
+    "LOD_AMD_PREFILL_MERGE_SHORT_MMA": "1",
+    "LOD_AMD_PREFILL_NARROW_SLOTS": "1",
+    "LOD_AMD_PREFILL_OVERLAP_LOCAL": "1",
+    "LOD_AMD_PREFILL_OVERLAP_PROJECTION": "1",
+    "LOD_AMD_PREFILL_PACK_EXACT_ROWS": "1",
+    "LOD_AMD_PREFILL_PACK_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_PAD_LOG_SIZE": "1",
+    "LOD_AMD_PREFILL_QK_BACKEND": "triton",
+    "LOD_AMD_PREFILL_QUERY_TILE": "4096",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_REGION_ALIGNMENT": "64",
+    "LOD_AMD_PREFILL_SELECTOR": "gluon",
+    "LOD_AMD_PREFILL_SELECT_QUERY_WARPS": "2",
+    "LOD_AMD_PREFILL_SELECT_ROWS": "2",
+    "LOD_AMD_PREFILL_SELECT_VECTOR": "4",
+    "LOD_AMD_PREFILL_SELECT_WARPS": "8",
+    "LOD_AMD_PREFILL_THRESHOLD": "16"
+  },
+  "scheduler_budget_tokens": 1025,
+  "scheduler_chunk_tokens": 1024,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": null,
+  "speculative_model": null,
+  "speed_samples": null,
+  "tensor_parallel_size": 1,
+  "worker_prefill_memory": [
+    {
+      "configured_prefill_block_tokens": 1024,
+      "configured_prefill_lookback_tokens": 256,
+      "peak_allocated_bytes": 74274844160,
+      "peak_reserved_bytes": 82088820736
+    }
+  ]
+}

@@ -32,7 +32,7 @@ they were semantically coherent.
 
 Three-tier decode selects both pages in one summary scan and replaces their
 leaves exactly once, retaining one count-corrected residual for the rest of
-each centroid. This policy applies to both Qwen3.8 and K2 Horizon. Prefill
+each centroid. This policy applies to every supported model. Prefill
 continues to refine all leaves in selected centroids.
 
 The release supports:
@@ -41,6 +41,7 @@ The release supports:
 |---|---:|---:|---:|
 | Qwen3.8 (`D=256`, GQA 6) | yes | yes | yes |
 | K2 Horizon (`D=128`, GQA 8) | yes | yes | no |
+| Llama-3.1-8B-Instruct (`D=128`, GQA 4, CUDA H100) | — | yes | no |
 
 Model-specific compatibility code is isolated in
 `integrations/vllm_lod/vllm_lod_plugin/models/`. The attention engine and
@@ -58,7 +59,7 @@ appropriate accelerator build:
 uv pip install -e .
 ```
 
-The optimized prefill path requires the AITER change in
+The optimized ROCm prefill path requires the AITER change in
 `integrations/vllm_lod/patches/aiter-mha-prefill-route8.patch`. Apply it to the
 AITER source used by the runtime and rebuild AITER before benchmarking. The
 patch provides compile-time normalized and raw routing probes. LoD selects the
@@ -66,6 +67,9 @@ normalized specialization for K2 and automatically builds a separately cached
 raw specialization for Qwen; neither kernel branches on normalization at run
 time. The release specialization is built with
 `CK_TILE_FMHA_ROUTE_TOPK=8`.
+
+Llama on H100 uses bundled FlashAttention-3 and a CUDA Triton routing kernel;
+it requires no AITER build. See [the H100 setup and validation guide](benchmarks/H100_LLAMA.md).
 
 ## Hugging Face
 

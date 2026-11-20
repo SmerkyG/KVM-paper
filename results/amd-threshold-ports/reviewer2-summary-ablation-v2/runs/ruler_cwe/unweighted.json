@@ -1,0 +1,828 @@
+{
+  "task": "ruler_cwe",
+  "arm": "unweighted",
+  "mode": "two-tier",
+  "input_sha256": "b66662b72aba262999f80e3794763db0027349958837a90b52cb2e1993755cc1",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": 0,
+      "input_sha256": "6e8062194c85604a4eab25c13625e654afa760299583bc2a25f245bf44476bc0",
+      "input_tokens": 129629,
+      "output_tokens": 71,
+      "prediction": "\n\n1. **thunderstorm**\n2. **toaster**\n3. **cupola**\n4. **employer**\n5. **tax**\n6. **bury**\n7. **soap**\n8. **shaker**\n9. **acquaintance**\n10. **auspicious**",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25844209039,
+          440683101583,
+          49777536
+        ],
+        "decode": [
+          57179088,
+          67702992,
+          27264
+        ]
+      },
+      "elapsed_s": 19.389273760840297,
+      "ttft_s": 17.37743616104126,
+      "decode_ms_per_token": 28.753770275839738
+    },
+    {
+      "id": 1,
+      "input_sha256": "67e7494f579526d453dbe7391fd37dd5eb6279986a8b0fe7a76bdc58b963fc33",
+      "input_tokens": 129626,
+      "output_tokens": 71,
+      "prediction": "\n\n1. **full**\n2. **assault**\n3. **hunter**\n4. **donor**\n5. **pouch**\n6. **jack**\n7. **overwrought**\n8. **unsuitable**\n9. **enthusiasm**\n10. **elixir**",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25466986737,
+          440288372337,
+          49776384
+        ],
+        "decode": [
+          56458818,
+          66900930,
+          27264
+        ]
+      },
+      "elapsed_s": 19.3914179764688,
+      "ttft_s": 17.38069462776184,
+      "decode_ms_per_token": 28.728552934314525
+    },
+    {
+      "id": 2,
+      "input_sha256": "14aee92dc773e297dede2d6a8b435952c8b90a53eb7259dc2438bf38b2735b07",
+      "input_tokens": 129608,
+      "output_tokens": 70,
+      "prediction": "\n\n1. **tired**\n2. **watch**\n3. **valley**\n4. **workplace**\n5. **division**\n6. **stacking**\n7. **slink**\n8. **grey**\n9. **counter-force**\n10. **intervenor**",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25672957542,
+          440389374054,
+          49769472
+        ],
+        "decode": [
+          56108280,
+          65906040,
+          26880
+        ]
+      },
+      "elapsed_s": 19.383609918877482,
+      "ttft_s": 17.4013671875,
+      "decode_ms_per_token": 28.73111184200515
+    },
+    {
+      "id": 3,
+      "input_sha256": "668db2f997ed6ae4b9b039732d59671a251861cab64325de2aa25bce9f8238e0",
+      "input_tokens": 129728,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **item**\n2. **sunset**\n3. **hermit**\n4. **ignore**\n5. **bulldozer**\n6. **subcontractor**\n7. **brochure**\n8. **pillow**\n9. **stand**\n10. **aromatic**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25958472980,
+          441377033492,
+          49815552
+        ],
+        "decode": [
+          59178576,
+          71815248,
+          27648
+        ]
+      },
+      "elapsed_s": 19.445371290668845,
+      "ttft_s": 17.39883780479431,
+      "decode_ms_per_token": 28.83174813444346
+    },
+    {
+      "id": 4,
+      "input_sha256": "cbb47609b95dfb23eb9b7e44a1db52a4e3625ec3ec474087395f994f270ad00a",
+      "input_tokens": 129773,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **garage**\n2. **guard**\n3. **jungle**\n4. **vampire**\n5. **didactic**\n6. **dispensable**\n7. **controversy**\n8. **recondite**\n9. **app**\n10. **sport**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25210949023,
+          440894239135,
+          49832832
+        ],
+        "decode": [
+          58890324,
+          68347476,
+          27648
+        ]
+      },
+      "elapsed_s": 19.441723618656397,
+      "ttft_s": 17.39436435699463,
+      "decode_ms_per_token": 28.840385508579267
+    },
+    {
+      "id": 5,
+      "input_sha256": "c3dd416f5c69f6a5893da312ed26ae9f61f67e8705b8d1b647c38e138f4727be",
+      "input_tokens": 129542,
+      "output_tokens": 67,
+      "prediction": "\n\n1. **intensity**\n2. **rebellion**\n3. **production**\n4. **student**\n5. **seller**\n6. **blind**\n7. **cabbage**\n8. **artifact**\n9. **temple**\n10. **midline**",
+      "returned_tokens": 67,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25766827986,
+          440099422290,
+          49744128
+        ],
+        "decode": [
+          55368930,
+          63010146,
+          25728
+        ]
+      },
+      "elapsed_s": 19.28405950590968,
+      "ttft_s": 17.388080596923828,
+      "decode_ms_per_token": 28.730097509017497
+    },
+    {
+      "id": 6,
+      "input_sha256": "cf62b042794b22d316c0bae79ab373329a1b653a1ee29eceb27787be98062609",
+      "input_tokens": 129548,
+      "output_tokens": 73,
+      "prediction": "\n\n1. **quiver**\n2. **sauce**\n3. **bed**\n4. **gallon**\n5. **sleuth**\n6. **formulate**\n7. **circumference**\n8. **trite**\n9. **dig**\n10. **shoestring**",
+      "returned_tokens": 73,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          24958632919,
+          439326051031,
+          49746432
+        ],
+        "decode": [
+          60014388,
+          68592180,
+          28032
+        ]
+      },
+      "elapsed_s": 19.4486284237355,
+      "ttft_s": 17.379414558410645,
+      "decode_ms_per_token": 28.742944330183995
+    },
+    {
+      "id": 7,
+      "input_sha256": "4a302bd31ef6fcecdc71a240073bcce6c84a44c87c05b381e00bc0a45cb2a5af",
+      "input_tokens": 129698,
+      "output_tokens": 73,
+      "prediction": "\n\n1. **meal**\n2. **ring**\n3. **quart**\n4. **tickle**\n5. **sash**\n6. **flax**\n7. **beset**\n8. **consulate**\n9. **rhinoceros**\n10. **earsplitting**",
+      "returned_tokens": 73,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26045526080,
+          441288032192,
+          49804032
+        ],
+        "decode": [
+          59393718,
+          72176310,
+          28032
+        ]
+      },
+      "elapsed_s": 19.466476302593946,
+      "ttft_s": 17.396385192871094,
+      "decode_ms_per_token": 28.75879538866381
+    },
+    {
+      "id": 8,
+      "input_sha256": "07c50e441bb75fcc17d4f75f743b12a6594b55a9f685b5af00b0cdcd329a030f",
+      "input_tokens": 129452,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **dawn**\n2. **sneaky**\n3. **brief**\n4. **offence**\n5. **clearance**\n6. **tonic**\n7. **absurd**\n8. **mastoid**\n9. **firewall**\n10. **rainstorm**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26161021097,
+          439972917161,
+          49709568
+        ],
+        "decode": [
+          60483030,
+          73353174,
+          27648
+        ]
+      },
+      "elapsed_s": 19.415152084082365,
+      "ttft_s": 17.37403917312622,
+      "decode_ms_per_token": 28.75241322416655
+    },
+    {
+      "id": 9,
+      "input_sha256": "9db9c900cf139a76a17ba1003921258b3d12c14498441583142e9d6fc46bbc6d",
+      "input_tokens": 129635,
+      "output_tokens": 74,
+      "prediction": "\n\n1. **filing**\n2. **campaign**\n3. **demonic**\n4. **thirst**\n5. **motivate**\n6. **scintillating**\n7. **decadence**\n8. **conservative**\n9. **borrower**\n10. **underneath**",
+      "returned_tokens": 74,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25887636531,
+          440761553331,
+          49779840
+        ],
+        "decode": [
+          59074170,
+          70255866,
+          28416
+        ]
+      },
+      "elapsed_s": 19.509334314614534,
+      "ttft_s": 17.410872220993042,
+      "decode_ms_per_token": 28.75359833546697
+    },
+    {
+      "id": 10,
+      "input_sha256": "79949192e3bcb12fe16fc019c5f15893f54031c490d6f1bb33b8451166be8ddc",
+      "input_tokens": 129629,
+      "output_tokens": 76,
+      "prediction": "\n\n1. **live**\n2. **evidence**\n3. **locomotive**\n4. **infrastructure**\n5. **ikebana**\n6. **patent**\n7. **crystallography**\n8. **upward**\n9. **capon**\n10. **ratty**",
+      "returned_tokens": 76,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26323992086,
+          441162884630,
+          49777536
+        ],
+        "decode": [
+          62756676,
+          74094660,
+          29184
+        ]
+      },
+      "elapsed_s": 19.562685603275895,
+      "ttft_s": 17.406270503997803,
+      "decode_ms_per_token": 28.757535964250565
+    },
+    {
+      "id": 11,
+      "input_sha256": "afb680ca8008d8067c35232bf9216f63d8ac7c6978e70c90858288f18273e537",
+      "input_tokens": 129647,
+      "output_tokens": 70,
+      "prediction": "\n\n1. **coyote**\n2. **objective**\n3. **approach**\n4. **intervention**\n5. **grieving**\n6. **bonnet**\n7. **shelf**\n8. **salami**\n9. **hellish**\n10. **terrarium**",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          24786393127,
+          439730399911,
+          49784448
+        ],
+        "decode": [
+          56138622,
+          66984702,
+          26880
+        ]
+      },
+      "elapsed_s": 19.364883283153176,
+      "ttft_s": 17.3792564868927,
+      "decode_ms_per_token": 28.78203661437484
+    },
+    {
+      "id": 12,
+      "input_sha256": "ee662e2f2db13f9e55ffc77ff4483d810e2467a6efdfb64384643fcae2056d77",
+      "input_tokens": 129530,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **relish**\n2. **fellow**\n3. **hospitable**\n4. **preside**\n5. **ukulele**\n6. **dream**\n7. **cyst**\n8. **burro**\n9. **sight**\n10. **chef**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25517567823,
+          439780555983,
+          49739520
+        ],
+        "decode": [
+          59996388,
+          68535012,
+          27648
+        ]
+      },
+      "elapsed_s": 19.422418385744095,
+      "ttft_s": 17.38031816482544,
+      "decode_ms_per_token": 28.8383848965168
+    },
+    {
+      "id": 13,
+      "input_sha256": "ec200bdffabc8d414559684458ee9175c31b4b64b9a87227f386318ca00fa6f5",
+      "input_tokens": 129557,
+      "output_tokens": 69,
+      "prediction": "\n\n1. **area**\n2. **bizarre**\n3. **cowardly**\n4. **file**\n5. **flu**\n6. **mouser**\n7. **snakebite**\n8. **soy**\n9. **vector**\n10. **botany**",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26389923157,
+          440809602901,
+          49749888
+        ],
+        "decode": [
+          58825116,
+          67118364,
+          26496
+        ]
+      },
+      "elapsed_s": 19.35143033787608,
+      "ttft_s": 17.394412994384766,
+      "decode_ms_per_token": 28.7382296176956
+    },
+    {
+      "id": 14,
+      "input_sha256": "63c475a9d52b022b586844744d05a8f8b1806d4df96a7dd1a05f7fd4c37a4663",
+      "input_tokens": 129512,
+      "output_tokens": 70,
+      "prediction": "\n\n1. **provider**\n2. **diagnosis**\n3. **advice**\n4. **bridge**\n5. **fresh**\n6. **genetics**\n7. **plunger**\n8. **correspondent**\n9. **revise**\n10. **misplacement**",
+      "returned_tokens": 70,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25516625748,
+          439675308372,
+          49732608
+        ],
+        "decode": [
+          59535330,
+          69111906,
+          26880
+        ]
+      },
+      "elapsed_s": 19.369221670553088,
+      "ttft_s": 17.381198167800903,
+      "decode_ms_per_token": 28.815334419841353
+    },
+    {
+      "id": 15,
+      "input_sha256": "7a8b70b8c5f95a82695672e6b3aa2076a7bdacd77575b8c76845ca99df5e326d",
+      "input_tokens": 129650,
+      "output_tokens": 71,
+      "prediction": "\n\n1. **book**\n2. **thunderhead**\n3. **speedboat**\n4. **drip**\n5. **lace**\n6. **toothpaste**\n7. **tempo**\n8. **pun**\n9. **disaster**\n10. **furtive**",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25849127149,
+          440810665069,
+          49785600
+        ],
+        "decode": [
+          54647478,
+          65743926,
+          27264
+        ]
+      },
+      "elapsed_s": 19.417236438021064,
+      "ttft_s": 17.408607959747314,
+      "decode_ms_per_token": 28.70033151869263
+    },
+    {
+      "id": 16,
+      "input_sha256": "396e8ab3e1a110a7314e62b0555e6f3e739c6327ff59f88559c94c40308a0687",
+      "input_tokens": 129500,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **deficit**\n2. **oasis**\n3. **squid**\n4. **rightful**\n5. **dud**\n6. **in-joke**\n7. **worm**\n8. **mousse**\n9. **ceramic**\n10. **chandelier**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25992572173,
+          440081786893,
+          49728000
+        ],
+        "decode": [
+          60418068,
+          71076372,
+          27648
+        ]
+      },
+      "elapsed_s": 19.473849408328533,
+      "ttft_s": 17.415162086486816,
+      "decode_ms_per_token": 28.99925082817044
+    },
+    {
+      "id": 17,
+      "input_sha256": "b7413602852812875366822ad98c4c59aea03a6b5a800f3a1a373e70e2a0195b",
+      "input_tokens": 129713,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **pillar**\n2. **shift**\n3. **dramaturge**\n4. **show-stopper**\n5. **armchair**\n6. **cod**\n7. **hydrofoil**\n8. **pinecone**\n9. **phobic**\n10. **disapprove**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25957905378,
+          441288395490,
+          49809792
+        ],
+        "decode": [
+          58673928,
+          71682312,
+          27648
+        ]
+      },
+      "elapsed_s": 19.90380183234811,
+      "ttft_s": 17.858474493026733,
+      "decode_ms_per_token": 28.814197478579803
+    },
+    {
+      "id": 18,
+      "input_sha256": "744c92f4339435bf129fe81238ffc7acb892ed910bf2f388abf3114403a461be",
+      "input_tokens": 129506,
+      "output_tokens": 68,
+      "prediction": "\n\n1. **learn**\n2. **water**\n3. **season**\n4. **phenotype**\n5. **diadem**\n6. **maracas**\n7. **circumference**\n8. **bruise**\n9. **audit**\n10. **peek**",
+      "returned_tokens": 68,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25436111053,
+          439560052813,
+          49730304
+        ],
+        "decode": [
+          57681162,
+          67458570,
+          26112
+        ]
+      },
+      "elapsed_s": 19.307989798486233,
+      "ttft_s": 17.374290943145752,
+      "decode_ms_per_token": 28.861035578953686
+    },
+    {
+      "id": 19,
+      "input_sha256": "4602124b8254af73e322f54263b829d5685b2efc57472a63281bbb9533d933cf",
+      "input_tokens": 129557,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **courageous**\n2. **vanilla**\n3. **assist**\n4. **snuggle**\n5. **lieu**\n6. **muddled**\n7. **windage**\n8. **communicant**\n9. **ambiguous**\n10. **spokeswoman**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26050329142,
+          440470008886,
+          49749888
+        ],
+        "decode": [
+          59940348,
+          68635644,
+          27648
+        ]
+      },
+      "elapsed_s": 19.453087305650115,
+      "ttft_s": 17.41148829460144,
+      "decode_ms_per_token": 28.75724083311121
+    },
+    {
+      "id": 20,
+      "input_sha256": "f28650e5dccfbcdebd2a485483fbabdb8745c37090bcbea9a1b3f832f3d81356",
+      "input_tokens": 129542,
+      "output_tokens": 72,
+      "prediction": "\n\n1. **poverty**\n2. **valley**\n3. **sailor**\n4. **prose**\n5. **scenario**\n6. **penny**\n7. **deceive**\n8. **catamaran**\n9. **hog**\n10. **bonsai**",
+      "returned_tokens": 72,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26072016270,
+          440404610574,
+          49744128
+        ],
+        "decode": [
+          58235328,
+          66515904,
+          27648
+        ]
+      },
+      "elapsed_s": 19.440987925976515,
+      "ttft_s": 17.401256322860718,
+      "decode_ms_per_token": 28.728676146604645
+    },
+    {
+      "id": 21,
+      "input_sha256": "66b13eee0e96c3a05ae47ad1d7e9779aaa6b3b21a13055c60debd0634633149d",
+      "input_tokens": 129563,
+      "output_tokens": 69,
+      "prediction": "\n\n1. **bump**\n2. **deliver**\n3. **try**\n4. **ritual**\n5. **browsing**\n6. **bid**\n7. **timpani**\n8. **task**\n9. **blow**\n10. **manufacturing**",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25714628903,
+          440169167015,
+          49752192
+        ],
+        "decode": [
+          57785406,
+          66237630,
+          26496
+        ]
+      },
+      "elapsed_s": 19.361973030492663,
+      "ttft_s": 17.406429767608643,
+      "decode_ms_per_token": 28.764064834617518
+    },
+    {
+      "id": 22,
+      "input_sha256": "03254a025b9a95fc85a8e0b232b68ecb511c44bfc8df3301a97220737b383897",
+      "input_tokens": 129458,
+      "output_tokens": 69,
+      "prediction": "\n\n1. **monitoring**\n2. **prosecution**\n3. **supplier**\n4. **intuition**\n5. **burglar**\n6. **coupon**\n7. **worth**\n8. **stain**\n9. **zip**\n10. **knotty**",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25575346529,
+          439421859041,
+          49711872
+        ],
+        "decode": [
+          58813434,
+          71266554,
+          26496
+        ]
+      },
+      "elapsed_s": 19.340692579746246,
+      "ttft_s": 17.385994911193848,
+      "decode_ms_per_token": 28.75084221801337
+    },
+    {
+      "id": 23,
+      "input_sha256": "88a064d44598e53884f0b6952d14c95713d26a92de1972ba8db0718082f781d3",
+      "input_tokens": 129662,
+      "output_tokens": 69,
+      "prediction": "\n\n1. **lion**\n2. **picket**\n3. **perform**\n4. **speak**\n5. **publication**\n6. **restored**\n7. **moment**\n8. **incandescent**\n9. **possess**\n10. **lonely**",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25895595390,
+          440927292414,
+          49790208
+        ],
+        "decode": [
+          57977022,
+          69052350,
+          26496
+        ]
+      },
+      "elapsed_s": 19.373993260785937,
+      "ttft_s": 17.420905113220215,
+      "decode_ms_per_token": 28.72415360830286
+    },
+    {
+      "id": 24,
+      "input_sha256": "f91f5be0bf2cb123d89daf334b043ff58af50144c794ebd1b71946e94eb7d5e7",
+      "input_tokens": 129542,
+      "output_tokens": 66,
+      "prediction": "\n\n1. **corn**\n2. **statue**\n3. **secret**\n4. **trombone**\n5. **reflect**\n6. **selling**\n7. **push**\n8. **motive**\n9. **hunt**\n10. **obeisant**",
+      "returned_tokens": 66,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25640691370,
+          439973285674,
+          49744128
+        ],
+        "decode": [
+          55031604,
+          62546100,
+          25344
+        ]
+      },
+      "elapsed_s": 19.281373877078295,
+      "ttft_s": 17.414567232131958,
+      "decode_ms_per_token": 28.723760235768097
+    },
+    {
+      "id": 25,
+      "input_sha256": "f026fe5f5da033bc3c4922a263ca744503ffccde3966a8ef51b4547a95c1afaf",
+      "input_tokens": 129635,
+      "output_tokens": 73,
+      "prediction": "\n\n1. **project**\n2. **metric**\n3. **spleen**\n4. **cirrhosis**\n5. **foamy**\n6. **godly**\n7. **impediment**\n8. **cartridge**\n9. **meringue**\n10. **elixir**",
+      "returned_tokens": 73,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25800178030,
+          440674094830,
+          49779840
+        ],
+        "decode": [
+          58674786,
+          69691362,
+          28032
+        ]
+      },
+      "elapsed_s": 19.470999386161566,
+      "ttft_s": 17.40134882926941,
+      "decode_ms_per_token": 28.74802647986346
+    },
+    {
+      "id": 26,
+      "input_sha256": "827be80bfb1c89cfd93ffc9e0e1a553fc08b96e9fa0823b10cb01a767a3aa59b",
+      "input_tokens": 129533,
+      "output_tokens": 69,
+      "prediction": "\n\n1. **river**\n2. **invite**\n3. **finding**\n4. **satisfying**\n5. **pint**\n6. **smolt**\n7. **ferry**\n8. **signet**\n9. **jade**\n10. **bracelet**",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25268007997,
+          439548392509,
+          49740672
+        ],
+        "decode": [
+          56049330,
+          64001586,
+          26496
+        ]
+      },
+      "elapsed_s": 19.33386338315904,
+      "ttft_s": 17.37471914291382,
+      "decode_ms_per_token": 28.812739915926667
+    },
+    {
+      "id": 27,
+      "input_sha256": "7b778858b2f5c18fb7ad6b6cda76a069c13c15f04aa9034aa9e49eb913f35e77",
+      "input_tokens": 129449,
+      "output_tokens": 68,
+      "prediction": "\n\n1. **progress**\n2. **flower**\n3. **puzzle**\n4. **sadness**\n5. **abiding**\n6. **relay**\n7. **spectrum**\n8. **buggy**\n9. **labor**\n10. **cornerstone**",
+      "returned_tokens": 68,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26446936019,
+          440241529043,
+          49708416
+        ],
+        "decode": [
+          58751574,
+          70776150,
+          26112
+        ]
+      },
+      "elapsed_s": 19.316173382103443,
+      "ttft_s": 17.38704562187195,
+      "decode_ms_per_token": 28.797712399443583
+    },
+    {
+      "id": 28,
+      "input_sha256": "cf3daa8b001562fd92de3d435941a73cd779d2db5734ea3ab078d8f3535c7c3f",
+      "input_tokens": 129593,
+      "output_tokens": 69,
+      "prediction": "\n\n1. **carrot**\n2. **salary**\n3. **west**\n4. **labor**\n5. **girl**\n6. **gym**\n7. **drawbridge**\n8. **unbecoming**\n9. **great-grandmother**\n10. **reach**",
+      "returned_tokens": 69,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26356966283,
+          440986003595,
+          49763712
+        ],
+        "decode": [
+          56416548,
+          65663652,
+          26496
+        ]
+      },
+      "elapsed_s": 19.37289447709918,
+      "ttft_s": 17.41684103012085,
+      "decode_ms_per_token": 28.76727022778462
+    },
+    {
+      "id": 29,
+      "input_sha256": "c2ac671aaa94d9db84e3ff3a997bb74332a6dac2a5c9a8ab64c684cac368c507",
+      "input_tokens": 129668,
+      "output_tokens": 71,
+      "prediction": "\n\n1. **staff**\n2. **organisation**\n3. **ecology**\n4. **abuse**\n5. **missile**\n6. **bite**\n7. **leg**\n8. **thongs**\n9. **eavesdropper**\n10. **crayon**",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25879002364,
+          440945799676,
+          49792512
+        ],
+        "decode": [
+          55544736,
+          67131936,
+          27264
+        ]
+      },
+      "elapsed_s": 19.58475553430617,
+      "ttft_s": 17.536941528320312,
+      "decode_ms_per_token": 29.19385193714074
+    },
+    {
+      "id": 30,
+      "input_sha256": "8256a4453d7f83310338c0a28cc690d9205dc91b58f350af9655d5e274522329",
+      "input_tokens": 129740,
+      "output_tokens": 76,
+      "prediction": "\n\n1. **lens**\n2. **canon**\n3. **governance**\n4. **boogeyman**\n5. **echidna**\n6. **espalier**\n7. **resource**\n8. **vol**\n9. **similarity**\n10. **hydrolyse**",
+      "returned_tokens": 76,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          24472833653,
+          439961912693,
+          49820160
+        ],
+        "decode": [
+          59685294,
+          71903406,
+          29184
+        ]
+      },
+      "elapsed_s": 19.87257209047675,
+      "ttft_s": 17.708863019943237,
+      "decode_ms_per_token": 28.849675928552944
+    },
+    {
+      "id": 31,
+      "input_sha256": "5bbdf3f89c626db4072083afb35d30860f9ff4db4fbfefb8166d90c90b02289c",
+      "input_tokens": 129602,
+      "output_tokens": 71,
+      "prediction": "\n\n1. **ethics**\n2. **marksman**\n3. **tissue**\n4. **potato**\n5. **delicious**\n6. **minor**\n7. **lycra**\n8. **bear**\n9. **runaway**\n10. **mindless**",
+      "returned_tokens": 71,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25591721713,
+          440273176177,
+          49767168
+        ],
+        "decode": [
+          57689880,
+          67477656,
+          27264
+        ]
+      },
+      "elapsed_s": 19.407248619943857,
+      "ttft_s": 17.39435076713562,
+      "decode_ms_per_token": 28.758493145661696
+    }
+  ]
+}

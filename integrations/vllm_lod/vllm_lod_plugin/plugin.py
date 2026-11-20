@@ -13,6 +13,19 @@ def register() -> None:
     if _REGISTERED:
         return
 
+    # Isolated experiment: reuse the native vLLM scheduler and cache without
+    # installing LoD's ownership hooks or changing the production backend.
+    import os
+    if os.environ.get("VLLM_COMPARISON_BACKEND") == "quest":
+        from vllm.v1.attention.backends.registry import AttentionBackendEnum, register_backend
+
+        register_backend(
+            AttentionBackendEnum.CUSTOM,
+            "vllm_lod_plugin.quest_backend.QuestAttentionBackend",
+        )
+        _REGISTERED = True
+        return
+
     # Parse first so removed research flags fail before vLLM is modified.
     from .config import VLLMLODSettings
 

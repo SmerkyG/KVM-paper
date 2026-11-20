@@ -1,0 +1,41 @@
+{
+  "layer": 32,
+  "queries": 16384,
+  "regions": 3547,
+  "runs": [
+    {
+      "mode": "current",
+      "milliseconds": 16.103168869018553
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,64,1024,2,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011672523396555334,
+      "changed_coarse_values": 26929134,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 18.19676456451416
+    },
+    {
+      "mode": "bf16",
+      "tile": "64,64,1024,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00011672523396555334,
+      "changed_coarse_values": 26929134,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 18.179112052917482
+    },
+    {
+      "mode": "bf16",
+      "tile": "32,64,0,4,1",
+      "changed_route_rows": 4,
+      "max_coarse_error": 0.03125,
+      "mean_coarse_error": 0.00012126938963774592,
+      "changed_coarse_values": 27657942,
+      "max_lse_error": 0.009584426879882812,
+      "milliseconds": 17.264934921264647
+    }
+  ]
+}

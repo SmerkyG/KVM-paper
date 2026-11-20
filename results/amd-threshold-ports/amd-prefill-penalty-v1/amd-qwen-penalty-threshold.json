@@ -1,0 +1,91 @@
+{
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "length": 65536,
+  "lod_layers": 16,
+  "warmup_seconds": 12.23360468633473,
+  "prefill_seconds": 8.813203712925315,
+  "stages": {
+    "route_and_coarse": {
+      "seconds": 0.5631424624919888,
+      "calls": 192,
+      "query_tokens": 786432
+    },
+    "exact_leaves_and_dispatch": {
+      "seconds": 0.48610517168045037,
+      "calls": 192,
+      "query_tokens": 786432
+    },
+    "remote_path": {
+      "seconds": 1.4569629459381108,
+      "calls": 48,
+      "query_tokens": 786432
+    },
+    "leaf_dispatch_prepare": {
+      "seconds": 0.0012637449954636397,
+      "calls": 192
+    },
+    "leaf_dispatch_group": {
+      "seconds": 0.02464951394498348,
+      "calls": 192
+    },
+    "leaf_dispatch_blocks": {
+      "seconds": 0.0009641109979711472,
+      "calls": 192
+    },
+    "leaf_dispatch": {
+      "seconds": 0.027824080027639867,
+      "calls": 192
+    },
+    "leaf_pack": {
+      "seconds": 0.0012061809943988916,
+      "calls": 192
+    },
+    "leaf_kernel": {
+      "seconds": 0.45482514590024953,
+      "calls": 192
+    }
+  },
+  "prompts": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ],
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "97a808d84949bc9acd4e4971f21b90451dd787fbc7e0fa2406a24df43052d740",
+      "source_file_count": 347
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "options": {
+    "LOD_AMD_PREFILL_BITMAP_RANKS": "1",
+    "LOD_AMD_PREFILL_FUSED_MERGE": "1",
+    "LOD_AMD_PREFILL_PROFILE_LEAVES": "1",
+    "LOD_AMD_PREFILL_REDUCE": "tc",
+    "LOD_AMD_PREFILL_THRESHOLD": "16",
+    "LOD_AMD_STATE_PACKED_MAX": "1"
+  },
+  "leaf_work": {
+    "query_region_pairs": 376759471,
+    "query_kv_pairs": 23451459711,
+    "padded_query_kv_pairs": 27103605248,
+    "tiled_kv_entries": 846987664,
+    "query_head_rows": 18874368
+  }
+}

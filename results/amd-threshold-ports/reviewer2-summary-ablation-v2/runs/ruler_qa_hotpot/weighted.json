@@ -1,0 +1,828 @@
+{
+  "task": "ruler_qa_hotpot",
+  "arm": "weighted",
+  "mode": "two-tier",
+  "input_sha256": "45753918888de86606a5f978b748371bde4f9fd44fb343a6733ba2729cfc5f2e",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "911e8b8a3bc710ff911de2281b0ed5d47463521656cb56fce65a0a0fbe5c62c1",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": 0,
+      "input_sha256": "50184d03d7006eeafdae2701a25a08182e0c92a36a90bb5881ef4f31a6afab1b",
+      "input_tokens": 128422,
+      "output_tokens": 2,
+      "prediction": " Yes",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25035166841,
+          433109452025,
+          49314048
+        ],
+        "decode": [
+          2505900,
+          2831916,
+          768
+        ]
+      },
+      "elapsed_s": 16.16832179762423,
+      "ttft_s": 16.137340545654297,
+      "decode_ms_per_token": 28.819911181926727
+    },
+    {
+      "id": 1,
+      "input_sha256": "32905b71ad5268c7c3594fbae836c75dae13cf9ab44ad1ef69ef4c338f6206f0",
+      "input_tokens": 127192,
+      "output_tokens": 32,
+      "prediction": " The question contains a false premise. The woman who portrayed Corliss Archer in the film *Kiss and Tell* (1945) was Shirley",
+      "returned_tokens": 32,
+      "finish_reason": "length",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25193361987,
+          426949658691,
+          48841728
+        ],
+        "decode": [
+          37465470,
+          43286526,
+          11904
+        ]
+      },
+      "elapsed_s": 16.85166377387941,
+      "ttft_s": 15.960710525512695,
+      "decode_ms_per_token": 28.767470811163225
+    },
+    {
+      "id": 2,
+      "input_sha256": "d5c4ddb4c88725000097f3539a8203314d58bb6cc6ded87be6592180453d0771",
+      "input_tokens": 129133,
+      "output_tokens": 4,
+      "prediction": " Animorphs",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25287288169,
+          437278648681,
+          49587072
+        ],
+        "decode": [
+          4489272,
+          5055288,
+          1536
+        ]
+      },
+      "elapsed_s": 16.31973895803094,
+      "ttft_s": 16.23360776901245,
+      "decode_ms_per_token": 28.69868775208791
+    },
+    {
+      "id": 3,
+      "input_sha256": "8600407972f66df9350b791c2de25c0b293be0fec327a142597cb8aae10c7fe5",
+      "input_tokens": 128403,
+      "output_tokens": 2,
+      "prediction": " No",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26406320233,
+          434378592745,
+          49306752
+        ],
+        "decode": [
+          2503188,
+          2814612,
+          768
+        ]
+      },
+      "elapsed_s": 16.245468771085143,
+      "ttft_s": 16.214598655700684,
+      "decode_ms_per_token": 28.86585332453251
+    },
+    {
+      "id": 4,
+      "input_sha256": "93040d580e4f412ce1d85ce5f7dd9940f49945cc7aa111a90cafcd591515643d",
+      "input_tokens": 129934,
+      "output_tokens": 4,
+      "prediction": " New York City",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25507086677,
+          442143888341,
+          49894656
+        ],
+        "decode": [
+          4841370,
+          5458074,
+          1536
+        ]
+      },
+      "elapsed_s": 16.823464158922434,
+      "ttft_s": 16.733885288238525,
+      "decode_ms_per_token": 29.90909479558468
+    },
+    {
+      "id": 5,
+      "input_sha256": "baebff7979a08ca4be74a4f45cf3ee63f34e074f5bef0cda05fcb6c20fb7abfe",
+      "input_tokens": 129462,
+      "output_tokens": 4,
+      "prediction": " YG Entertainment",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25526274821,
+          439395872645,
+          49713408
+        ],
+        "decode": [
+          4371660,
+          5049804,
+          1536
+        ]
+      },
+      "elapsed_s": 16.412550177425146,
+      "ttft_s": 16.326619386672974,
+      "decode_ms_per_token": 28.67969125509262
+    },
+    {
+      "id": 6,
+      "input_sha256": "7e13aa50171abcd8fffa98d967218375691de9ea5a9a597485b9b986516b2829",
+      "input_tokens": 129154,
+      "output_tokens": 8,
+      "prediction": " Not found in the provided documents.",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          24608021296,
+          436718027440,
+          49595136
+        ],
+        "decode": [
+          8868276,
+          10070964,
+          3072
+        ]
+      },
+      "elapsed_s": 16.434001529589295,
+      "ttft_s": 16.24237561225891,
+      "decode_ms_per_token": 28.750998101064138
+    },
+    {
+      "id": 7,
+      "input_sha256": "c1fca0b7ad24b6acf41bb6b1513c43465a92002dee584c9d0a4af995475db6c2",
+      "input_tokens": 128280,
+      "output_tokens": 7,
+      "prediction": " 5,000",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25575322754,
+          432890550914,
+          49259520
+        ],
+        "decode": [
+          7500870,
+          8266950,
+          2688
+        ]
+      },
+      "elapsed_s": 16.322738064453006,
+      "ttft_s": 16.15105652809143,
+      "decode_ms_per_token": 28.713032603263855
+    },
+    {
+      "id": 8,
+      "input_sha256": "97d9d93213665fe90161b7c2adbaa493a4bba3074564e0e397da014599fe16a3",
+      "input_tokens": 126191,
+      "output_tokens": 3,
+      "prediction": " Terry Richardson",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25252235965,
+          422295600445,
+          48457344
+        ],
+        "decode": [
+          3704052,
+          4277748,
+          1152
+        ]
+      },
+      "elapsed_s": 15.898249695077538,
+      "ttft_s": 15.840457439422607,
+      "decode_ms_per_token": 28.79707794636488
+    },
+    {
+      "id": 9,
+      "input_sha256": "9dd74a6a77bc65cc4d957c0f1c67923f3c37d4617be474d04f275e3a4a7f1271",
+      "input_tokens": 129057,
+      "output_tokens": 2,
+      "prediction": " Yes",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25678040168,
+          437241431912,
+          49557888
+        ],
+        "decode": [
+          2460906,
+          2684778,
+          768
+        ]
+      },
+      "elapsed_s": 16.263040957972407,
+      "ttft_s": 16.23120880126953,
+      "decode_ms_per_token": 28.743671253323555
+    },
+    {
+      "id": 10,
+      "input_sha256": "adace52287e97498d22ba9f586271d1546df9ac9d511ecaebbf8df4be9b32914",
+      "input_tokens": 128340,
+      "output_tokens": 3,
+      "prediction": " Kansas Song",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25797397608,
+          433432409448,
+          49282560
+        ],
+        "decode": [
+          3479166,
+          3874302,
+          1152
+        ]
+      },
+      "elapsed_s": 16.21574798040092,
+      "ttft_s": 16.158143043518066,
+      "decode_ms_per_token": 28.84877845644951
+    },
+    {
+      "id": 11,
+      "input_sha256": "555e474e9df7207d327740f7664fc72d9575fc6c4e24f650dea7b091f857a62f",
+      "input_tokens": 130627,
+      "output_tokens": 4,
+      "prediction": " David Weissman",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          26895875793,
+          447750552657,
+          50160768
+        ],
+        "decode": [
+          5022882,
+          5524386,
+          1536
+        ]
+      },
+      "elapsed_s": 16.55822190269828,
+      "ttft_s": 16.47227954864502,
+      "decode_ms_per_token": 28.777789945403736
+    },
+    {
+      "id": 12,
+      "input_sha256": "91cc08d86d40bef2d001d833d7c8e0545649bc8f4daecb63e81539346b0cf45a",
+      "input_tokens": 126572,
+      "output_tokens": 6,
+      "prediction": " 1999",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          23703964805,
+          422495808389,
+          48603648
+        ],
+        "decode": [
+          6727866,
+          7576890,
+          2304
+        ]
+      },
+      "elapsed_s": 16.034995190799236,
+      "ttft_s": 15.891369581222534,
+      "decode_ms_per_token": 28.779447823762894
+    },
+    {
+      "id": 13,
+      "input_sha256": "bd5722365c0f1545e68948ba11b2702c24531e807898a2b943b63e163c9098c8",
+      "input_tokens": 129842,
+      "output_tokens": 2,
+      "prediction": " Yes",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          26057607016,
+          442148326120,
+          49859328
+        ],
+        "decode": [
+          2324136,
+          2561064,
+          768
+        ]
+      },
+      "elapsed_s": 16.38808806426823,
+      "ttft_s": 16.357511520385742,
+      "decode_ms_per_token": 29.03217263519764
+    },
+    {
+      "id": 14,
+      "input_sha256": "2561dcbbfdd6863d7d099ce3f7048a7f61d784dcf742bf594de89048510b5896",
+      "input_tokens": 128216,
+      "output_tokens": 12,
+      "prediction": " 1986 to 2013",
+      "returned_tokens": 12,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          24576219782,
+          431551869062,
+          49234944
+        ],
+        "decode": [
+          12988164,
+          15197700,
+          4608
+        ]
+      },
+      "elapsed_s": 16.429710298776627,
+      "ttft_s": 16.113553285598755,
+      "decode_ms_per_token": 28.765825385397132
+    },
+    {
+      "id": 15,
+      "input_sha256": "819d8c28e1773b84de8d3ebfda7384d6373e50ee6c96855399120ffab521c211",
+      "input_tokens": 127779,
+      "output_tokens": 13,
+      "prediction": " 323,128,000",
+      "returned_tokens": 13,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25294698261,
+          429993696405,
+          49067136
+        ],
+        "decode": [
+          16532322,
+          18024930,
+          4992
+        ]
+      },
+      "elapsed_s": 16.425913842394948,
+      "ttft_s": 16.081051349639893,
+      "decode_ms_per_token": 28.76486210152507
+    },
+    {
+      "id": 16,
+      "input_sha256": "2ca08e1171a625dfbe8987cc9417dcc098ba31c62440ef366afc850eca01cd65",
+      "input_tokens": 131005,
+      "output_tokens": 4,
+      "prediction": " North Atlantic Conference",
+      "returned_tokens": 4,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          26565999552,
+          449799064512,
+          50305920
+        ],
+        "decode": [
+          4316556,
+          5005452,
+          1536
+        ]
+      },
+      "elapsed_s": 16.62589738331735,
+      "ttft_s": 16.539618015289307,
+      "decode_ms_per_token": 28.769070903460186
+    },
+    {
+      "id": 17,
+      "input_sha256": "4e12e4a8bbe19a4f737abccf0681dcde4765fb69168172ca20966a9bdd41a896",
+      "input_tokens": 124800,
+      "output_tokens": 2,
+      "prediction": " Yes",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          24548719218,
+          415681780338,
+          47923200
+        ],
+        "decode": [
+          2459724,
+          2756556,
+          768
+        ]
+      },
+      "elapsed_s": 15.639866650104523,
+      "ttft_s": 15.603930234909058,
+      "decode_ms_per_token": 28.84962409734726
+    },
+    {
+      "id": 18,
+      "input_sha256": "74548c8f083a8b551579ab53ff3e0a08d62524d43bcc80b86aa21d07e63db677",
+      "input_tokens": 129597,
+      "output_tokens": 11,
+      "prediction": " 1969–1974",
+      "returned_tokens": 11,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25823609240,
+          440475939224,
+          49765248
+        ],
+        "decode": [
+          13359138,
+          14727714,
+          4224
+        ]
+      },
+      "elapsed_s": 16.622362360358238,
+      "ttft_s": 16.334752321243286,
+      "decode_ms_per_token": 28.764059022068977
+    },
+    {
+      "id": 19,
+      "input_sha256": "98c201d255819fb8afd083bfb32391517273d718693edf55e1d9e9a8e2b1bcda",
+      "input_tokens": 127199,
+      "output_tokens": 7,
+      "prediction": " Robert Erskine Childers",
+      "returned_tokens": 7,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25652738781,
+          427443347805,
+          48844416
+        ],
+        "decode": [
+          9427758,
+          10728750,
+          2688
+        ]
+      },
+      "elapsed_s": 16.15605061315,
+      "ttft_s": 15.98359990119934,
+      "decode_ms_per_token": 28.754144286115963
+    },
+    {
+      "id": 20,
+      "input_sha256": "1ca5d484d0bb5db5c3e05447139a1c42008531430c20d99a0610c65ced329ce2",
+      "input_tokens": 129896,
+      "output_tokens": 3,
+      "prediction": " Pedro Rodríguez",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25613737798,
+          442024589638,
+          49880064
+        ],
+        "decode": [
+          3630702,
+          4048878,
+          1152
+        ]
+      },
+      "elapsed_s": 16.431586859747767,
+      "ttft_s": 16.374316692352295,
+      "decode_ms_per_token": 28.70787028223276
+    },
+    {
+      "id": 21,
+      "input_sha256": "fb64eb8a98effef593a5d4a89fdccb714ee2ebc0954ab22eb2d88ecf05f781ba",
+      "input_tokens": 128845,
+      "output_tokens": 9,
+      "prediction": " Miles \"Tails\" Prower",
+      "returned_tokens": 9,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          26946885856,
+          437328192736,
+          49476480
+        ],
+        "decode": [
+          9747978,
+          10919562,
+          3456
+        ]
+      },
+      "elapsed_s": 16.46549508906901,
+      "ttft_s": 16.235242128372192,
+      "decode_ms_per_token": 28.809806099161506
+    },
+    {
+      "id": 22,
+      "input_sha256": "292f93c43e5cd60c11de3445df02fba1eb41291f353842f7dfc9ab9fc04e47c2",
+      "input_tokens": 125979,
+      "output_tokens": 3,
+      "prediction": " Siri Remote",
+      "returned_tokens": 3,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          24627820476,
+          420722415420,
+          48375936
+        ],
+        "decode": [
+          3125886,
+          3455358,
+          1152
+        ]
+      },
+      "elapsed_s": 15.904533108696342,
+      "ttft_s": 15.846716403961182,
+      "decode_ms_per_token": 28.777260333299637
+    },
+    {
+      "id": 23,
+      "input_sha256": "0c9861382c313e42e360df66029d742d40a033852baa33bfd24694afff2a086e",
+      "input_tokens": 125425,
+      "output_tokens": 6,
+      "prediction": " Badly Drawn Boy",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          23969282787,
+          417666023907,
+          48163200
+        ],
+        "decode": [
+          7141482,
+          8296938,
+          2304
+        ]
+      },
+      "elapsed_s": 15.883530102670193,
+      "ttft_s": 15.739876985549927,
+      "decode_ms_per_token": 28.699760511517525
+    },
+    {
+      "id": 24,
+      "input_sha256": "1dda0cea3b33a038279f45d24433feb9159eefee659c256fdc60df8982a3b104",
+      "input_tokens": 128481,
+      "output_tokens": 6,
+      "prediction": " World's Best Goalkeeper",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25594682650,
+          433986627610,
+          49336704
+        ],
+        "decode": [
+          5615832,
+          6734424,
+          2304
+        ]
+      },
+      "elapsed_s": 16.309137789532542,
+      "ttft_s": 16.166004180908203,
+      "decode_ms_per_token": 28.620223701000214
+    },
+    {
+      "id": 25,
+      "input_sha256": "1ec3741e3c1b073020351063038dfd1bf28477ee4d18de3bcb7d3166304f5f43",
+      "input_tokens": 127429,
+      "output_tokens": 5,
+      "prediction": " Lee Hazlewood",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25611097865,
+          428539577609,
+          48932736
+        ],
+        "decode": [
+          5251734,
+          6129174,
+          1920
+        ]
+      },
+      "elapsed_s": 16.130381502211094,
+      "ttft_s": 16.015705823898315,
+      "decode_ms_per_token": 28.69921177625656
+    },
+    {
+      "id": 26,
+      "input_sha256": "9333fd747fceac49a0d5f69ba2fed4f3002af12a343acdc875ffa01991cfc0ac",
+      "input_tokens": 129077,
+      "output_tokens": 6,
+      "prediction": " 1838",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25492100918,
+          437167900982,
+          49565568
+        ],
+        "decode": [
+          7185546,
+          7907850,
+          2304
+        ]
+      },
+      "elapsed_s": 16.366911495104432,
+      "ttft_s": 16.224792003631592,
+      "decode_ms_per_token": 28.597253561019897
+    },
+    {
+      "id": 27,
+      "input_sha256": "122d158206bb66dde9c0f29a976fb6993ac2a874f553d9accf8235fc86f51594",
+      "input_tokens": 129535,
+      "output_tokens": 2,
+      "prediction": " No",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          24686517286,
+          438978501286,
+          49741440
+        ],
+        "decode": [
+          2386332,
+          2682396,
+          768
+        ]
+      },
+      "elapsed_s": 16.356440909206867,
+      "ttft_s": 16.31635808944702,
+      "decode_ms_per_token": 28.791651129722595
+    },
+    {
+      "id": 28,
+      "input_sha256": "eb5ed39dd89cb5bc07e00ea3b215077401d5de3512acc635c4c1b3fd32e437f4",
+      "input_tokens": 129288,
+      "output_tokens": 5,
+      "prediction": " Henry J. Kaiser",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          25516947812,
+          438388013924,
+          49646592
+        ],
+        "decode": [
+          5763036,
+          6277596,
+          1920
+        ]
+      },
+      "elapsed_s": 16.4016919080168,
+      "ttft_s": 16.28740668296814,
+      "decode_ms_per_token": 28.612815774977207
+    },
+    {
+      "id": 29,
+      "input_sha256": "cd7b58d3db44c6d86b0490749570614ea05c4887a518e072a740111b6a417e13",
+      "input_tokens": 124776,
+      "output_tokens": 5,
+      "prediction": " Arena of Khazan",
+      "returned_tokens": 5,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          24459234425,
+          415496840825,
+          47913984
+        ],
+        "decode": [
+          5329626,
+          6028506,
+          1920
+        ]
+      },
+      "elapsed_s": 15.788795102387667,
+      "ttft_s": 15.673707485198975,
+      "decode_ms_per_token": 28.736579697579145
+    },
+    {
+      "id": 30,
+      "input_sha256": "e8426af7ccbcd26926d15239b016b9530c1fdd3a4483cb705cae8130bb4a67c3",
+      "input_tokens": 125812,
+      "output_tokens": 6,
+      "prediction": " 2000",
+      "returned_tokens": 6,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          23905409891,
+          419264777315,
+          48311808
+        ],
+        "decode": [
+          6753654,
+          7621110,
+          2304
+        ]
+      },
+      "elapsed_s": 15.931659370660782,
+      "ttft_s": 15.787891864776611,
+      "decode_ms_per_token": 28.770137950778008
+    },
+    {
+      "id": 31,
+      "input_sha256": "a203ce0730aaac7d1fe9433078b3fd83a4e0d153bb7a632c4e9307702b62f3ab",
+      "input_tokens": 128445,
+      "output_tokens": 2,
+      "prediction": " Japan",
+      "returned_tokens": 2,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          25743601131,
+          433941560811,
+          49322880
+        ],
+        "decode": [
+          2446104,
+          2789784,
+          768
+        ]
+      },
+      "elapsed_s": 16.22114623710513,
+      "ttft_s": 16.18275737762451,
+      "decode_ms_per_token": 28.84717471897602
+    }
+  ]
+}

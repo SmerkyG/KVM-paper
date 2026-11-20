@@ -1,0 +1,130 @@
+{
+  "regions": 3547,
+  "queries": 16384,
+  "runs": [
+    {
+      "backend": "default",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3552,
+      "column_major": false,
+      "ms": 10.213845825195312,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "default",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3552,
+      "column_major": true,
+      "ms": 7.067852089621804,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "hipblas",
+      "effective": "_BlasBackend.Cublas",
+      "stride": 3552,
+      "column_major": false,
+      "ms": 4.716158294677735,
+      "sample_max_abs_err": 6.103515625e-05
+    },
+    {
+      "backend": "hipblas",
+      "effective": "_BlasBackend.Cublas",
+      "stride": 3552,
+      "column_major": true,
+      "ms": 4.962807490907866,
+      "sample_max_abs_err": 6.103515625e-05
+    },
+    {
+      "backend": "hipblaslt",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3552,
+      "column_major": false,
+      "ms": 10.26546630859375,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "hipblaslt",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3552,
+      "column_major": true,
+      "ms": 6.998291280995245,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "ck",
+      "effective": "_BlasBackend.Ck",
+      "stride": 3552,
+      "column_major": false,
+      "error": "gemm input type at::BFloat16 and output type float is not supported for ROCm"
+    },
+    {
+      "backend": "ck",
+      "effective": "_BlasBackend.Ck",
+      "stride": 3552,
+      "column_major": true,
+      "error": "gemm input type at::BFloat16 and output type float is not supported for ROCm"
+    },
+    {
+      "backend": "default",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3584,
+      "column_major": false,
+      "ms": 5.709700121198382,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "default",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3584,
+      "column_major": true,
+      "ms": 7.193640808105469,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "hipblas",
+      "effective": "_BlasBackend.Cublas",
+      "stride": 3584,
+      "column_major": false,
+      "ms": 4.133755667550223,
+      "sample_max_abs_err": 6.103515625e-05
+    },
+    {
+      "backend": "hipblas",
+      "effective": "_BlasBackend.Cublas",
+      "stride": 3584,
+      "column_major": true,
+      "ms": 4.676497773201235,
+      "sample_max_abs_err": 6.103515625e-05
+    },
+    {
+      "backend": "hipblaslt",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3584,
+      "column_major": false,
+      "ms": 5.656970977783203,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "hipblaslt",
+      "effective": "_BlasBackend.Cublaslt",
+      "stride": 3584,
+      "column_major": true,
+      "ms": 7.200738872181286,
+      "sample_max_abs_err": 0.0
+    },
+    {
+      "backend": "ck",
+      "effective": "_BlasBackend.Ck",
+      "stride": 3584,
+      "column_major": false,
+      "error": "gemm input type at::BFloat16 and output type float is not supported for ROCm"
+    },
+    {
+      "backend": "ck",
+      "effective": "_BlasBackend.Ck",
+      "stride": 3584,
+      "column_major": true,
+      "error": "gemm input type at::BFloat16 and output type float is not supported for ROCm"
+    }
+  ]
+}

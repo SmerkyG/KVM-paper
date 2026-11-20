@@ -1,0 +1,228 @@
+{
+  "task": "longbench-v2",
+  "arm": "weighted",
+  "mode": "two-tier",
+  "input_sha256": "dfc8c4326bc711ffd092d83342d7157a1ca239485e001989e1188b6561ac06f1",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "85bcef54baec2dd22ca88b80c435e516bb78dd448ab84af611a6c02238c6b314",
+      "source_file_count": 369
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "stage": "complete",
+  "records": [
+    {
+      "id": "66f8c6b4bb02136c067c4480",
+      "input_sha256": "173e3da4e1d1312707d796a93d5b010b5a6569b9d0938c3cee9e417e71f828b9",
+      "input_tokens": 13885,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          0,
+          37018965120,
+          5331840
+        ],
+        "decode": [
+          969336,
+          1772664,
+          3072
+        ]
+      },
+      "elapsed_s": 1.7624889872968197,
+      "ttft_s": 1.5715200901031494,
+      "decode_ms_per_token": 27.34780710722719
+    },
+    {
+      "id": "66f10d67821e116aacb268d0",
+      "input_sha256": "09910e824a2fca2fef521335e7ab2ca9a46d3da429ba61e2cf9e9f222c07e5ae",
+      "input_tokens": 20504,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          476024991,
+          55685248671,
+          7873536
+        ],
+        "decode": [
+          1226814,
+          2103870,
+          3072
+        ]
+      },
+      "elapsed_s": 2.5674783792346716,
+      "ttft_s": 2.3810336589813232,
+      "decode_ms_per_token": 27.42586550968034
+    },
+    {
+      "id": "66f52567821e116aacb329bc",
+      "input_sha256": "67d4402ccc119223d9b89592a590861d30900c0ed6f7314fe435061e4d15e9f3",
+      "input_tokens": 27433,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (C)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          1332023117,
+          77406738509,
+          10534272
+        ],
+        "decode": [
+          2239638,
+          3168918,
+          3072
+        ]
+      },
+      "elapsed_s": 3.387560285627842,
+      "ttft_s": 3.196033000946045,
+      "decode_ms_per_token": 27.444835220064437
+    },
+    {
+      "id": "6725e2febb02136c067d8717",
+      "input_sha256": "7763b5d2b282741f55775e88ec5197161843f3fd3b401706d9e2efc827001484",
+      "input_tokens": 36837,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (D)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          1821172742,
+          110104824326,
+          14145408
+        ],
+        "decode": [
+          1362168,
+          2868984,
+          3072
+        ]
+      },
+      "elapsed_s": 4.557128904387355,
+      "ttft_s": 4.365378141403198,
+      "decode_ms_per_token": 27.45548768767289
+    },
+    {
+      "id": "66fab090bb02136c067c74e7",
+      "input_sha256": "e8376144a7bd4b35a1235da241930218832e17daae8265bffd2706e44ceb9c9c",
+      "input_tokens": 56064,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 1.0,
+      "work": {
+        "prefill": [
+          4878357848,
+          172596827480,
+          21528576
+        ],
+        "decode": [
+          3199674,
+          4003002,
+          3072
+        ]
+      },
+      "elapsed_s": 6.9389954302459955,
+      "ttft_s": 6.747665882110596,
+      "decode_ms_per_token": 27.46495577905859
+    },
+    {
+      "id": "670fb813bb02136c067d2bec",
+      "input_sha256": "f0ff08db13e840f97d6bfa2e7c657236391a425b77912081e64ce393a279a991",
+      "input_tokens": 78078,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          7920101622,
+          250383918966,
+          29981952
+        ],
+        "decode": [
+          3847554,
+          4841346,
+          3072
+        ]
+      },
+      "elapsed_s": 9.75773268379271,
+      "ttft_s": 9.560875654220581,
+      "decode_ms_per_token": 28.228061007601873
+    },
+    {
+      "id": "6725dc28bb02136c067d8555",
+      "input_sha256": "02ddbaba77f3807c3114812e75f6d349b72cf65691e48bb857d2dcd3feb57245",
+      "input_tokens": 98839,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (B)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          12981453707,
+          330430350347,
+          37954176
+        ],
+        "decode": [
+          5493426,
+          6367410,
+          3072
+        ]
+      },
+      "elapsed_s": 12.486838404089212,
+      "ttft_s": 12.293580532073975,
+      "decode_ms_per_token": 27.60412251310689
+    },
+    {
+      "id": "6719c1febb02136c067d44db",
+      "input_sha256": "7eb23e344f848d759685045944e0dad1e1e6bd057484fce1707b3fb06693e196",
+      "input_tokens": 119222,
+      "output_tokens": 8,
+      "prediction": "The correct answer is (A)",
+      "returned_tokens": 8,
+      "finish_reason": "stop",
+      "score": 0.0,
+      "work": {
+        "prefill": [
+          19505104981,
+          394401098965,
+          45781248
+        ],
+        "decode": [
+          6852084,
+          8214516,
+          3072
+        ]
+      },
+      "elapsed_s": 15.141233585774899,
+      "ttft_s": 14.94802975654602,
+      "decode_ms_per_token": 27.65889705291816
+    }
+  ]
+}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from ._launch import hip_launch_kwargs
+
 import math
 import torch
 import triton
@@ -72,6 +74,8 @@ def fused_decode_paged_lod_attention(
     local_lens_are_logical: bool = False,
     store_new_kv: bool = True,
     advance_local_lens: bool = True,
+    summary_mode: str = "weighted",
+    exact_work: torch.Tensor | None = None,
     speculative_steps: int = 1,
     kv_group_size: int,
     scale: float,
@@ -88,6 +92,7 @@ def fused_decode_paged_lod_attention(
     route_num_warps: int = 4,
     route_reduce_num_warps: int = 4,
     route_parallel_reduce: bool = False,
+    normalize_route_query: bool = False,
     fuse_route_local: bool = True,
     final_reduce_num_warps: int = 4,
     fuse_final_reduce: bool = False,
@@ -154,6 +159,18 @@ def fused_decode_paged_lod_attention(
     """Fuse coarse, exact-leaf, local, and branch-merge decode attention."""
     if open_count != 8:
         raise ValueError("the LoD release decode path requires top-eight routing")
+    if normalize_route_query and (
+        speculative_steps != 1
+        or recursive_state_route_backend != "fused"
+        or not route_gqa_grouped
+        or not fuse_state_route
+        or gqa_union_decode
+        or route_mass_fraction is not None
+    ):
+        raise ValueError(
+            "Query-normalized CUDA decode requires the grouped one-token "
+            "fused router without union or mass-cutoff routing"
+        )
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(state_k.size(1))
     precomputed_route_values = (
@@ -379,7 +396,7 @@ def fused_decode_paged_lod_attention(
                 LOCAL_LENS_LOGICAL=local_lens_are_logical,
                 MAX_CONTEXT=int(exact_decode_threshold),
                 num_warps=2,
-                waves_per_eu=2,
+                **hip_launch_kwargs(waves_per_eu=2),
                 num_stages=1,
             )
             if exact_segments >= 128:
@@ -408,7 +425,7 @@ def fused_decode_paged_lod_attention(
                     ADVANCE_QUEUE=False,
                     SKIP_ZERO_LENGTH=True,
                     num_warps=2,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                 )
             else:
                 _reduce_aiter_page1_segments_with_lse_kernel[
@@ -436,7 +453,7 @@ def fused_decode_paged_lod_attention(
                     KV_HEADS=kv_heads,
                     SKIP_ZERO_LENGTH=True,
                     num_warps=2,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                 )
             if (
                 early_execution
@@ -549,7 +566,7 @@ def fused_decode_paged_lod_attention(
                 LOCAL_LENS_LOGICAL=local_lens_are_logical,
                 MAX_CONTEXT=int(exact_decode_threshold),
                 num_warps=2,
-                waves_per_eu=2,
+                **hip_launch_kwargs(waves_per_eu=2),
                 num_stages=1,
             )
             if exact_segments >= 128:
@@ -578,7 +595,7 @@ def fused_decode_paged_lod_attention(
                     ADVANCE_QUEUE=False,
                     SKIP_ZERO_LENGTH=True,
                     num_warps=2,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                 )
             else:
                 _reduce_aiter_page1_segments_with_lse_kernel[
@@ -606,7 +623,7 @@ def fused_decode_paged_lod_attention(
                     KV_HEADS=kv_heads,
                     SKIP_ZERO_LENGTH=True,
                     num_warps=2,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                 )
             if (
                 early_execution
@@ -845,6 +862,8 @@ def fused_decode_paged_lod_attention(
             and isinstance(gqa_union_fixed_indices, torch.Tensor)
             and isinstance(gqa_union_fixed_slot_offsets, torch.Tensor)
         )
+        if execute_state_route and (summary_mode != "weighted" or exact_work is not None) and not gqa_union_compact_pages:
+            raise ValueError("Summary ablations require the compact two-tier BF16 decode path")
         gqa_union_direct_compact = False
         gqa_union_implicit_lod = False
         gqa_union_persistent_slot_leaves = False
@@ -1194,7 +1213,7 @@ def fused_decode_paged_lod_attention(
                             USE_LOG_COUNT_BIAS=reuse_route_log_bias,
                             num_warps=route_num_warps,
                             num_stages=3,
-                            waves_per_eu=waves_per_eu,
+                            **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                         )
                     elif route_kernel is _decode_route_coarse_gqa_mtp2_groups_kernel:
                         execution_marker = buffers.get(
@@ -1244,7 +1263,7 @@ def fused_decode_paged_lod_attention(
                             SCORE_ONLY=gqa_union_score_only,
                             CANDIDATES_PER_GROUP=route_candidates_per_group,
                             num_warps=route_num_warps,
-                            waves_per_eu=waves_per_eu,
+                            **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                         )
                     elif route_kernel is _decode_route_coarse_gqa_groups_kernel:
                         route_kernel[route_rows, active_groups](
@@ -1268,6 +1287,7 @@ def fused_decode_paged_lod_attention(
                             SCORE_ONLY=gqa_union_score_only,
                             USE_STATE_LENS=use_state_lens,
                             CANDIDATES_PER_GROUP=route_candidates_per_group,
+                            NORMALIZE_ROUTE_QUERY=normalize_route_query,
                             FUSE_UNION_INIT=gqa_union_fused_route_union
                             or gqa_union_direct_candidate_expand,
                             UNION_SEQUENCE_CAPACITY=int(
@@ -1276,7 +1296,7 @@ def fused_decode_paged_lod_attention(
                                 ).numel()
                             ),
                             num_warps=route_num_warps,
-                            waves_per_eu=waves_per_eu,
+                            **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                             **route_extra,
                         )
                 timing_end("route_groups", route_groups_begin)
@@ -1331,9 +1351,11 @@ def fused_decode_paged_lod_attention(
                                     num_warps=2
                                     if packed_fp16_route_candidates
                                     else route_reduce_num_warps,
-                                    waves_per_eu=1
-                                    if packed_fp16_route_candidates
-                                    else waves_per_eu,
+                                    **hip_launch_kwargs(
+                                        waves_per_eu=(
+                                            1 if packed_fp16_route_candidates else waves_per_eu
+                                        )
+                                    ),
                                 )
                 elif route_parallel_reduce:
                     _reduce_decode_route_coarse_vector_topk_kernel[
@@ -1374,7 +1396,7 @@ def fused_decode_paged_lod_attention(
                             else 0
                         ),
                         num_warps=route_reduce_num_warps,
-                        waves_per_eu=waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                     )
                 else:
                     candidate_tile = triton.next_power_of_2(
@@ -1412,10 +1434,18 @@ def fused_decode_paged_lod_attention(
                             else 0
                         ),
                         num_warps=route_reduce_num_warps,
-                        waves_per_eu=waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                     )
                 timing_end("route_reduce", route_reduce_begin)
                 top_slots = buffers["route_top_slots"]
+                if normalize_route_query:
+                    from .cuda_prefill_attention import restore_decode_attention_logits
+
+                    restore_decode_attention_logits(
+                        q, state_k, counts, cache_indices, top_slots,
+                        buffers["route_top_scores"],
+                        kv_group_size=kv_group_size, scale=scale,
+                    )
         if recursive_page_cache is not None:
 
             def cache_tensor(name: str) -> torch.Tensor:
@@ -1479,7 +1509,7 @@ def fused_decode_paged_lod_attention(
                     LOCAL_LIMIT=local_len,
                     INCLUDE_NEW=include_new,
                     num_warps=2,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                     num_stages=1,
                 )
                 baseline_out = buffers["coarse_out"].reshape(
@@ -1512,7 +1542,7 @@ def fused_decode_paged_lod_attention(
                     ADVANCE_LOCAL=False,
                     KV_HEADS=kv_heads,
                     num_warps=2,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                 )
                 reuse_separate_local = True
                 timing_end("recursive_aiter_baseline", baseline_begin)
@@ -1550,7 +1580,7 @@ def fused_decode_paged_lod_attention(
                         INCLUDE_NEW=include_new,
                         LOCAL_LENS_LOGICAL=local_lens_are_logical,
                         num_warps=4,
-                        waves_per_eu=waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                     )
                     timing_end("recursive_local_wide_score", wide_score_begin)
                     value_block_d = 32
@@ -1590,7 +1620,7 @@ def fused_decode_paged_lod_attention(
                         INCLUDE_NEW=include_new,
                         LOCAL_LENS_LOGICAL=local_lens_are_logical,
                         num_warps=4,
-                        waves_per_eu=waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                     )
                     timing_end("recursive_local_wide_value", wide_value_begin)
                 timing_end("recursive_local", local_begin)
@@ -1740,7 +1770,7 @@ def fused_decode_paged_lod_attention(
                 ),
                 SUBTRACT_ROUTES=True,
                 num_warps=final_reduce_num_warps,
-                waves_per_eu=waves_per_eu,
+                **hip_launch_kwargs(waves_per_eu=waves_per_eu),
             )
             timing_end("final_reduce", final_reduce_begin)
             if exact_decode_threshold > 0:
@@ -1994,7 +2024,7 @@ def fused_decode_paged_lod_attention(
                     PREPARE_IMPLICIT_LOD=gqa_union_implicit_lod,
                     USE_STATE_LENS=use_state_lens,
                     num_warps=2,
-                    waves_per_eu=waves_per_eu,
+                    **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                 )
             if gqa_union_fixed_mask:
                 fixed_attention_begin = timing_begin()
@@ -2061,7 +2091,7 @@ def fused_decode_paged_lod_attention(
                         SEPARATE_LOCAL_SINK=gqa_union_local_sink_overlap,
                         REUSE_COARSE=gqa_union_fixed_reuse_coarse,
                         num_warps=1,
-                        waves_per_eu=waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                     )
                     _reset_aiter_fixed_previous_union_kernel[
                         sequence_count, union_capacity
@@ -2085,7 +2115,7 @@ def fused_decode_paged_lod_attention(
                         BLOCK_N=64,
                         BLOCKS_N=4,
                         num_warps=1,
-                        waves_per_eu=1,
+                        **hip_launch_kwargs(waves_per_eu=1),
                     )
                     timing_end(
                         "gqa_union_fixed_fallback_prepare", fallback_prepare_begin
@@ -2158,7 +2188,7 @@ def fused_decode_paged_lod_attention(
                         SPLIT_D_REDUCE=use_split_d_reduce,
                         PRESERVE_UNION_METADATA=gqa_union_fixed_reuse_coarse,
                         num_warps=1,
-                        waves_per_eu=1,
+                        **hip_launch_kwargs(waves_per_eu=1),
                     )
                 timing_end("gqa_union_fixed_mask_prepare", mask_prepare_begin)
                 fixed_out = (
@@ -2213,7 +2243,7 @@ def fused_decode_paged_lod_attention(
                         INCLUDE_NEW=include_new,
                         PREFIX_SKIP=local_len if gqa_union_local_sink_overlap else 0,
                         num_warps=scan_num_warps,
-                        waves_per_eu=scan_waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=scan_waves_per_eu),
                         num_stages=gqa_union_fixed_mask_scan_num_stages,
                     )
                 timing_end("gqa_union_fixed_mask_scan", fixed_scan_begin)
@@ -2250,7 +2280,7 @@ def fused_decode_paged_lod_attention(
                                     BLOCK_D=gqa_union_fixed_mask_reduce_block_d,
                                     ADVANCE_QUEUE=gqa_union_pilot,
                                     num_warps=2,
-                                    waves_per_eu=waves_per_eu,
+                                    **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                                 )
                         else:
                             _reduce_aiter_page1_segments_with_lse_kernel[
@@ -2277,7 +2307,7 @@ def fused_decode_paged_lod_attention(
                                 ADVANCE_LOCAL=False,
                                 KV_HEADS=kv_heads,
                                 num_warps=2,
-                                waves_per_eu=waves_per_eu,
+                                **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                             )
                 timing_end("gqa_union_fixed_mask_attention", fixed_attention_begin)
                 timing_end("gqa_union_indices", union_begin)
@@ -2311,6 +2341,7 @@ def fused_decode_paged_lod_attention(
                     gqa_union_page1_bias,
                     buffers["gqa_union_token_indices"],
                     hip_context_lens,
+                    local_lens if exact_work is None else exact_work,
                     counts.stride(0),
                     counts.stride(1),
                     counts.stride(2),
@@ -2346,8 +2377,11 @@ def fused_decode_paged_lod_attention(
                     EXACT_DECODE_THRESHOLD=(
                         exact_decode_threshold if gqa_union_inline_exact else 0
                     ),
+                    SUMMARY_MODE=summary_mode,
+                    TRACK_EXACT_WORK=exact_work is not None,
+                    QUERY_HEADS_PER_KV=kv_group_size,
                     num_warps=1,
-                    waves_per_eu=waves_per_eu,
+                    **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                 )
                 timing_end("gqa_union_indices", union_begin)
                 compact_begin = timing_begin()
@@ -2407,7 +2441,7 @@ def fused_decode_paged_lod_attention(
                     LOCAL_LIMIT=local_len,
                     INCLUDE_NEW=include_new,
                     num_warps=2,
-                    waves_per_eu=1,
+                    **hip_launch_kwargs(waves_per_eu=1),
                     num_stages=1,
                 )
                 compact_out = output[:, :, 0, :].reshape(
@@ -2432,7 +2466,7 @@ def fused_decode_paged_lod_attention(
                         include_new and ragged_local_lens and advance_local_lens
                     ),
                     num_warps=1,
-                    waves_per_eu=2,
+                    **hip_launch_kwargs(waves_per_eu=2),
                     num_stages=1,
                 )
                 timing_end("gqa_union_compact_page_attention", compact_begin)
@@ -2504,7 +2538,7 @@ def fused_decode_paged_lod_attention(
                     else 0,
                     USE_STATE_LENS=use_state_lens,
                     num_warps=4,
-                    waves_per_eu=waves_per_eu,
+                    **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                 )
             elif not (gqa_union_direct_compact and gqa_union_aiter_final):
                 if not (gqa_union_group64_padded and gqa_union_aiter_final):
@@ -2574,7 +2608,7 @@ def fused_decode_paged_lod_attention(
                                     + (int(sink_k.size(2)) if include_sink else 0)
                                     + int(state_k.size(2)),
                                     num_warps=1,
-                                    waves_per_eu=waves_per_eu,
+                                    **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                                 )
             if not gqa_union_staged_fixed:
                 if (
@@ -2630,7 +2664,7 @@ def fused_decode_paged_lod_attention(
                         USE_STATE_LENS=use_state_lens,
                         INCLUDE_COARSE=not gqa_union_compact_reuse_coarse,
                         num_warps=1,
-                        waves_per_eu=waves_per_eu,
+                        **hip_launch_kwargs(waves_per_eu=waves_per_eu),
                     )
             timing_end("gqa_union_indices", union_begin)
             if gqa_union_hip_exact:
@@ -2691,7 +2725,7 @@ def fused_decode_paged_lod_attention(
                                 BLOCK_M=16,
                                 NUM_SEGMENTS=unified_segments,
                                 num_warps=2,
-                                waves_per_eu=1,
+                                **hip_launch_kwargs(waves_per_eu=1),
                                 num_stages=1,
                             )
                 if not gqa_union_compact_reuse_coarse:
@@ -2719,7 +2753,7 @@ def fused_decode_paged_lod_attention(
                                 NUM_SEGMENTS=unified_segments,
                                 ADVANCE_LOCAL=True,
                                 num_warps=1,
-                                waves_per_eu=2,
+                                **hip_launch_kwargs(waves_per_eu=2),
                                 num_stages=1,
                             )
                         else:
@@ -2742,7 +2776,7 @@ def fused_decode_paged_lod_attention(
                                 BLOCK_Q=1,
                                 NUM_SEGMENTS_PER_SEQ=unified_segments,
                                 num_warps=2,
-                                waves_per_eu=2,
+                                **hip_launch_kwargs(waves_per_eu=2),
                                 num_stages=1,
                             )
                 timing_end("gqa_union_hip_exact_attention", hip_begin)
@@ -2842,7 +2876,7 @@ def fused_decode_paged_lod_attention(
                 INT8_STORAGE=flat_int8,
                 STRIPE_ROUTE_LEAVES=stripe_route_leaves,
                 num_warps=num_warps,
-                waves_per_eu=waves_per_eu,
+                **hip_launch_kwargs(waves_per_eu=waves_per_eu),
             )
         timing_end("leaf_local", leaf_begin)
         if fuse_state_route and (not effective_fuse_final_reduce):
@@ -2923,7 +2957,7 @@ def fused_decode_paged_lod_attention(
                 ADVANCE_LOCAL=include_new and ragged_local_lens and advance_local_lens,
                 SUBTRACT_ROUTES=not gqa_union_leaf,
                 num_warps=final_reduce_num_warps,
-                waves_per_eu=waves_per_eu,
+                **hip_launch_kwargs(waves_per_eu=waves_per_eu),
             )
             timing_end("final_reduce", final_reduce_begin)
         apply_exact_flat_bf16_override()

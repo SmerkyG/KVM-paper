@@ -43,7 +43,7 @@ def test_aiter_prefill_reuses_fused_coarse_result(
     state_v = torch.randn_like(state_k)
     counts = torch.randint(1, 5, (1, 2, 8, 1)).float()
     expected_routes = torch.zeros(1, 4, 3, ROUTE_COUNT, dtype=torch.long)
-    expected_coarse = object()
+    expected_coarse = SimpleNamespace(route_counts=None)
     expected_route_head_counts = torch.zeros(4 * 8, dtype=torch.int32)
     expected_route_offsets = torch.zeros_like(expected_routes, dtype=torch.int32)
 
@@ -66,6 +66,7 @@ def test_aiter_prefill_reuses_fused_coarse_result(
             "max_open_leaf_tokens": None,
             "slot_lengths": None,
             "buffers": None,
+            "summary_mode": "weighted",
         }
         return (
             expected_routes,

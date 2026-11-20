@@ -1,0 +1,87 @@
+{
+  "stage": "complete",
+  "count": 96,
+  "scores": {
+    "dense": {
+      "original": 22,
+      "added": 38,
+      "combined": 60
+    },
+    "weighted": {
+      "original": 22,
+      "added": 35,
+      "combined": 57
+    },
+    "sparse": {
+      "original": 24,
+      "added": 39,
+      "combined": 63
+    },
+    "unweighted": {
+      "original": 22,
+      "added": 40,
+      "combined": 62
+    }
+  },
+  "comparisons": {
+    "weighted-sparse": {
+      "delta_pp": -6.25,
+      "ci95_pp": [
+        -11.458333333333332,
+        -2.083333333333333
+      ]
+    },
+    "weighted-unweighted": {
+      "delta_pp": -5.208333333333334,
+      "ci95_pp": [
+        -10.416666666666668,
+        0.0
+      ]
+    },
+    "dense-weighted": {
+      "delta_pp": 3.125,
+      "ci95_pp": [
+        -1.0416666666666665,
+        8.333333333333332
+      ]
+    }
+  },
+  "work_and_latency": {
+    "dense": {
+      "prefill_remote": null,
+      "prefill_total": 39786.19211551157,
+      "decode_remote": null,
+      "decode_total": 56760.21875,
+      "ttft_s": 8.363957405090332,
+      "elapsed_s": 8.5774802910164,
+      "decode_ms": 30.690510225083145
+    },
+    "weighted": {
+      "prefill_remote": 273.48075531961484,
+      "prefill_total": 8263.933317694846,
+      "decode_remote": 969.0054524739584,
+      "decode_total": 1338.109619140625,
+      "ttft_s": 5.513482451438904,
+      "elapsed_s": 5.709003647789359,
+      "decode_ms": 28.467137233487197
+    },
+    "sparse": {
+      "prefill_remote": 274.5892539768533,
+      "prefill_total": 8265.041816352084,
+      "decode_remote": 1000.2880249023438,
+      "decode_total": 1369.3921915690105,
+      "ttft_s": 5.545433282852173,
+      "elapsed_s": 5.743770621716976,
+      "decode_ms": 28.45657803118229
+    },
+    "unweighted": {
+      "prefill_remote": 275.6307405178304,
+      "prefill_total": 8266.083302893063,
+      "decode_remote": 999.1057332356771,
+      "decode_total": 1368.2098999023438,
+      "ttft_s": 5.737044453620911,
+      "elapsed_s": 5.928084962069988,
+      "decode_ms": 28.37590793413775
+    }
+  }
+}
