@@ -1,0 +1,169 @@
+{
+  "method": "retro-squeezed",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": true,
+  "squeezed_index": "/home/ubuntu/comparison/results/squeezed-32768-index.pt",
+  "squeezed_index_read_s": 0.5103693529999873,
+  "squeezed_offline_clustering_s": 356.16576912300025,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 66,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "records": [
+    {
+      "prefill_s": 1.7014466910004558,
+      "decode_s": 1.0033174800009874,
+      "capture_s": 1.2117108499987808,
+      "cache_init_s": 0.11151539100319496,
+      "output_token_ids": [
+        489,
+        489,
+        502,
+        67326,
+        446,
+        12768,
+        56150,
+        489,
+        602,
+        198,
+        330,
+        374,
+        4384,
+        0,
+        9575,
+        44588,
+        504,
+        443,
+        45395,
+        673,
+        1998,
+        1125,
+        504,
+        457,
+        394,
+        443,
+        7391,
+        8042,
+        446,
+        5451,
+        15441,
+        56150,
+        489,
+        602,
+        317,
+        394,
+        422,
+        320,
+        9996,
+        23327,
+        368,
+        2669,
+        1212,
+        3084,
+        8,
+        341,
+        504,
+        443,
+        7391,
+        8042,
+        446,
+        5451,
+        32857,
+        304,
+        2134,
+        369,
+        56150,
+        489,
+        602,
+        489,
+        13320,
+        6360,
+        504,
+        443,
+        692,
+        489
+      ],
+      "graph_same_cache_checks": {
+        "0": {
+          "max_abs": 0.55078125,
+          "mean_abs": 0.12359537184238434,
+          "graph_argmax": 489,
+          "eager_argmax": 489
+        },
+        "1": {
+          "max_abs": 0.1953125,
+          "mean_abs": 0.0382549911737442,
+          "graph_argmax": 502,
+          "eager_argmax": 502
+        },
+        "14": {
+          "max_abs": 0.125,
+          "mean_abs": 0.017061257734894753,
+          "graph_argmax": 44588,
+          "eager_argmax": 44588
+        },
+        "15": {
+          "max_abs": 0.1328125,
+          "mean_abs": 0.02083546109497547,
+          "graph_argmax": 504,
+          "eager_argmax": 504
+        },
+        "16": {
+          "max_abs": 0.13671875,
+          "mean_abs": 0.022487107664346695,
+          "graph_argmax": 443,
+          "eager_argmax": 443
+        },
+        "17": {
+          "max_abs": 0.15625,
+          "mean_abs": 0.01769835501909256,
+          "graph_argmax": 45395,
+          "eager_argmax": 45395
+        },
+        "30": {
+          "max_abs": 0.09375,
+          "mean_abs": 0.015683647245168686,
+          "graph_argmax": 56150,
+          "eager_argmax": 56150
+        },
+        "31": {
+          "max_abs": 0.15625,
+          "mean_abs": 0.03056909888982773,
+          "graph_argmax": 489,
+          "eager_argmax": 489
+        },
+        "32": {
+          "max_abs": 0.12890625,
+          "mean_abs": 0.026799995452165604,
+          "graph_argmax": 602,
+          "eager_argmax": 602
+        },
+        "33": {
+          "max_abs": 0.13671875,
+          "mean_abs": 0.03148633614182472,
+          "graph_argmax": 317,
+          "eager_argmax": 317
+        },
+        "64": {
+          "max_abs": 0.16796875,
+          "mean_abs": 0.027083193883299828,
+          "graph_argmax": 489,
+          "eager_argmax": 489
+        }
+      },
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_token": 15.43565353847673
+    }
+  ],
+  "median_decode_ms_per_token": 15.43565353847673,
+  "median_prefill_s": 1.7014466910004558
+}

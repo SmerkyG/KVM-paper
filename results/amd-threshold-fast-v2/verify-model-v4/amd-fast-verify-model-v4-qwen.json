@@ -1,0 +1,230 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "9086f9b263a06cfae7d6874429de6830048ffa0fd5b0c50464618f82d9911aff",
+      "source_file_count": 232
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=62333065-6362-3361-3962-336138653265, pci_bus_id=21, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "scope": "fixed real query/cache attention plus same local-length rollback; excludes model and cache catch-up",
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 84.7896859049797,
+      "repetitions_us": [
+        84.8107859492302,
+        84.75688099861145,
+        84.7896859049797
+      ],
+      "max_abs_vs_legacy": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 36.875,
+      "mean_opened_entries": 2352.20849609375,
+      "mean_union_entries_per_kv": 5042.0,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 34.973930567502975,
+      "repetitions_us": [
+        34.94439274072647,
+        35.023145377635956,
+        34.973930567502975
+      ],
+      "max_abs_vs_legacy": 0.00390625,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 36.875,
+      "mean_opened_entries": 2352.20849609375,
+      "mean_union_entries_per_kv": 5042.0,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4
+    },
+    {
+      "layer": 0,
+      "implementation": "native-top8",
+      "microseconds": 41.04088246822357,
+      "repetitions_us": [
+        40.997445583343506,
+        41.08244180679321,
+        41.04088246822357
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 83.57876539230347,
+      "repetitions_us": [
+        83.57876539230347,
+        83.57173949480057,
+        83.59266817569733
+      ],
+      "max_abs_vs_legacy": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 43.79166793823242,
+      "mean_opened_entries": 2125.916748046875,
+      "mean_union_entries_per_kv": 4025.75,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 33.076293766498566,
+      "repetitions_us": [
+        33.076293766498566,
+        33.08863192796707,
+        33.03957358002663
+      ],
+      "max_abs_vs_legacy": 0.015625,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 43.79166793823242,
+      "mean_opened_entries": 2125.916748046875,
+      "mean_union_entries_per_kv": 4025.75,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4
+    },
+    {
+      "layer": 8,
+      "implementation": "native-top8",
+      "microseconds": 34.02925282716751,
+      "repetitions_us": [
+        34.014880657196045,
+        34.02925282716751,
+        34.05175358057022
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 95.55970877408981,
+      "repetitions_us": [
+        95.56829929351807,
+        95.55970877408981,
+        95.55330127477646
+      ],
+      "max_abs_vs_legacy": 0.0,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.125,
+      "mean_opened_entries": 3061.08349609375,
+      "mean_union_entries_per_kv": 7687.75,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 38.72966021299362,
+      "repetitions_us": [
+        38.717471063137054,
+        38.74075412750244,
+        38.72966021299362
+      ],
+      "max_abs_vs_legacy": 0.0625,
+      "selection_mismatches": 0,
+      "mean_opened_regions": 33.125,
+      "mean_opened_entries": 3061.08349609375,
+      "mean_union_entries_per_kv": 7687.75,
+      "local_entries": 257,
+      "active_regions": 4096,
+      "state_capacity": 4352,
+      "head_dim": 256,
+      "query_heads": 24,
+      "kv_heads": 4
+    },
+    {
+      "layer": 15,
+      "implementation": "native-top8",
+      "microseconds": 42.058832943439484,
+      "repetitions_us": [
+        42.06383600831032,
+        42.05742850899696,
+        42.058832943439484
+      ]
+    }
+  ],
+  "model": "qwen",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "context": 65536,
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

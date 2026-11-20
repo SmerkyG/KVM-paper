@@ -1,0 +1,250 @@
+{
+  "stage": "complete",
+  "scope": "Benchmark unchanged threshold packing on live model-produced prefill scores.\n\nRuns through cluster-run. Stops the model intentionally after collecting the\ndiagnostic; it is not a model latency or quality result. No Q/K/V snapshot is\nsaved. Every candidate sees the same query, scores, lengths and normalizer.\n",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "scores_shape": [
+      32,
+      4096,
+      3547
+    ],
+    "multiplier": 16.0,
+    "mean_regions": 26.932464599609375,
+    "maximum_regions": 96,
+    "mean_entries": 1413.553466796875,
+    "reference_bits_sha256": "aed7c3079df2f9633acf636f2a7f7635a8cdd82879b572e39d5dd382cbb6b782"
+  },
+  "records": [
+    {
+      "backend": "full-row",
+      "median_ms": 2.273721694946289,
+      "samples_ms": [
+        2.2580032348632812,
+        2.273721694946289,
+        2.291663932800293
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 1,
+      "n": 4096,
+      "warps": 2,
+      "median_ms": 3.364726257324219,
+      "samples_ms": [
+        3.361017608642578,
+        3.364726257324219,
+        3.372662353515625
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 1,
+      "n": 4096,
+      "warps": 4,
+      "median_ms": 3.230633544921875,
+      "samples_ms": [
+        3.227590560913086,
+        3.2322113037109377,
+        3.230633544921875
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 2,
+      "n": 4096,
+      "warps": 2,
+      "median_ms": 10.595833587646485,
+      "samples_ms": [
+        10.579574584960938,
+        10.61102066040039,
+        10.595833587646485
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 2,
+      "n": 4096,
+      "warps": 4,
+      "median_ms": 2.878326416015625,
+      "samples_ms": [
+        2.871481513977051,
+        2.8783296585083007,
+        2.878326416015625
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 4,
+      "n": 4096,
+      "warps": 4,
+      "median_ms": 11.418812561035157,
+      "samples_ms": [
+        11.418812561035157,
+        11.420217895507813,
+        11.416726684570312
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 4,
+      "n": 4096,
+      "warps": 8,
+      "median_ms": 2.803603172302246,
+      "samples_ms": [
+        2.799622344970703,
+        2.803603172302246,
+        2.8044000625610352
+      ]
+    },
+    {
+      "backend": "row",
+      "m": 8,
+      "n": 4096,
+      "warps": 8,
+      "median_ms": 10.977529907226563,
+      "samples_ms": [
+        10.977529907226563,
+        10.986585235595703,
+        10.974662780761719
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 8,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 4.699827194213867,
+      "samples_ms": [
+        4.694873428344726,
+        4.699827194213867,
+        4.702249526977539
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 16,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.155686378479004,
+      "samples_ms": [
+        2.1499616622924806,
+        2.156608009338379,
+        2.155686378479004
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.3489376068115235,
+      "samples_ms": [
+        2.345795249938965,
+        2.3489376068115235,
+        2.349910354614258
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.382998466491699,
+      "samples_ms": [
+        2.380303955078125,
+        2.3883808135986326,
+        2.382998466491699
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 16,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 1.85513916015625,
+      "samples_ms": [
+        1.8508991241455077,
+        1.8564767837524414,
+        1.85513916015625
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 2.0601119995117188,
+      "samples_ms": [
+        2.0556896209716795,
+        2.0601119995117188,
+        2.0601984024047852
+      ]
+    },
+    {
+      "backend": "bitmap",
+      "m": 8,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 4.94969596862793,
+      "samples_ms": [
+        4.939475250244141,
+        4.951612854003907,
+        4.94969596862793
+      ]
+    },
+    {
+      "backend": "bitmap",
+      "m": 16,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.209059143066406,
+      "samples_ms": [
+        2.20546875,
+        2.211478424072266,
+        2.209059143066406
+      ]
+    },
+    {
+      "backend": "bitmap",
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.0444704055786134,
+      "samples_ms": [
+        2.039606475830078,
+        2.046121597290039,
+        2.0444704055786134
+      ]
+    },
+    {
+      "backend": "bitmap",
+      "m": 16,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 1.8442399978637696,
+      "samples_ms": [
+        1.8406080245971679,
+        1.8442399978637696,
+        1.8474336624145509
+      ]
+    },
+    {
+      "backend": "bitmap",
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 1.866419219970703,
+      "samples_ms": [
+        1.8627424240112305,
+        1.8685728073120118,
+        1.866419219970703
+      ]
+    }
+  ],
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+}

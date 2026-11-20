@@ -1,0 +1,253 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "6423527fc6a3ae9ac4cfea046af93aee9e103f6fc9a1adfc3c3cf2f697199b6f",
+      "source_file_count": 233
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "threshold_implementation": "materialized",
+  "threshold_rule": "region",
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "1",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "generation_seed": 1234,
+  "kv_cache_dtype": "bfloat16",
+  "scheduler_chunk_tokens": 16384,
+  "batch_size": 1,
+  "limit_per_task": 1,
+  "selection": "prefix",
+  "tasks": [
+    "niah_single_3__doc10",
+    "niah_multikey_1__doc27",
+    "niah_multikey_2__doc21",
+    "niah_multivalue__doc20",
+    "ruler_fwe__doc25",
+    "ruler_qa_hotpot__doc20",
+    "ruler_qa_hotpot__doc29",
+    "ruler_qa_squad__doc1",
+    "ruler_qa_squad__doc24",
+    "ruler_qa_squad__doc30"
+  ],
+  "records": [
+    {
+      "task": "niah_single_3__doc10",
+      "doc_id": 10,
+      "prompt_hash": "93437ed9da7f4f90bbcfca8ceb80c9a1aabca8902c828b8b66b689d3890c24e9",
+      "doc_hash": "2c829525cf20b38d62e65827312b5d30863b5f5a898d05e94cde5abff3025cc9",
+      "target_hash": "c470f1fab2aef1bba14fc65ec31dc7314a5c3b87b93cf8f790b56c4b1025f8f0",
+      "input_tokens": 64966,
+      "input_token_sha256": "cdc585d1431a2c043d3c242715d9d448d19152a99cc79fe378c4a8fab8ff1c66",
+      "targets": [
+        "f510ab53-c7fe-439f-9190-f938a66fd7f7"
+      ],
+      "prediction": ":\n\n**f510ab53-c7fe-439f-9190-f938a66fd7f7**",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 9.143
+    },
+    {
+      "task": "niah_multikey_1__doc27",
+      "doc_id": 27,
+      "prompt_hash": "c6d83fac2ec75c2e60b7794f7e544e0c45934ad3cdc69190c7ef98925d3cdb4c",
+      "doc_hash": "2396c7fac4e9aa45aeacba13c38226ba1fb9bfa7bdbb384049d190ad5f468123",
+      "target_hash": "44b48e0f784c4d268a00706ca44cc676b49aa7fe4f1d83a2a033213606baeee8",
+      "input_tokens": 65007,
+      "input_token_sha256": "ffc3bdd1031b6de52b0f264a45e0d80b8f2657f363cc41b134db2405d6db58de",
+      "targets": [
+        "5255545"
+      ],
+      "prediction": " **5255545**.",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.238
+    },
+    {
+      "task": "niah_multikey_2__doc21",
+      "doc_id": 21,
+      "prompt_hash": "3926af0d93d669bb491d869ca6185b4574fbd76df9b7e13695e883bec899da41",
+      "doc_hash": "5cf6df32dd2abf1442f003e42178c42f02b69013ee0303176fad88db1165d2d0",
+      "target_hash": "f4c937f0a7fcdb085b68f85fc3475351a8b72edeb39925b3cfac48ed28eb983f",
+      "input_tokens": 65026,
+      "input_token_sha256": "324391ca4e8a4d56e374a951e2e13b4e09afc145b4eb5d8f1c0a1a2cd136286e",
+      "targets": [
+        "7638385"
+      ],
+      "prediction": " **7638385**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.295
+    },
+    {
+      "task": "niah_multivalue__doc20",
+      "doc_id": 20,
+      "prompt_hash": "1e0be5de9fab56da0453c7e337aec57f23ef4c5c63e9d27d65ddaae655ac5045",
+      "doc_hash": "29ec0e6459fb0f6351686f4788eed91da9b2dcff819e31eece4c77a8a361ee34",
+      "target_hash": "c1827916112f687ced1df11c66610ee3cf42a2cfeb626bf03f11159d25747b5c",
+      "input_tokens": 65000,
+      "input_token_sha256": "e3c62d31fd357b8842756204ea49ea75bdebd79eaf3f39b0fd17e960388befc9",
+      "targets": [
+        "7166651",
+        "2927455",
+        "5673599",
+        "4794319"
+      ],
+      "prediction": ":\n\n1.  **2927455**\n2.  **4794319**\n3.  **7166651**",
+      "score": 0.75,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 9.111
+    },
+    {
+      "task": "ruler_fwe__doc25",
+      "doc_id": 25,
+      "prompt_hash": "eba18cbf5b1289043d1977ba962aa90faef141d09160a9a6e18a2dbbc78f3335",
+      "doc_hash": "215d467b964edcf9b979648e0504f302ed99d6c1bd5f93645acb18d07ee67986",
+      "target_hash": "48003dc9dafc926893b34e96c786170dcc58dd9408c2b8f900316181b3fc3304",
+      "input_tokens": 63335,
+      "input_token_sha256": "d78bb830dfd2d32013d69c5f9335115d2af935c29f5dda0d450c021c042b0381",
+      "targets": [
+        "txcywi",
+        "ppcyvp",
+        "xuurec"
+      ],
+      "prediction": "\n\n1. txcywi\n2. ppcyvp\n3. xuurec",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.316
+    },
+    {
+      "task": "ruler_qa_hotpot__doc20",
+      "doc_id": 20,
+      "prompt_hash": "84b6c3b64aa5ea970e705aef78829e65491324868ae052215700c384c0dd8dd0",
+      "doc_hash": "986980f5146838b0f150c418d80c483967905036368775c2cc82704874ce4865",
+      "target_hash": "ef8e57cb3da1fc3661cf36154b26ace397d197c1918e1c0de705f88207b7502e",
+      "input_tokens": 62800,
+      "input_token_sha256": "de890a7102ce6d9706320e1af641921037f17764188b72bbd3eb03ba01012e5d",
+      "targets": [
+        "Pedro Rodr\u00edguez"
+      ],
+      "prediction": " Pedro Rodr\u00edguez",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.818
+    },
+    {
+      "task": "ruler_qa_hotpot__doc29",
+      "doc_id": 29,
+      "prompt_hash": "6c6fbdd4ed66fa56e90b2556c8191b701eca25fab1d9e3e8ace9d482e61aa206",
+      "doc_hash": "64016f4323862a5f0a524b94f138d4da8526555509c1f9325c6aa7f6898d3b0f",
+      "target_hash": "da11b02053e0d6e289ce171b9d87ae977dfae0c16eafe28194688695750c250f",
+      "input_tokens": 63254,
+      "input_token_sha256": "1b9957fe9563c8b3d7a2aec3a92b872ecf33f967a495f9b999b245c3a15747d0",
+      "targets": [
+        "Arena of Khazan"
+      ],
+      "prediction": " Arena of Khazan",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.939
+    },
+    {
+      "task": "ruler_qa_squad__doc1",
+      "doc_id": 1,
+      "prompt_hash": "4ef92ceaf183a1fb1fdb53739bd65fa8804bce2cce8e8abd7b891214ea3ff9fa",
+      "doc_hash": "8029fbfcd767767b7538f47ecf6fa13ef316f163614a800a4f90c0ad3cf4c196",
+      "target_hash": "50cda04948180079036e36f3dd80f4d70926439d0dedf8b1ef6ce3e74048fa41",
+      "input_tokens": 63891,
+      "input_token_sha256": "66a69c0a7c618f4768611ccc3ce87796c27e534f0a69a16a0daae411c1443e71",
+      "targets": [
+        "10th and 11th centuries",
+        "in the 10th and 11th centuries",
+        "10th and 11th centuries",
+        "10th and 11th centuries"
+      ],
+      "prediction": " in the 10th and 11th centuries",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.234
+    },
+    {
+      "task": "ruler_qa_squad__doc24",
+      "doc_id": 24,
+      "prompt_hash": "7acc6cc657ed1c559e9f98dbca81f18dd61b1b28889fa95aadae3396071e1115",
+      "doc_hash": "120266e0f154b087c598cc0afde4361f6a3bee0ee9e8e8e9084544bf3ec42cd3",
+      "target_hash": "09d429bd655689bacfc9d71a710bf67f70e438d26cf19ab0ad483e2669ac6b13",
+      "input_tokens": 64961,
+      "input_token_sha256": "2f6bf7915286494b429bf8f88cbce7846ee53f4f53c845d9bddf86a2e63ee33e",
+      "targets": [
+        "Norman mercenary",
+        "an Italo-Norman named Raoul",
+        "descended from an Italo-Norman named Raoul"
+      ],
+      "prediction": " Italo-Norman",
+      "score": 0.0,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.159
+    },
+    {
+      "task": "ruler_qa_squad__doc30",
+      "doc_id": 30,
+      "prompt_hash": "eae53f5957a618ed5630a102453f42d98bff84b7f79b19017a097c409a23cd69",
+      "doc_hash": "06fc7f388f5d9257ec7efe0a28adbcf6b2e09f4bdab310683eaa019e35576516",
+      "target_hash": "fd36af0f6cff5e794fb3bf32e2d30c3b5303a525b366a827f2acd221799963e2",
+      "input_tokens": 65002,
+      "input_token_sha256": "75b766da91f700649eeb70cb7c032e2e5608d8061b2e7de65657dfd7ea2b6126",
+      "targets": [
+        "Deabolis",
+        "the river Deabolis",
+        "Deabolis"
+      ],
+      "prediction": " Deabolis",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.131
+    }
+  ],
+  "task_scores": {
+    "niah_single_3__doc10": 100.0,
+    "niah_multikey_1__doc27": 100.0,
+    "niah_multikey_2__doc21": 100.0,
+    "niah_multivalue__doc20": 75.0,
+    "ruler_fwe__doc25": 100.0,
+    "ruler_qa_hotpot__doc20": 100.0,
+    "ruler_qa_hotpot__doc29": 100.0,
+    "ruler_qa_squad__doc1": 100.0,
+    "ruler_qa_squad__doc24": 0.0,
+    "ruler_qa_squad__doc30": 66.66666666666666
+  }
+}

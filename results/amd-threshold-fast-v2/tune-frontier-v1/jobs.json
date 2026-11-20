@@ -1,0 +1,72 @@
+{
+  "phase": "replay",
+  "source": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/source",
+  "jobs": [
+    {
+      "id": "24510-amd-fast-tune-frontier-v1-qwen",
+      "name": "amd-fast-tune-frontier-v1-qwen",
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/amd-fast-tune-frontier-v1-qwen.json",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--name",
+        "amd-fast-tune-frontier-v1-qwen",
+        "--num-gpus",
+        "1",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_fast_replay",
+        "--snapshots",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen",
+        "--configs",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/configs.json",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/amd-fast-tune-frontier-v1-qwen.json"
+      ]
+    },
+    {
+      "id": "24511-amd-fast-tune-frontier-v1-k2",
+      "name": "amd-fast-tune-frontier-v1-k2",
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/amd-fast-tune-frontier-v1-k2.json",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--name",
+        "amd-fast-tune-frontier-v1-k2",
+        "--num-gpus",
+        "1",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_fast_replay",
+        "--snapshots",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/k2",
+        "--configs",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/configs.json",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/tune-frontier-v1/amd-fast-tune-frontier-v1-k2.json"
+      ]
+    }
+  ]
+}

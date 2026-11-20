@@ -1,0 +1,243 @@
+{
+  "early": {
+    "file": "llama8k-b4-squeezed-round-mixed-trace.1.sqlite",
+    "range": [
+      {
+        "start": 7597637,
+        "end": 173735398,
+        "text": "squeezed-round-0"
+      }
+    ],
+    "graphs": 16,
+    "gpu_kernel_count": 16560,
+    "gpu_graph_kernel_count": 16464,
+    "gpu_idle_within_graph_ms_per_step": 0.08436368749999999,
+    "gpu_idle_outside_graphs_ms_per_step": 0.036571812499999995,
+    "graph_correlation_groups": 112,
+    "kernel_ms_per_step": 10.2632640625,
+    "gpu_busy_ms_per_step": 10.251060062499999,
+    "gpu_idle_ms_per_step": 0.1209355,
+    "gpu_span_ms_per_step": 10.371995562499999,
+    "api_graph_launch_ms_per_step": 3.1712577499999997,
+    "graph_submit_to_first_gpu_op_ms_per_step": 64.62244506249999,
+    "memops": {
+      "MEMCPY": {
+        "count": 16,
+        "bytes": 512,
+        "ms_per_step": 0.001058
+      },
+      "MEMSET": {
+        "count": 16,
+        "bytes": 64,
+        "ms_per_step": 0.0010559999999999999
+      }
+    }
+  },
+  "late": {
+    "file": "llama8k-b4-squeezed-round-mixed-trace.2.sqlite",
+    "range": [
+      {
+        "start": 7669592,
+        "end": 178457248,
+        "text": "squeezed-round-1"
+      }
+    ],
+    "graphs": 16,
+    "gpu_kernel_count": 16560,
+    "gpu_graph_kernel_count": 16464,
+    "gpu_idle_within_graph_ms_per_step": 0.4542421875,
+    "gpu_idle_outside_graphs_ms_per_step": 0.043207999999999996,
+    "graph_correlation_groups": 112,
+    "kernel_ms_per_step": 10.1681884375,
+    "gpu_busy_ms_per_step": 10.1702604375,
+    "gpu_idle_ms_per_step": 0.4974501875,
+    "gpu_span_ms_per_step": 10.667710625,
+    "api_graph_launch_ms_per_step": 3.2523768124999997,
+    "graph_submit_to_first_gpu_op_ms_per_step": 66.30151906249999,
+    "memops": {
+      "MEMCPY": {
+        "count": 16,
+        "bytes": 512,
+        "ms_per_step": 0.0010379999999999999
+      },
+      "MEMSET": {
+        "count": 16,
+        "bytes": 64,
+        "ms_per_step": 0.001034
+      }
+    }
+  },
+  "identical_kernel_signatures": true,
+  "early_only": 0,
+  "late_only": 0,
+  "kernel_groups": [
+    {
+      "name": "_fwd_centroid_simple_kernel_qk",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 1.2709810625,
+      "late_ms": 1.2523383125,
+      "change_ms": -0.01864274999999993
+    },
+    {
+      "name": "_fwd_kernel_qk",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 1.038972,
+      "late_ms": 1.0265263125,
+      "change_ms": -0.01244568750000008
+    },
+    {
+      "name": "elementwise_kernel",
+      "early_steps": 1552,
+      "late_steps": 1552,
+      "early_ms": 0.22119149999999999,
+      "late_ms": 0.21291212499999998,
+      "change_ms": -0.008279375000000005
+    },
+    {
+      "name": "act_and_mul_kernel",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.12255593749999999,
+      "late_ms": 0.11498,
+      "change_ms": -0.007575937499999991
+    },
+    {
+      "name": "vectorized_elementwise_kernel",
+      "early_steps": 2640,
+      "late_steps": 2640,
+      "early_ms": 0.2311593125,
+      "late_ms": 0.22363012499999999,
+      "change_ms": -0.007529187500000006
+    },
+    {
+      "name": "sm90_xmma_gemm_bf16bf16_bf16f32_f32_tn_n_tilesize64x128x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas",
+      "early_steps": 528,
+      "late_steps": 528,
+      "early_ms": 3.1086103124999998,
+      "late_ms": 3.1024741249999996,
+      "change_ms": -0.006136187500000112
+    },
+    {
+      "name": "sm90_xmma_gemm_bf16bf16_bf16f32_f32_tn_n_tilesize64x64x64_warpgroupsize1x1x1_execute_segment_k_off_kernel__5x_cublas",
+      "early_steps": 1024,
+      "late_steps": 1024,
+      "early_ms": 2.099876625,
+      "late_ms": 2.0943045,
+      "change_ms": -0.005572125000000039
+    },
+    {
+      "name": "Kernel2",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.5246160624999999,
+      "late_ms": 0.5202080625,
+      "change_ms": -0.0044079999999999675
+    },
+    {
+      "name": "splitKreduce_kernel",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.0567816875,
+      "late_ms": 0.0532260625,
+      "change_ms": -0.0035556249999999998
+    },
+    {
+      "name": "flash_fwd_splitkv_kernel",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.35083743749999996,
+      "late_ms": 0.3477700625,
+      "change_ms": -0.0030673749999999833
+    },
+    {
+      "name": "_reduce_kernel_qk",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.06994131249999999,
+      "late_ms": 0.06713812499999999,
+      "change_ms": -0.0028031874999999984
+    },
+    {
+      "name": "_scatter_gather_elementwise_kernel",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.18181187499999998,
+      "late_ms": 0.179132125,
+      "change_ms": -0.0026797499999999808
+    },
+    {
+      "name": "RMSNormKernel",
+      "early_steps": 1040,
+      "late_steps": 1040,
+      "early_ms": 0.1386239375,
+      "late_ms": 0.13594599999999998,
+      "change_ms": -0.002677937500000005
+    },
+    {
+      "name": "index_elementwise_kernel",
+      "early_steps": 1024,
+      "late_steps": 1024,
+      "early_ms": 0.16251174999999998,
+      "late_ms": 0.16023025,
+      "change_ms": -0.002281499999999992
+    },
+    {
+      "name": "flash_fwd_splitkv_combine_kernel",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.1285499375,
+      "late_ms": 0.12694,
+      "change_ms": -0.0016099374999999916
+    },
+    {
+      "name": "_pack",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.10263193749999999,
+      "late_ms": 0.10104406249999999,
+      "change_ms": -0.0015878750000000025
+    },
+    {
+      "name": "_counts",
+      "early_steps": 512,
+      "late_steps": 512,
+      "early_ms": 0.051461812499999995,
+      "late_ms": 0.0499720625,
+      "change_ms": -0.001489749999999998
+    },
+    {
+      "name": "unrolled_elementwise_kernel",
+      "early_steps": 2064,
+      "late_steps": 2064,
+      "early_ms": 0.2565916875,
+      "late_ms": 0.2553140625,
+      "change_ms": -0.0012776250000000045
+    },
+    {
+      "name": "BatchQKApplyRotaryPosIdsCosSinCacheHeadParallelismKernel",
+      "early_steps": 1024,
+      "late_steps": 1024,
+      "early_ms": 0.11490587499999999,
+      "late_ms": 0.1137800625,
+      "change_ms": -0.0011258124999999897
+    },
+    {
+      "name": "reduce_kernel",
+      "early_steps": 16,
+      "late_steps": 16,
+      "early_ms": 0.027472,
+      "late_ms": 0.026778,
+      "change_ms": -0.0006940000000000002
+    },
+    {
+      "name": "indexSelectSmallIndex",
+      "early_steps": 16,
+      "late_steps": 16,
+      "early_ms": 0.0031799999999999997,
+      "late_ms": 0.003544,
+      "change_ms": 0.0003640000000000002
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "stage": "complete",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prompt_tokens": 128000,
+  "prefill": "dense causal",
+  "method": "multipole",
+  "requested_centroids": 5724,
+  "input_token_sha256": "caac3459245b2befe16506ed6d25889c65b6b8527ba0e19711b8391bf5558158",
+  "records": [
+    {
+      "prefill_s": 20.869165690994123,
+      "first_token_ids": [
+        16
+      ],
+      "initial_centroids": 5724,
+      "iteration": 0,
+      "warmup": true
+    },
+    {
+      "prefill_s": 18.506672462004644,
+      "first_token_ids": [
+        16
+      ],
+      "initial_centroids": 5724,
+      "iteration": 1,
+      "warmup": false
+    },
+    {
+      "prefill_s": 18.50258743300219,
+      "first_token_ids": [
+        16
+      ],
+      "initial_centroids": 5724,
+      "iteration": 2,
+      "warmup": false
+    }
+  ],
+  "median_prefill_s": 18.504629947503417
+}

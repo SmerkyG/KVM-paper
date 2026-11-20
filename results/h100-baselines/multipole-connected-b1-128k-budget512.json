@@ -1,0 +1,52 @@
+{
+  "measurement_scope": "synthetic single attention layer, not full-model inference",
+  "implementation": "author generation kernels via RetroInfer batch adapter",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "quality_matched": false,
+  "batch": 1,
+  "prefix_tokens": 131072,
+  "budget": 512,
+  "synthetic_cluster_assignments": true,
+  "update_interval": 128,
+  "same_cache_graph_eager_before": {
+    "max_abs": 6.103515625e-05,
+    "mean_abs": 6.953268893994391e-07,
+    "selected_tokens_min": 501,
+    "selected_tokens_max": 510
+  },
+  "same_cache_graph_eager_after": {
+    "max_abs": 0.000244140625,
+    "mean_abs": 6.128102540969849e-07,
+    "selected_tokens_min": 76,
+    "selected_tokens_max": 511
+  },
+  "warmup": {
+    "steps": 512,
+    "wall_ms_per_batch_step": 8.046949853515617,
+    "gpu_timeline_ms_per_batch_step": 8.046950340270996,
+    "cluster_updates": 4,
+    "context_start": 131072,
+    "context_end": 131584
+  },
+  "records": [
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 1.2341060039058327,
+      "gpu_timeline_ms_per_batch_step": 1.2340645790100098,
+      "cluster_updates": 4,
+      "context_start": 131584,
+      "context_end": 132096
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 1.2322687070311922,
+      "gpu_timeline_ms_per_batch_step": 1.232228398323059,
+      "cluster_updates": 4,
+      "context_start": 132096,
+      "context_end": 132608
+    }
+  ],
+  "median_wall_ms_per_batch_step": 1.2331873554685124,
+  "median_gpu_timeline_ms_per_batch_step": 1.2331464886665344
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 import torch
@@ -87,10 +88,12 @@ class VLLMLayerLODPool:
             self.family = ModelFamily.QWEN38
         elif (self.head_dim, gqa) == (128, 8):
             self.family = ModelFamily.K2
+        elif (self.head_dim, gqa) == (128, 4) and not torch.version.hip:
+            self.family = ModelFamily.LLAMA31
         else:
             raise ValueError(
                 "the LoD paper release supports only Qwen3.8 (D256/GQA6) "
-                "and K2 Horizon (D128/GQA8)"
+                "and K2 Horizon (D128/GQA8), and CUDA Llama-3.1-8B (D128/GQA4)"
             )
         settings = settings.for_family(self.family)
         self.settings = settings
@@ -269,7 +272,8 @@ class VLLMLayerLODPool:
     ) -> None:
         """Reject any silent deviation from the paper's supported path."""
 
-        expected_geometry = (256, 6) if self.family is ModelFamily.QWEN38 else (128, 8)
+        expected_geometry = {ModelFamily.QWEN38:(256,6), ModelFamily.K2:(128,8), ModelFamily.LLAMA31:(128,4)}[self.family]
+        cuda_llama = self.family is ModelFamily.LLAMA31
         if self.dtype != torch.bfloat16:
             raise RuntimeError("LoD requires BF16 attention K/V inputs")
         if (self.head_dim, gqa) != expected_geometry:
@@ -283,6 +287,8 @@ class VLLMLayerLODPool:
         k2_int4 = self.family is ModelFamily.K2 and recursive and expected_bits == 4
         if self.family is ModelFamily.K2:
             expected_leaf_geometry = (256, 16) if k2_int4 else (128, 32)
+        elif cuda_llama:
+            expected_leaf_geometry = (64, 16 if expected_bits == 4 else 32)
         else:
             expected_leaf_geometry = (32, 16)
         checks = {
@@ -311,15 +317,16 @@ class VLLMLayerLODPool:
                 and self.engine.prefill_exact_first_chunk
             ),
             "prefill kernels": (
-                self.engine.prefill_local_attention_backend == "aiter"
+                self.engine.prefill_local_attention_backend == ("flash_attn" if cuda_llama else "aiter")
                 and self.engine.fused_prefill_route_coarse
                 and self.engine.fused_prefill_stable_recompute
                 and self.engine.fused_prefill_external_recompute
                 and self.engine.prefill_hierarchical_route
                 and self.engine.prefill_overlap_coarse_leaf
             ),
-            "GQA-aware AITER prefill route/coarse": (
-                self.engine.prefill_aiter_route_coarse
+            "GQA-aware fused prefill route/coarse": (
+                self.engine.prefill_cuda_route_coarse if cuda_llama
+                else self.engine.prefill_aiter_route_coarse
             ),
             "complete-centroid prefill": (
                 not recursive or self.engine.recursive_prefill_all_leaves
@@ -331,10 +338,19 @@ class VLLMLayerLODPool:
                 self.engine.leaf_layout == "expert"
                 and (self.engine.leaf_block_m, self.engine.leaf_block_n)
                 == expected_leaf_geometry
-                and self.engine.leaf_num_warps == (4 if k2_int4 else 2)
+                and self.engine.leaf_num_warps == (4 if k2_int4 or cuda_llama else 2)
             ),
             "fused state update": (
                 self.engine.fused_state_update and self.engine.fused_state_maxsim
+            ),
+            "CUDA decode partitions": (
+                not cuda_llama
+                or (
+                    self.engine.decode_route_parallel_reduce
+                    and self.engine.decode_route_group_size == 64
+                    and self.engine.decode_route_num_warps == 2
+                    and self.engine.decode_route_reduce_num_warps == 4
+                )
             ),
             "K2 compact route": (
                 self.family is not ModelFamily.K2
@@ -349,6 +365,15 @@ class VLLMLayerLODPool:
         failed = [name for name, valid in checks.items() if not valid]
         if failed:
             raise RuntimeError("LoD production dispatch failed: " + ", ".join(failed))
+
+    @property
+    def _uses_persistent_leaf_index(self) -> bool:
+        return self.settings.decode_gqa_fixed_mask_aiter or (
+            self.settings.levels == 2 and self.dtype == torch.bfloat16
+            and (os.environ.get('LOD_AMD_THRESHOLD_IMPLEMENTATION') in
+            ('frontier', 'flat', 'tiled', 'ranked', 'cached', 'balanced', 'active', 'shared', 'materialized', 'table')
+            or os.environ.get('LOD_H100_THRESHOLD_IMPLEMENTATION') == 'materialized')
+        )
 
     def _allocate_state(self) -> dict[str, object]:
         r, h, s, d = (
@@ -395,7 +420,7 @@ class VLLMLayerLODPool:
             recent_v = unified_page1_v[
                 arena_local_offset : arena_local_offset + kv_rows * self.local_capacity
             ].view(r, h, self.local_capacity, d)
-            if self.settings.decode_gqa_fixed_mask_aiter:
+            if self._uses_persistent_leaf_index:
                 fixed_capacity = (
                     self.leaf_capacity
                     + self.decode_local_limit
@@ -1072,9 +1097,10 @@ class VLLMLayerLODPool:
                 coarse_v[start_slot:stop_slot],
                 coarse_bias[start_slot:stop_slot],
                 active_state_len=active_state_len,
+                round_counts_bf16=os.environ.get('LOD_H100_THRESHOLD_IMPLEMENTATION') == 'materialized',
             )
             begin = end
-        if self.settings.decode_gqa_fixed_mask_aiter:
+        if self._uses_persistent_leaf_index:
             self._refresh_unified_page1_fixed(slots)
 
     def ensure_unified_page1_fixed(self, slots: tuple[int, ...]) -> None:
@@ -3053,6 +3079,44 @@ class VLLMLayerLODPool:
             cache_indices = self.active_indices[:rows]
         if local_lens is None:
             local_lens = self.local_lens
+        threshold = os.environ.get("LOD_AMD_THRESHOLD_MULTIPLIER")
+        if threshold is not None:
+            if (not torch.version.hip or self.settings.levels not in (2, 3) or rows != 1
+                    or self.max_requests != 1 or speculative_steps != 1
+                    or local_lens is not self.local_lens or local_lens_are_logical
+                    or not store_new_kv or not advance_local_lens):
+                raise ValueError("AMD threshold experiment requires an ordinary single-row decode")
+            multiplier = float(threshold)
+            if not math.isfinite(multiplier) or multiplier <= 0:
+                raise ValueError("AMD threshold multiplier must be finite and positive")
+            rule = os.environ.get("LOD_AMD_THRESHOLD_RULE", "region")
+            if rule not in ("region", "entry"):
+                raise ValueError("unknown AMD threshold rule")
+            if self.settings.levels == 3:
+                if rule != "region" or os.environ.get("LOD_AMD_THRESHOLD_UNION") == "1":
+                    raise ValueError("three-tier threshold decode requires per-region routing")
+                from benchmarks.amd_threshold_three_tier import threshold_attention
+            elif os.environ.get("LOD_AMD_THRESHOLD_UNION") == "1":
+                if rule != "region":
+                    raise ValueError("GQA-union threshold worker does not support the per-entry rule")
+                from benchmarks.amd_threshold_union import threshold_attention
+            else:
+                from benchmarks.amd_threshold_decode import threshold_attention
+
+            rule_args = ({"rule": rule, "entry_bound": int(os.environ.get("LOD_AMD_ENTRY_BOUND", "16")),
+                          "work_bound": int(os.environ.get("LOD_AMD_ENTRY_WORK_BOUND", os.environ.get("LOD_AMD_ENTRY_BOUND", "16")))}
+                         if os.environ.get("LOD_AMD_THRESHOLD_UNION") != "1" else {})
+            threshold_attention(
+                self, q.reshape(1, 1, self.query_heads, self.head_dim),
+                k.reshape(1, 1, self.kv_heads, self.head_dim),
+                v.reshape(1, 1, self.kv_heads, self.head_dim),
+                output[:rows].reshape(1, 1, self.query_heads, self.head_dim),
+                multiplier,
+                tile=int(os.environ.get("LOD_AMD_THRESHOLD_TILE", "64")),
+                splits=int(os.environ.get("LOD_AMD_THRESHOLD_SPLITS", "64")),
+                **rule_args,
+            )
+            return output
         if decode_buffers is None:
             decode_buffers = self._buffers(q, rows)
         page = self.state["page_cache"]
@@ -3115,6 +3179,7 @@ class VLLMLayerLODPool:
             route_num_warps=int(self.engine.decode_route_num_warps),
             route_reduce_num_warps=int(self.engine.decode_route_reduce_num_warps),
             route_parallel_reduce=bool(self.engine.decode_route_parallel_reduce),
+            normalize_route_query=(self.family is ModelFamily.LLAMA31 and self.engine.routing_normalization == 'query'),
             final_reduce_num_warps=int(self.engine.decode_final_reduce_num_warps),
             fuse_final_reduce=bool(self.engine.decode_fuse_final_reduce),
             route_gqa_grouped=bool(self.engine.decode_route_gqa_grouped),
@@ -3123,8 +3188,8 @@ class VLLMLayerLODPool:
             # ordinary one-token decode on the GQA-shared union, but let
             # speculative verification consume each query head's eight
             # complete centroids directly instead of building another union.
-            gqa_union_decode=speculative_steps < 2,
-            gqa_union_hip=True,
+            gqa_union_decode=speculative_steps < 2 and self.family is not ModelFamily.LLAMA31,
+            gqa_union_hip=bool(torch.version.hip),
             # Two-tier keeps a persistent centroid-major leaf list. Publish
             # only the selected 16-leaf ranges to the attention consumer so
             # decode work follows the routed union instead of total history.

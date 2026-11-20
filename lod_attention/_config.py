@@ -53,6 +53,7 @@ class LODMode(str, Enum):
 class ModelFamily(str, Enum):
     QWEN38 = "qwen3.8"
     K2 = "k2-horizon"
+    LLAMA31 = "llama3.1-8b"
 
 
 def _text_config(config: Any) -> Any:
@@ -66,7 +67,7 @@ def _text_config(config: Any) -> Any:
 
 
 def model_family(config_or_model: Any) -> ModelFamily:
-    """Identify one of the two model families supported by this release."""
+    """Identify a validated model family from its native attention geometry."""
 
     config = getattr(config_or_model, "config", config_or_model)
     text = _text_config(config)
@@ -92,8 +93,13 @@ def model_family(config_or_model: Any) -> ModelFamily:
     ):
         return ModelFamily.QWEN38
 
+    llama_head_dim = head_dim or (int(getattr(text, "hidden_size", 0) or 0) // max(q_heads, 1))
+    if root_type == "llama" and (q_heads, kv_heads, llama_head_dim) == (32, 8, 128):
+        return ModelFamily.LLAMA31
+
     raise ValueError(
-        "This LoD paper release supports only Qwen3.8 and K2 Horizon; "
+        "This LoD release supports only Qwen3.8 and K2 Horizon, "
+        "and Llama-3.1-8B on CUDA; "
         f"received model_type={root_type or text_type or '<unknown>'!r}."
     )
 

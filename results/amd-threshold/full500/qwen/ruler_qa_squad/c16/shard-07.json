@@ -1,0 +1,982 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 350,
+      "prompt_hash": "e86fa00b096931cc989ae065bb402631fe4dc44e643df52e6ccccbcf9e95941d",
+      "doc_hash": "35142eb4009dc4db3fb28629f33095cb65b42496dc431263be14662765012b16",
+      "target_hash": "d82601cd98723bc269411ba8a545989d7ed02ff8e2feccbb57491fc8ef3209d9",
+      "input_tokens": 63706,
+      "input_token_sha256": "89136d79d50cad05e9b4fa4e498825df49ff4f6d8e911fdf64bb36c972bb8db0",
+      "targets": [
+        "Milton Latham",
+        "Milton Latham",
+        "Milton Latham"
+      ],
+      "prediction": " Milton Latham",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.056
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 351,
+      "prompt_hash": "6923e7d6f9242a2f59aa8f45f1424f0f15b0b0856dd08b8da74545d98397d73c",
+      "doc_hash": "0726ad6e7d8d87cdbbac914d0f4c516b6e161d6cf145de96f372ae0e763c00bf",
+      "target_hash": "8a85be55af77b935e8bb08b984ef8116e2d1a884cc875b0268de1f58898fcf7c",
+      "input_tokens": 62608,
+      "input_token_sha256": "27fec031c1eaf72714ef09e6055f458605c0099923fe0a2ddbec8b4a544eb73a",
+      "targets": [
+        "Los Angeles Times",
+        "the Los Angeles Times",
+        "Los Angeles Times"
+      ],
+      "prediction": " The Los Angeles Times",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.851
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 352,
+      "prompt_hash": "fe3e0caceab93e6a93457f3490d5037b01b53b18ed2bf0d9b334b6fe5df9839f",
+      "doc_hash": "f2a2c12b975299afa47d1dd2f85a0ade80e2c9c5e602570268a2b86d0504b606",
+      "target_hash": "94ae3cfe351568b6d733f7b84e3d05cfc3a4a17b7fc43294ef754a3828163d3f",
+      "input_tokens": 62870,
+      "input_token_sha256": "d5c5171492a2ead2fc24924a4aab41a837037963d7aa39e5a73ae1b6793c1377",
+      "targets": [
+        "1900",
+        "1900",
+        "1900"
+      ],
+      "prediction": " 1900",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.917
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 353,
+      "prompt_hash": "f58b0db9b8defbf47c0688551be471c001984b844dc9ba81b98462bae78264af",
+      "doc_hash": "3b2c8f1eafb3ad1abce232b71e459d7668c7a19ee5f34884996a635bb5672420",
+      "target_hash": "7ea6332145168d9853d9f7da6fc2dd4e235ccf41b9f8b29554d4066c04c3631a",
+      "input_tokens": 62602,
+      "input_token_sha256": "cdeda3009aa41ad6a139a0b23884377853de088237cfcc877c13c1d04e6a7a84",
+      "targets": [
+        "1999",
+        "1999",
+        "1999"
+      ],
+      "prediction": " 1999",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.873
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 354,
+      "prompt_hash": "a0ec09aec6cb67766da941139adb75c9d76cfe4a947b8000d364dfbe59a77fd8",
+      "doc_hash": "ed949e5bd2fbb3ae5ed7ed03cb1de0547a9a26185135f1983f45e5536bd24a70",
+      "target_hash": "e6227d0e51729bd748e5d4d6176f1f2a1db7377e1b6d35c2873940ee81f4e562",
+      "input_tokens": 63095,
+      "input_token_sha256": "dea22b19722543147df490667f77401c432187648eb18d1f20d5aece481f036e",
+      "targets": [
+        "Imperial",
+        "Imperial",
+        "1999"
+      ],
+      "prediction": " Imperial",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.86
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 355,
+      "prompt_hash": "90fba10cdf4c1751ce14744d33f5c8cc33ed48f569daa04d5fb6355223342b2a",
+      "doc_hash": "53d2e1efc4aac3166e565a4371dee1f028883481dcee540120230691af470532",
+      "target_hash": "3d98efd0a6c9ec262c85e3a187bdd91246b6d2aa613420abbffba36967698409",
+      "input_tokens": 63735,
+      "input_token_sha256": "9b0ac09f8008b3bfae1226a9b60c1e98c822bcac324a7b17ac03d33ba26d04fa",
+      "targets": [
+        "seven",
+        "seven",
+        "seven"
+      ],
+      "prediction": " 7",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.148
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 356,
+      "prompt_hash": "a6a8f5918635341677dff98c539ebc983d6e8679b9fde83fba053525ecc33c0d",
+      "doc_hash": "2c31aa2a42d859c89c1e46fd2623dcd2dcb64b55d7396fec9a904e561c2301b6",
+      "target_hash": "b37ea5774b9f278af2e1dabe3f738d2902575f8ca351d52e652341bc73501f89",
+      "input_tokens": 63326,
+      "input_token_sha256": "87d4ca76fab5938101be85a5c7d29fec1026ca58005b815950c495a6ca7f23de",
+      "targets": [
+        "regional tourism groups",
+        "regional tourism groups",
+        "AAA Auto Clubs"
+      ],
+      "prediction": " The two AAA Auto Clubs of the state, the California State Automobile Association and the Automobile Club of Southern California",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.632
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 357,
+      "prompt_hash": "8ba75f7202202fe75e9cbc155155cd29282ccfbdbb1eea0ee157661753bcf487",
+      "doc_hash": "6b7e9358658f30a05ed6936955b492ddf1965d67586a8d99c1199aa1f2d27b1d",
+      "target_hash": "1582612d9eb384a238c6459b727d2a1dc264fbf4a0f84772e72a91dd52253e1e",
+      "input_tokens": 64781,
+      "input_token_sha256": "7503f74c8f67518cb9b3e2432d5f8b60b6f7f44b1dd7515003dd448870122614",
+      "targets": [
+        "California State Automobile Association",
+        "the California State Automobile Association",
+        "California State Automobile Association"
+      ],
+      "prediction": " the California State Automobile Association",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.195
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 358,
+      "prompt_hash": "717815e90c782f7d4c068fe055d993b695ad97566a57a4c19f1010e9b438f804",
+      "doc_hash": "3309c807f1ab0376358413793faf60b76168a3fd143397a2438a0593badf26a4",
+      "target_hash": "8af222971269fedbf8443add6f10861cb0e4f68502c6aae1dd5d13da973a6a04",
+      "input_tokens": 61583,
+      "input_token_sha256": "fde3d686a48427bf308c6129cdb7c25fd41595031d44277918ee04705802c022",
+      "targets": [
+        "three-region",
+        "the three-region point of view",
+        "three-region"
+      ],
+      "prediction": " the three-region point of view",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.775
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 359,
+      "prompt_hash": "5f6d8e94cced06a3c63fd773b7fef6bc00dc8d414a8f15bcd022101214ded93a",
+      "doc_hash": "f8b05cb72d7ea4ff43fb38cd0750dc9d080d0bea7db17d473db4dbec0f553ac4",
+      "target_hash": "c463db96d5156b1aea90e6033f4e90a3b1145586846bd88ba2203971ddde3a96",
+      "input_tokens": 61781,
+      "input_token_sha256": "59fe56979b172e1d1672de2bc746f48c6c764d4d29acf6a0f8502199994d5e5c",
+      "targets": [
+        "Tehachapis",
+        "the Tehachapis",
+        "Tehachapis"
+      ],
+      "prediction": " The Purus Arch",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.731
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 360,
+      "prompt_hash": "ab8211046914f3a6209092dc913cf46e7ae3b8b3d60d36fffada36cbf1378fe2",
+      "doc_hash": "3b1782e232c66b52bc1e79436501ed948151444f4859034adeac17f0d1a69e07",
+      "target_hash": "e1fd1c6b019e07b96cbde5d74ffad581ebc04e2632d3fcb0bffbd33f6b7061d0",
+      "input_tokens": 63483,
+      "input_token_sha256": "2e902c4129441c22841617895a7d3a988fa60f7374081c9127daef654f1edb7c",
+      "targets": [
+        "southern",
+        "southern California",
+        "southern California"
+      ],
+      "prediction": " Southern California",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.904
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 361,
+      "prompt_hash": "a2b175912a390f7bd99544a1ff33072acfc8a850e00f6bd71a4265c5a7c1715d",
+      "doc_hash": "bd052d735bf673807e7aab55117006833668df2442ca02a22308244b9db803bd",
+      "target_hash": "5727cd6df03ebb7b0a403161d6fccb8eee1826f89cd46dec57078a3a46093fb0",
+      "input_tokens": 63248,
+      "input_token_sha256": "96888120c74c1f1d86adc7232270a2c9c53d7062278e5323acbd5411cc748314",
+      "targets": [
+        "third",
+        "third",
+        "third"
+      ],
+      "prediction": " third",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.867
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 362,
+      "prompt_hash": "43b7c8cbf4bab899f0737b409624fa584d745802d7b9489b0f02452f0eea21e8",
+      "doc_hash": "0ef49867442a6e3645efe33beaf4ebaaeba72af8f0c7d976fce77f65e9036f04",
+      "target_hash": "2710e3f18cce47f41232e6d37af1bd556b29c9570835076c7c2fb267692131bf",
+      "input_tokens": 62381,
+      "input_token_sha256": "bf669715fef4a846c42e62cdaa32ae2afd36d9acd00f1ee4d3c7163a6546b0de",
+      "targets": [
+        "vast areas",
+        "vast areas",
+        "vast areas"
+      ],
+      "prediction": " vast areas",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.764
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 363,
+      "prompt_hash": "cf3c0c53919de2a9416e63cf237e95367623c89684c14aaeba4521b25b35eb64",
+      "doc_hash": "a1eb602e9bfbb29bef64249533e23a12b50b0b18a312049567effcc0e45dd752",
+      "target_hash": "5dea963cbfe623d5fa56eb43bd9f6970c637a91017c06fff59d51200b9fec9b9",
+      "input_tokens": 62525,
+      "input_token_sha256": "7c55a5a2eafce3c2355660692bcf1b019584820b73868a5ba93a139eee6a1266",
+      "targets": [
+        "suburban",
+        "suburban",
+        "suburban communities and use of automobiles and highways"
+      ],
+      "prediction": " suburban",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.764
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 364,
+      "prompt_hash": "e2d9793afec8d4e50921149349b3356e8b922c2311d157c7e4ab02c47bfb7b59",
+      "doc_hash": "761d9ce0dc5cf1d505e4247fe54be842c90961d899f3bae69e41400a6c30749a",
+      "target_hash": "9711b7b71635190542eb57575cd215da239db244c5549182cbb014e00c810e54",
+      "input_tokens": 65127,
+      "input_token_sha256": "c34079573101fd0360b25f3ae0a246ab66f594af5be1211964679f6b9a849337",
+      "targets": [
+        "highways",
+        "highways"
+      ],
+      "prediction": " tourism and Hollywood (film, television, and music)",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.371
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 365,
+      "prompt_hash": "d6cb612a3a92914cbc7613856f85914d7aeda487d4803b87b5f461c2f96b667e",
+      "doc_hash": "d6a9791104017c12fe42f5402429d9824ec5c37bd0088ece1a78db18823db607",
+      "target_hash": "5137e6696b7e04630b5a04afdc2cad9d270f28ac9315f03b88c0c5f4d893461e",
+      "input_tokens": 63251,
+      "input_token_sha256": "fae31e9dcfcadc9a0f4c23a9896bc402ecc2824ab6b76cbfdd301e8a25020bc5",
+      "targets": [
+        "international metropolitan",
+        "an international metropolitan region",
+        "international metropolitan"
+      ],
+      "prediction": " a heavily developed urban environment",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.952
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 366,
+      "prompt_hash": "e99e142a2c4eca5972517536d9e086574378edad3967c6cf640922e094c58a73",
+      "doc_hash": "f7da72d7f9c3ba9e69d845a78f1e27562b03ead3b97585ab3d75559c6b8a998c",
+      "target_hash": "e7b2bd683f70596de00aaae64fe12af2a90eccea7d140642af52a3edb9379a0e",
+      "input_tokens": 62105,
+      "input_token_sha256": "43af58d5cfed52abd44827aebe10e70d35949f0b60a89e465ea599951f40c878",
+      "targets": [
+        "Camp Pendleton",
+        "Camp Pendleton",
+        "Camp Pendleton"
+      ],
+      "prediction": " Camp Pendleton",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.75
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 367,
+      "prompt_hash": "9cfd1746ecd5956d4e0d2e0f737b1bb741f942b3476c4a57ebd2ef1337dcab4b",
+      "doc_hash": "e30719502ac043ce4921adee39cb0051d3b1166af6adf42c188524da0a80f9c4",
+      "target_hash": "6a0fe21b7401aeac90b484c5f5ac77f30fe436c84e8ead6a7c2d8ff0982bdbd9",
+      "input_tokens": 63400,
+      "input_token_sha256": "1d0726c4c0883fdc03c5d2132ce99d90105f6c14909097f205cacae841282f49",
+      "targets": [
+        "Inland Empire",
+        "Temecula and Murrieta"
+      ],
+      "prediction": " the San Diego metropolitan area",
+      "score": 0.0,
+      "historical_two_tier_score": 0.5,
+      "finish_reason": "stop",
+      "elapsed_s": 7.966
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 368,
+      "prompt_hash": "8f3edafb98927c24980578b5408c0703bf23ac8cd5084d7bf5b9c5120a6c3136",
+      "doc_hash": "ca037e5f6a10fcfc3657a9437f8f5ab7a13b946e93b20384cee50e139facaada",
+      "target_hash": "cf46e40b2431e6175dd4b9d331b190876e58a79da1a5fe4250194b5044d148bc",
+      "input_tokens": 62905,
+      "input_token_sha256": "d006510d1b2739d916d0d640f9dbbbbbfcc94222d10a3b745443fa769af44d81",
+      "targets": [
+        "United States Census Bureau",
+        "the United States Census Bureau",
+        "United States Census Bureau"
+      ],
+      "prediction": " The United States Census Bureau",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.912
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 369,
+      "prompt_hash": "01e8ac92b6d166ec91906342940be612c0c889dd3f3fbea940f83e76c45a72f4",
+      "doc_hash": "050ca96828029ff971c68c0c85dcb1614c54c52086e1a5fac83c0d7e23379af8",
+      "target_hash": "69e6548cace2fba4e79ccb73446afc1270ffce590d7d539b3b981f165cbfb387",
+      "input_tokens": 63121,
+      "input_token_sha256": "65767fbacccdbd844b7d7b3cf5b852cb6139643f8859ebb9a1a526c25b64affa",
+      "targets": [
+        "Orange",
+        "Orange Counties",
+        "Orange"
+      ],
+      "prediction": " Orange County",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.84
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 370,
+      "prompt_hash": "163d1fb4fe20978a1b1cb101c55334a680e72614d8f947dac6919a663a0a1e22",
+      "doc_hash": "b5d8909715b062edbcae4342ffb0a0669f9cbe86ce5e2db7ed593a2de6959912",
+      "target_hash": "864b8c9a80f060f705f185f75d186dd5be571c7873dfad33aaafe21f7efb74a7",
+      "input_tokens": 63489,
+      "input_token_sha256": "46409b643e733dd113ab36407db0ccf5e2401e0cc04c6b3cf2f18da532529052",
+      "targets": [
+        "1990s",
+        "1990s",
+        "1990s"
+      ],
+      "prediction": " 1990s",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.029
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 371,
+      "prompt_hash": "50d0032e0b61c0de63651315b6b54c38c66b3ee4bde037ece94a1e3127fb67ef",
+      "doc_hash": "a5f3d0eace73cc8c433011943cb7cb1b606e5e103c2cb6312d2ef7e5753bc23a",
+      "target_hash": "53206e4e4c1a15324f22cfa19ebf91326271186679ef5a8e3698131b78d9b7f9",
+      "input_tokens": 64403,
+      "input_token_sha256": "f5c671f7a346f786f23093d127df7780304dbed632e76d1b5d88036617ea2487",
+      "targets": [
+        "Mediterranean",
+        "a Mediterranean climate",
+        "Mediterranean"
+      ],
+      "prediction": " Mediterranean climate",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.047
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 372,
+      "prompt_hash": "3cac6fda0ff01268b235b3f634c246a1cc9b0dd0713f31528136a106f9e944da",
+      "doc_hash": "88272d527ce2a0bf5ba7621cabe3405e788db4f0ca91ca453464073872d84e0a",
+      "target_hash": "4f55d0dac1824560672b991b687564ef65e546b828b54d5d48a97f9380aff3b4",
+      "input_tokens": 61289,
+      "input_token_sha256": "a2a61099a5c473aaa39ea07f98b885a2604e956a96d02957ad560b81757531bf",
+      "targets": [
+        "infrequent rain",
+        "infrequent rain",
+        "infrequent rain"
+      ],
+      "prediction": " Mediterranean climate",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.62
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 373,
+      "prompt_hash": "7ad7d308f19af6f02f6361aafac3ae69a8876e6d3a55119b136fe0c9dae1242f",
+      "doc_hash": "65d65802d05393ad6264f8d1b25d2aa9cb8d19e034f79e8dfe6b8fac8169daf9",
+      "target_hash": "8d7dbb7efb79cfce7dcab290ea1bda7c6096161e948c9018552c8dbcce125f8a",
+      "input_tokens": 62716,
+      "input_token_sha256": "024bc20e58c1510d7dae3f95b7d8ece324c206e00fce1fc3a68e7dc90be791b0",
+      "targets": [
+        "60's",
+        "60's",
+        "60's"
+      ],
+      "prediction": " 60's",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.851
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 374,
+      "prompt_hash": "65d81f14069826a991a08c511f89b95d9a724efb77253b85738236fb8b09fe25",
+      "doc_hash": "43c6a4699d251503d68ece8ea8b0c994bd0378a9b6d85864bd60398952559885",
+      "target_hash": "6efd328bb283c9ad22c29155e47c798a6f61a40a7b2850ff8c358b45ebab9084",
+      "input_tokens": 60771,
+      "input_token_sha256": "d5a1d00f0ac2bafa09b90172f166cb696974024c0d34dd3c44ed649f6cab43f3",
+      "targets": [
+        "very rare",
+        "very rare",
+        "very rare"
+      ],
+      "prediction": " very rare",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.534
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 375,
+      "prompt_hash": "ceb951ef534e133f78fd716d6565b49bdee8da26b435b50de3f6250fc25096f1",
+      "doc_hash": "ec66b8eb583eb4e2ab254101ea8003a4b8ab412bb0e8e8dea51d140f9b038192",
+      "target_hash": "619be5f8ff33f4914c4fac616b037de1b2af2ebc0738540406d252e4ac56f540",
+      "input_tokens": 62624,
+      "input_token_sha256": "de9f7375786b99d32d749e589e0dca89bbba563daae51ca4fa85d2747a67717a",
+      "targets": [
+        "70",
+        "70",
+        "70"
+      ],
+      "prediction": " 70",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.82
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 376,
+      "prompt_hash": "194e1565f2a9514cede0108056a62522fb0ce2c1304ca9073d26d96f39f55121",
+      "doc_hash": "38434d6f3667b3d8a09937899fd954dd84fcf7fa567902b601a95e0642d16a3d",
+      "target_hash": "d18e38277722ca1f324e8a6be035e80a0526fbb9451828135ea614f48e1fd398",
+      "input_tokens": 61232,
+      "input_token_sha256": "fb1d5fcd084e869f433c32b198a04ce4903c6c9626a2a856a295a0351d08481f",
+      "targets": [
+        "varied",
+        "varied",
+        "natural ecosystem"
+      ],
+      "prediction": " a diversity outnumbering other major regions in the state and country",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.894
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 377,
+      "prompt_hash": "e22cbcd1ff3d01a285e525a54d39217d3912592495f2c625ee081a88df341918",
+      "doc_hash": "8419d662046e4e3797ee5d41268d6d8d1c028afd8940344b7f24fc84293b8a9f",
+      "target_hash": "6218a92e914d8d0f98c162e16d1dd52cc3502ebdee188560bcc6cdffd22f43f2",
+      "input_tokens": 64559,
+      "input_token_sha256": "ad1a8bc1e1973c4c2041d5229d2f67294b3999bf5fe3fee494b9dc490d23b4b6",
+      "targets": [
+        "Pacific Ocean",
+        "Pacific Ocean",
+        "Pacific Ocean"
+      ],
+      "prediction": " Pacific Ocean",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.05
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 378,
+      "prompt_hash": "38be13cfb8f9babec09d7af0daf21fcf565bb8a872db860a4930318f6e1813d1",
+      "doc_hash": "3a8c73d1d099f42979daf223ac424407f526c4e310d097c5cf5267eda744f354",
+      "target_hash": "239f04d4f1924620f5da844fd3bb050e786a76b3733ba0c776edceb3e74e0ea2",
+      "input_tokens": 64778,
+      "input_token_sha256": "885042cbd383584e20335da50aa691d08366f763207ec1ad5bf91041d74a6fa0",
+      "targets": [
+        "topographic",
+        "topographic",
+        "topographic"
+      ],
+      "prediction": " topographic",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.057
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 379,
+      "prompt_hash": "2b4c46b9aeeb8bcad55d9af76d65dd920063e9982301a3effdfd5aa220790461",
+      "doc_hash": "f62f962c4739cb60697b7a2d5c1d509b66bfcc2182546f9012a79776f7f5d8cb",
+      "target_hash": "1a60a16fad3b5874ff945985af7d1a5d428c8b61285aef9645fa44919ac3e1e2",
+      "input_tokens": 64233,
+      "input_token_sha256": "ece593fc95dfe761697ad42b2709c7408b377fbc9a79197a0cfc73b0d89f8bb0",
+      "targets": [
+        "Peninsular",
+        "Peninsular Ranges",
+        "Peninsular Ranges"
+      ],
+      "prediction": " Peninsular Ranges",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.073
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 380,
+      "prompt_hash": "957b815fa609e6dd2857036c4939025a77aed8fd85c947cac776cf4401e4796a",
+      "doc_hash": "13e813ee54a2fdc2a279b5713256efe6cb05fc9cdb2f8064f6fc58ce03718d90",
+      "target_hash": "061faf621d4f142203755bf07b72cb5611a0fbd26003a31b8a8ed3d8939f6c04",
+      "input_tokens": 64811,
+      "input_token_sha256": "56ccd3d85bd68693a6e1555de5b72d6ce1a0a2807d929405950bcba63c382b7f",
+      "targets": [
+        "valleys",
+        "valleys",
+        "interior valleys"
+      ],
+      "prediction": " The Transverse and Peninsular Ranges",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.274
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 381,
+      "prompt_hash": "491b6f3532118d4dc414c1ec743e83010219c185ac2e7cbb91dc8061655d8f15",
+      "doc_hash": "1d13ee2b60774b15f8f1f8f968bc664fa633894bfd9bc12ff320f9d6be0ffb2e",
+      "target_hash": "abf2585172eefab032a1f9725d0a3aa61c17527aa03324e2c29c42148f8d4c73",
+      "input_tokens": 64260,
+      "input_token_sha256": "9b674e00fdbbc5a9072fd7f080b6e2260326efdba5e3677c902048c97e9b8383",
+      "targets": [
+        "10,000",
+        "10,000",
+        "10,000"
+      ],
+      "prediction": " about 10,000",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.176
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 382,
+      "prompt_hash": "36ffed3110c84a543742bde496c448d98275b928aee8a2ad7bdef40bcf7ed64f",
+      "doc_hash": "35350b53cc8bfc01ecedef9746a4f01ff83de4dcf91f85fa62d9a767f8d18d14",
+      "target_hash": "7da9d509090bf4df493f6b8debb623666bca80eaf8884fe5a54c140bb45ed498",
+      "input_tokens": 62833,
+      "input_token_sha256": "df5e432a66889efe18d960e6a6d0cc09faaa3bed8df4749c658a0a51b72397dd",
+      "targets": [
+        "small",
+        "small",
+        "small"
+      ],
+      "prediction": " Nearly all are so small that they are not felt; only several hundred are greater than magnitude 3.0, and only about 15\u201320",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "length",
+      "elapsed_s": 8.632
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 383,
+      "prompt_hash": "48ccd048e97286f5d10a035fbf02f508b25d17d33335e42a0f9ea28d42e7ed18",
+      "doc_hash": "c1f790286cd340bd446fa78410275943d9e17557f989084378c33ba0ad170086",
+      "target_hash": "662d7ad4b0f44b665543434425854a40503dca41407966c58158a53259a66c5a",
+      "input_tokens": 63556,
+      "input_token_sha256": "09db19dfdc7ffaef9cc2a9effde7c005b42c1c321effd219c4a940a4ebe1b609",
+      "targets": [
+        "6.7",
+        "6.7",
+        "6.7"
+      ],
+      "prediction": " 6.7",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.934
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 384,
+      "prompt_hash": "7e049c1c748d49deb6d868dd4b0e13d3bcaa515fd0ef49846ffcc7e015f94a51",
+      "doc_hash": "744c7ff080457b38c6ab0968f1487a6a8b3ca6a97a3c5d0848bfd8d435af0b42",
+      "target_hash": "445d899acb0951b60263d95739ce6f2b9ef9e7c52f14d64d9e7795900c0b8cfd",
+      "input_tokens": 63469,
+      "input_token_sha256": "12367ba459a5db10de59f7896384e44139529994257bcdd5e5fb02fc8852251d",
+      "targets": [
+        "property damage",
+        "property damage"
+      ],
+      "prediction": " property damage",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.869
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 385,
+      "prompt_hash": "526e99104683ab25a90eaa5ceab9eb0cb4a6cf0a2179f859b66b4f3defaf89ea",
+      "doc_hash": "a67eab517392b10367ba2eb89e7f1a0533383585114b328f28365e5da578f91b",
+      "target_hash": "48bc60a03d74ead69708cb8dbbbf6547da439725fddad9f660a0ae85bb334967",
+      "input_tokens": 62667,
+      "input_token_sha256": "02c8a9e4fbc2b5fda6c5de0389cc0ba725274fe4674aceb052179e865d3587a1",
+      "targets": [
+        "$20 billion",
+        "over $20 billion",
+        "over $20 billion"
+      ],
+      "prediction": " over $20 billion",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.907
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 386,
+      "prompt_hash": "545f6f395fe768f69cb32721d3ed11dce5ddd9c69eb3977c5393599d70fe42e8",
+      "doc_hash": "890349cc5593c5acca1bdcdf379e860b0888ab2433346e06ad21e9c0b4d480ff",
+      "target_hash": "f1abc60dadb04fd5b9860963f9f9300e7824591130406ae1efd275e2e04b3bdf",
+      "input_tokens": 63797,
+      "input_token_sha256": "4ca395e28d68c5a9358e7cb9fc7dad1e13b03cb7efe206b5602703114fa63448",
+      "targets": [
+        "San Andreas",
+        "the San Andreas Fault",
+        "San Andreas Fault"
+      ],
+      "prediction": " San Andreas Fault",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.007
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 387,
+      "prompt_hash": "20ee3c711466f92fb41e192f6fbb097adeaf0d21c8cf8a5a5043f39db42c02bc",
+      "doc_hash": "e971a19160054ebfeafccebd99c935ab7649da236a0a06ae207b7b31ea8b8557",
+      "target_hash": "6845759a2e2ef7b36dc7478fdd06318c14795f7216dbbf06b34b5daa2dfdac2b",
+      "input_tokens": 63096,
+      "input_token_sha256": "f9b15117cfe880003243c1794e7834cb2d726aa939f54616a18093d1ac1eed6a",
+      "targets": [
+        "6.7",
+        "6.7+",
+        "6.7+"
+      ],
+      "prediction": " 6.7+",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.932
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 388,
+      "prompt_hash": "17f6b39eb1d277521f401a095ea3c6798ec21a2a89f3439a2697f6785fa6e53c",
+      "doc_hash": "013f3a33be2b80d69b54740f3a671e3382d3d70ceae0669a94b4d2e5a6aaaa70",
+      "target_hash": "e93bf7f00063b2db1fc22e00bc9e5f81f2f53ee77bc94dd5575413f61f52f06c",
+      "input_tokens": 63873,
+      "input_token_sha256": "e82506dc4a84b719414ea3f0feebfaf93874ddebc6cc44c024dced8d0b36f205",
+      "targets": [
+        "Puente Hills",
+        "the Puente Hills Fault",
+        "Puente Hills Fault"
+      ],
+      "prediction": " San Andreas Fault",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.018
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 389,
+      "prompt_hash": "9632dde768d66ba549f328c90b2481dcd0e1a14656d1d8d716511ebbb540a0c8",
+      "doc_hash": "9115c1ec4fa1a7d0fa1b04f1a1b555338ae4c523a3953710519c6a09dc647f96",
+      "target_hash": "49694e236b98c3ddfa3536adf731076f2508dcfa9ba72abbedd0699fbbdac131",
+      "input_tokens": 62443,
+      "input_token_sha256": "83bad16efc7cc3f653dfbe4c3c9294a12e89c190cb0d62790bc43ad7398ce75b",
+      "targets": [
+        "USGS",
+        "The USGS",
+        "USGS"
+      ],
+      "prediction": " USGS",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.784
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 390,
+      "prompt_hash": "5f66ea8798a953f8a2b64571a48f0b3568a99de4874412b9af5f39b570d13667",
+      "doc_hash": "7eefdb019ce81a53f170983df0e8025fc479ec687848c2d6973c54e9d2259cb2",
+      "target_hash": "f52cc4766492442798491d1ab3fabc39a30a3668eacacea2a37ca9573d7d876e",
+      "input_tokens": 62790,
+      "input_token_sha256": "45f41cb80d1242638a29a14ed2fe905593a4e5b3e67b3bad1b2654e4955fe0ff",
+      "targets": [
+        "occurrence",
+        "occurrence",
+        "occurrence"
+      ],
+      "prediction": " Earthquake occurrence",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.848
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 391,
+      "prompt_hash": "627a0d57643810c95c3e4634b7d08c3a819247f8e2cb7237038d8ddc14689caf",
+      "doc_hash": "2093da60691f15664aa415a0b7b39fa711cc1a134ccd8581dfc3b94b437720e2",
+      "target_hash": "9518759e551cd9cc93a3ead20eaad822750caaa70401f7ae800ad4bdc2bf7b5c",
+      "input_tokens": 63022,
+      "input_token_sha256": "ed3b4777720e3cec633b7e7a172808bbb14e71cf15ccde99563f409af40c32f1",
+      "targets": [
+        "economically",
+        "economically",
+        "economically"
+      ],
+      "prediction": " economically",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.819
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 392,
+      "prompt_hash": "10a56c73f98c7f65176cca002c91751e3a418e0fa08ac8c88fa7a39467da35fa",
+      "doc_hash": "0f093d0f5250804cfaec94c867628ac9c74ddbd6d052119e234b690620a51d08",
+      "target_hash": "41ca3b92352dc9acb54e5063ac5ab2e639d009f6ea467dccf95e5df222b4d34f",
+      "input_tokens": 64616,
+      "input_token_sha256": "27280e9f8ca241776332be5f05ae11139b3228b2b8e2c4a12beb1bf3989b8f86",
+      "targets": [
+        "global",
+        "global",
+        "global"
+      ],
+      "prediction": " city county or powiat grodzki",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.236
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 393,
+      "prompt_hash": "eaf7b575a7dc0637f5ad093599f9a4010804f0fe8bab841bb72ca84c25bd80d3",
+      "doc_hash": "46aba3e00d07c990bd2f1159d1b809acce64cee3715ee33dd4c8b307a0135e63",
+      "target_hash": "675894c4f5e4410fb9f3699d04486ad40717e09693b7ac91b4f86d43e07df57d",
+      "input_tokens": 63845,
+      "input_token_sha256": "71d0756372b68ee38ab6ad2918c666a0845300a5a0ad0d8d551e199804a6ca3b",
+      "targets": [
+        "economic",
+        "economic",
+        "economic activity"
+      ],
+      "prediction": " economic activity",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.957
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 394,
+      "prompt_hash": "79a40ac6acf18d89e7c3774c862843f0bdd2b90220612b793a0acacd649ae5b0",
+      "doc_hash": "9fae8cb1a252cee83796cccff650fb18451c769cedaa02797dd33a97ef9c3729",
+      "target_hash": "970ce40018a74c2de3307e1e4b5ba9b2f855e6046de03fafb631ae9a7aa38624",
+      "input_tokens": 63922,
+      "input_token_sha256": "b445a661601277c5bc1056d1a38ac63d9e416da32c5151bbbfbf47d8fd9370af",
+      "targets": [
+        "2010",
+        "2010",
+        "2010"
+      ],
+      "prediction": " 2010",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.061
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 395,
+      "prompt_hash": "4623f1b6b12ef771ed38f8c28c52401deb18e7e0b21cd568554576a957fe0775",
+      "doc_hash": "642158e8f5050e8625338bca242239cb04e2b5e49840031d6bea556d744ac004",
+      "target_hash": "af828f22e70275619fe1fbebe79902aa2507b37ee6d4a3e08563ffdb0eeca8eb",
+      "input_tokens": 62806,
+      "input_token_sha256": "2335a53a67bb6f00d7d6849f4cb2fa05123d8bdf659cee143bed895b920e3ea7",
+      "targets": [
+        "high growth rates",
+        "high growth rates",
+        "high growth rates"
+      ],
+      "prediction": " high growth rates",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.868
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 396,
+      "prompt_hash": "ed478f4fe677b31b80cd8c21f584d499b9ecb36d9a70f8badf7d8fa7181aa7f8",
+      "doc_hash": "63e5fd25a1d30a308e23fcabd472b296263f24c12271872d934360bdc707ad08",
+      "target_hash": "7c531a6e5defd7df305d6329e47a822c7e671cf9b4a944c69b8af38c98883899",
+      "input_tokens": 63117,
+      "input_token_sha256": "e30e897c5cb817d245e07d6032efa1724902d2401036172109bb66feffea41d0",
+      "targets": [
+        "10.0%",
+        "10.0%",
+        "10.0%"
+      ],
+      "prediction": " 10.0%",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.992
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 397,
+      "prompt_hash": "88cb0ae697000e0ae81f297deb8602571baf0abe0a59f84b639b76fb44a541c6",
+      "doc_hash": "20ad1dfa56fec76c4df058b737c263e00760e0dfcaab223fda38976591141d83",
+      "target_hash": "585c6d8d61d76eb2465c9a60d9c5e0fc280fe4f7c6ca97fcbb530ac26b8923d8",
+      "input_tokens": 63191,
+      "input_token_sha256": "b527ae6065d87f4a924adfb3ef123921b2bb9fb6019e9c40aab8adc15df456e8",
+      "targets": [
+        "tech-oriented",
+        "tech-oriented"
+      ],
+      "prediction": " a stronger, tech-oriented economy",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.968
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 398,
+      "prompt_hash": "8965990f432319e72ae81788de6ef08ddd1fed77e124dd07f778aa18b1dd4cca",
+      "doc_hash": "44147f16012d610c5bd017da7b2ccdac23f777043f1451127f3d0994e917124e",
+      "target_hash": "4b8ae3df6b7399c11d9f9dc223d90840f5fc6d4acf03bb376300721a1fdc08a5",
+      "input_tokens": 63031,
+      "input_token_sha256": "c9c68b224932caaf76e45e82924d2214f438b93ec53d918674caff9aebd8dd59",
+      "targets": [
+        "Greater Sacramento",
+        "Greater Sacramento",
+        "Greater Sacramento"
+      ],
+      "prediction": " Greater Sacramento region",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.877
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 399,
+      "prompt_hash": "9b82cc301a93f701aab5cb768489ef8ec5e3695634b08f6b04417b78a610ec67",
+      "doc_hash": "f98e55adc35cc23675e2fb441c4bcddd672c036b6897b3519fa8f43e8187eca9",
+      "target_hash": "4f703524d419372191fb327371445037431650e7af468d1177b3debe15e17527",
+      "input_tokens": 64042,
+      "input_token_sha256": "948f0a8d604ae9e6e660689a83ddf70bcf2878e094d2b352e3e817e55c4d1261",
+      "targets": [
+        "Metropolitan Statistical Areas",
+        "Metropolitan Statistical Areas",
+        "Metropolitan Statistical Areas"
+      ],
+      "prediction": " Metropolitan Statistical Areas",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.099
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 74.66666666666667
+  }
+}

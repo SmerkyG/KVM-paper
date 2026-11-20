@@ -1,0 +1,1036 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "niah_multivalue"
+  ],
+  "records": [
+    {
+      "task": "niah_multivalue",
+      "doc_id": 100,
+      "prompt_hash": "7703584f310ec50ce3ffa7d8431a18d16a00c367d373295db37ca5e2be9fdebe",
+      "doc_hash": "855e8872487d78de4f9e60886bc18b7b8a9f4b08337fc048ef07067dc3fc6c72",
+      "target_hash": "90f12c03974df49c497a11a8418a78463fc591fdc450d194bde4d4e7c5d9c847",
+      "input_tokens": 65056,
+      "input_token_sha256": "0e47a7129ac1d0f5bde456f83afac3b4b9ac77bb917917e89a0c5cd30cad76eb",
+      "targets": [
+        "4896008",
+        "9978365",
+        "1625760",
+        "3937099"
+      ],
+      "prediction": ": 1625760, 9978365, 3937099, and 4896008.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 20.112
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 101,
+      "prompt_hash": "81fad66a21066a14fc250e26deb0e2ad098c6cf15988a0e6d7af0bae630a2fac",
+      "doc_hash": "39988ffe190adc43873ff364a6562b84fef93bd390a197474a428ea9a8e705e6",
+      "target_hash": "fac5307f58cc056550147e9f3cd0fe7760a1c9cc1f808563eae4cf43f2e1a0fb",
+      "input_tokens": 65056,
+      "input_token_sha256": "7b0639dd4e36bc2f137904ba71d192f9de587fffa41df50b50875977bc73120b",
+      "targets": [
+        "5856449",
+        "1628578",
+        "1155477",
+        "6006190"
+      ],
+      "prediction": ": 1155477, 1628578, and 6006190.",
+      "score": 0.75,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 14.965
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 102,
+      "prompt_hash": "a23768ccac0ee273e3a3992883782ae87245dbb6b7e7469a41b7633110b0a6d3",
+      "doc_hash": "1809ec7995bc858ce2c8fa1ee8ea387ed1a6b7d317c3745d6c56c77519331fc5",
+      "target_hash": "66a2a6bb0ded1fbe19b12571ff46e4035c81d1e42aaa62b071a9f9c8f51be66e",
+      "input_tokens": 65068,
+      "input_token_sha256": "79a87c9b6f4251d48d2270405183aff785a2e8b02bff691024b663dca6c4d575",
+      "targets": [
+        "9796605",
+        "9286475",
+        "3251501",
+        "9459284"
+      ],
+      "prediction": ": 3251501, 9286475, 9459284, and 9796605.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.174
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 103,
+      "prompt_hash": "f7e6d66898502192832cc86f2d183f8d17ded76f4c348e7fa74ed8ae2d0e3641",
+      "doc_hash": "b98fa0db367d0ff3d2d86fa8fb078120ac300dcb6ec0943a20505270e2861124",
+      "target_hash": "3612808a180337324ee6af76b0295a0972ef27f39bf8e40d6dd6ef36a633c363",
+      "input_tokens": 65056,
+      "input_token_sha256": "f9a4cc58af1f2c18fbdec9596af5d16101d55772010b96d880ba98db3a5ee59d",
+      "targets": [
+        "8699307",
+        "5316188",
+        "4123902",
+        "1236293"
+      ],
+      "prediction": ": 4123902, 5316188, 1236293, and 8699307.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.143
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 104,
+      "prompt_hash": "5dad96c04178474dcf7a4544fb34d009a75b7288d7c022a282e8561f6fdef0af",
+      "doc_hash": "c99b3938a8480d0d8522df27cde0177070a95c7c989be934b1abf64e1139d810",
+      "target_hash": "44713733767e4deac88ce34ac2682fdf6d1d4c68c12af137b758d69af0ba0426",
+      "input_tokens": 65050,
+      "input_token_sha256": "4fd8d43a53898944f7e0dbac7abf2fd25d5855ca33412390cb55013c3a70e969",
+      "targets": [
+        "7802999",
+        "8175669",
+        "9644974",
+        "6501696"
+      ],
+      "prediction": ":\n\n1.  **9644974**\n2.  **8175669**\n3.  **6501696**\n4.  **7802999**",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.575
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 105,
+      "prompt_hash": "27a7b1bf1aca6b8ef85705c12efb9c04957badf8107aeb28c791a7ea6279cf1f",
+      "doc_hash": "d326fe8ac8797b4b82aaeea3abc519e4755377fa4eda012f1d846a8a039b7b9c",
+      "target_hash": "1f9b304db529663a6b1788efdbb6ff5dd5cb05c3d47c50811e60c1d977d482d9",
+      "input_tokens": 65044,
+      "input_token_sha256": "01f87b07c319fc898fa20efe3d8749a413650426f7d147f1ec1f5a247ca8904d",
+      "targets": [
+        "6429135",
+        "5161539",
+        "1114590",
+        "5375250"
+      ],
+      "prediction": ":\n- 1114590\n- 5161539\n- 6429135\n- 5375250",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.249
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 106,
+      "prompt_hash": "0e0d4e9c690df5b2a80165cc8294d6efdc385c4f2745b5dfe3f516ed70604c3d",
+      "doc_hash": "a83d3d5c41cc46326c3a1a1780eb618ec8f89cff867f11438e3e4c7980160a8c",
+      "target_hash": "6d81b19367819c3cb7bfbd3e3c61ea26c5aca654bcd55f6a455e2a87b1723597",
+      "input_tokens": 65044,
+      "input_token_sha256": "62b1347d64a65f457f3e7ed0ea077963c46603f52a40cd2229cbd401125060c9",
+      "targets": [
+        "1191859",
+        "5388133",
+        "7032283",
+        "4964499"
+      ],
+      "prediction": ":\n\n1.  **7032283** (found in the section discussing the Summer Founders Program)\n2.  **5388133** (found in the section discussing startup mortality and demoralization)\n3.  **4964499** (found in the section discussing procrastination)\n4.  **1191859** (found in the section discussing the \"A Familiar Problem\" and the Summer Founders Program applications)",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.578
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 107,
+      "prompt_hash": "c0e5e289d31f458215e4f6260ad427a404b5d149ce953f2909b80e8f455c35f5",
+      "doc_hash": "5edc7ce574645094b56e1d68e92ebd2a8b1d41e0bb5f60b2fd9fc7c1e7ad4783",
+      "target_hash": "20de6d6863e0ae60536a70b122fe3c7ad421ee4816ee97d2964d055cc2ff0719",
+      "input_tokens": 65050,
+      "input_token_sha256": "04e321b6a707a77b208ea2025076c2eb86f3b33332ce69c133cb86e3c199ff1c",
+      "targets": [
+        "9430894",
+        "6217344",
+        "2969909",
+        "5949909"
+      ],
+      "prediction": ": 2969909, 6217344, and 5949909.",
+      "score": 0.75,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.953
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 108,
+      "prompt_hash": "fb8cc124ffe246f669434cb6cb5e1a1c263f6ac5ad12bb5d8294575d490dc8c3",
+      "doc_hash": "46eae7e77c2d2e8b94aa72a8ed427db13ffcd00000d0f4869cf8caac8ea8cc8b",
+      "target_hash": "306537a75a13f09e940493aad1681f19d2a4f05403f5f7cdfe0f8e503d9e005c",
+      "input_tokens": 65056,
+      "input_token_sha256": "315198a4019e77379928cae15e6e6220bb0e111cbda35d39c1801cf212bcba39",
+      "targets": [
+        "8633275",
+        "7268384",
+        "7976731",
+        "8899184"
+      ],
+      "prediction": ": 7976731, 7268384, 8899184, and 8633275.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.164
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 109,
+      "prompt_hash": "883c70e2f7fcf184009f4791eef6e6bfebc02c276393cf6f530502caf873fc0b",
+      "doc_hash": "acbf4db9f45467d1d00a5a2948df2e6a08c239cfa7b58ade7c70cd3365ef1161",
+      "target_hash": "2093d927abe207473a6d41a4859bb76e927150d81eb6778c8e79d1b92d971ecc",
+      "input_tokens": 65056,
+      "input_token_sha256": "d7d590858a9b5b67438656166b036dea4c9fc6817417635d5de7ef2e912bfafc",
+      "targets": [
+        "8495187",
+        "9861274",
+        "7069742",
+        "2310346"
+      ],
+      "prediction": ":\n- 7069742\n- 9861274\n- 2310346\n- 8495187",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.243
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 110,
+      "prompt_hash": "00bb1245827b6139554db8efa01f6246fb1c762542cb7967f649a9d99cd152fc",
+      "doc_hash": "646db264199145af5b61f382f49a7f3f58c7801f9b1bf6362c47c72538775ad6",
+      "target_hash": "813bc6c21a283adcdacd489d4e1fa8089c66db78507d194a7a34a1d68a604862",
+      "input_tokens": 65056,
+      "input_token_sha256": "dcb28692d84d02987d14d9083987fbb9d870c5f20a20fa81b4f518e69f3c4061",
+      "targets": [
+        "3514105",
+        "3760475",
+        "6504900",
+        "9729882"
+      ],
+      "prediction": ":\n\n1.  **6504900** (found in the section discussing startup morale and the \"roller coaster\" metaphor)\n2.  **9729882** (found in the section discussing the \"Still Life Effect\" and bad business ideas)\n3.  **3514105** (found in the section discussing compound bugs and functional programming)\n\nThese numbers appear to be inserted as part of the text's specific formatting or as hidden elements within the narrative, likely serving as the \"magic numbers\" the user is asking about.",
+      "score": 0.75,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 18.446
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 111,
+      "prompt_hash": "9d136480db9fdb8d8cf21032b30ba82ca8fcc315ffedeb4382eb05e7509545da",
+      "doc_hash": "980edf91acab048398b90ecc680e6bd4ec51367777ea891b096dea25957fd5ee",
+      "target_hash": "b8bdab690c5f2f7911f22ff8b572f9a8d22919eba95cf903108c5b4946a12dfb",
+      "input_tokens": 65056,
+      "input_token_sha256": "8522b86361b12096507e45a550929850e54805eab2c54d1902fd63cd5659bf48",
+      "targets": [
+        "9562677",
+        "8473959",
+        "1933413",
+        "8607331"
+      ],
+      "prediction": ": 1933413, 8473959, 8607331, and 9562677.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.181
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 112,
+      "prompt_hash": "0cee9e6d1bd0d8a09aa587440ba116b6b1ed2c8d95c2fe5f4c0c39bf8cdd9a26",
+      "doc_hash": "59a2f94ff5775361fd4e18db5fde7804376cb1d09b53c3d83e2081fb2be3d66d",
+      "target_hash": "677158a94454aca12d974e359d011640665ee61a1d8faaf49049955bbe75a8bd",
+      "input_tokens": 65050,
+      "input_token_sha256": "0d51b2843be0f03aebe3cf28b1d92ec3e8d7f023fcd99f62a7b1325a92af8ced",
+      "targets": [
+        "8757420",
+        "6170227",
+        "1365247",
+        "7642917"
+      ],
+      "prediction": ": 1365247, 6170227, and 7642917.",
+      "score": 0.75,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 14.983
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 113,
+      "prompt_hash": "61c85469f0a5046fda3ba380fc4a81ca78143b0d59c74aeedf313a72ae030f26",
+      "doc_hash": "57f2a2c2037b65a04f2e1372701853f4e462a5e26c70e774761a2fdc158f5813",
+      "target_hash": "693a183904edbbd641cad2458962eab1a9918da715eacbe8fdc2962906d59b34",
+      "input_tokens": 65050,
+      "input_token_sha256": "a997f5d30707eea6b3a616a3fcce18658d2dc026653980af7d90d9b4f07dcea7",
+      "targets": [
+        "8108462",
+        "6780235",
+        "2069713",
+        "2010921"
+      ],
+      "prediction": ": 2069713, 6780235, 2010921, and 8108462.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.197
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 114,
+      "prompt_hash": "b9edae7dc15e2ee8cdd375097d3545040956d98c2ce329f9ad05813cdc2e8b0a",
+      "doc_hash": "e350ce12e8bcf67867736154ca3015b024ef6c555ab06681ac845478503ae221",
+      "target_hash": "ec4ed7bb2c7d742e12d2ebfadfd2e326d01d777cc674ee4c5697d33cd2c53d89",
+      "input_tokens": 65068,
+      "input_token_sha256": "106e989e97d46bd6a47f87807b41687fe3348dffee86530d20e6433e3b48c1e6",
+      "targets": [
+        "3272119",
+        "8052503",
+        "7282411",
+        "7416943"
+      ],
+      "prediction": ":\n\n1.  **8052503** (found in the section discussing \"Morale\" and \"Husband your morale\")\n2.  **7416943** (found in the section discussing \"The Still Life Effect\" and \"Why does this happen?\")\n\nThese numbers are explicitly stated as \"One of the special magic numbers for earsplitting-osmosis is: [number]\" in the text.",
+      "score": 0.5,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 17.523
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 115,
+      "prompt_hash": "4f0faf56a37437f567ccbbba24b0bdb222eb678a954f09c203399a818c5dbcfd",
+      "doc_hash": "578633ce51c9b616d54a850493c91cb321313e3e66ee1a0ea63ed60c390df2e0",
+      "target_hash": "41d95c61b81e9e93db08b0b90c6a1eb571d3f4ca5a36ae5c7000f419b6adf6b7",
+      "input_tokens": 65056,
+      "input_token_sha256": "5afc86f2e181d0e9233a795ddc5cba2136433f4c7b7eb79dbf5f77afe281c88c",
+      "targets": [
+        "6834610",
+        "2990334",
+        "3994290",
+        "7594429"
+      ],
+      "prediction": ": 3994290, 2990334, 7594429, and 6834610.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.185
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 116,
+      "prompt_hash": "297f41c2b93ba5a3feb3d3927bb76e90640d79a327ec5aa88ae30f424a822272",
+      "doc_hash": "6c5dfa13c429cbc5d208ee1d92c905d33aed8658eead2715605bacc63440f2fa",
+      "target_hash": "028cf34d5cf0ba7b7e0eecec40e10dd90f3c04e4d4449f65a2fbf8816736d685",
+      "input_tokens": 65056,
+      "input_token_sha256": "ede5d180372439dce859707d4d9321ca0bdd4a77cf1b8fed264e6a0700e98fe5",
+      "targets": [
+        "8767916",
+        "8115687",
+        "9924365",
+        "7363203"
+      ],
+      "prediction": ":\n- 9924365\n- 8115687\n- 7363203\n- 8767916",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.269
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 117,
+      "prompt_hash": "a0ba92683eb7ad4c233047accb92ab464cb350e0b589d2e56b357d4154798560",
+      "doc_hash": "01e596b21d830ad4bf37eafb33deff157dee3f63ea7741dfdaa560ac7406d36a",
+      "target_hash": "d6a5cc18d3bfe379f9a6c660d98317debdb492022b235b51834a1461c2de52d3",
+      "input_tokens": 65056,
+      "input_token_sha256": "b9b11ce17e61316465d6258a7c3520ef258bdbd55dd951c40173c32e7f200b1b",
+      "targets": [
+        "4162177",
+        "2893218",
+        "1540516",
+        "8033690"
+      ],
+      "prediction": ": 1540516, 2893218, 8033690, and 4162177.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.209
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 118,
+      "prompt_hash": "735c72cf95e739d8315f16ba18ebbd9ef09e2da0bd1858a33147b930417bafa4",
+      "doc_hash": "8a256cacfd3f72bd67b46b93145b47fae181b6a798b3e0d3e96796f0d9c3fc04",
+      "target_hash": "61dd3528d2cb9da518721adfe0a0b28b9f4cc27e8a85da7e068c178582bc011b",
+      "input_tokens": 65068,
+      "input_token_sha256": "565ce5db5a83642ff4ad75880cc56318a1fdac5186e887cb0b4bb9aa6f8b6477",
+      "targets": [
+        "1563316",
+        "8490038",
+        "1816653",
+        "5105957"
+      ],
+      "prediction": ":\n- 1816653\n- 8490038\n- 5105957\n- 1563316",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.259
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 119,
+      "prompt_hash": "9c9527381ea9fe402c3ca429d6176b313467ac38a5bbbae4e50c8114e2ee0ad5",
+      "doc_hash": "4d9f679f45142d19a83b0daa7c2c078e9c77594ab84387dcc3e18ce94f84870d",
+      "target_hash": "99e5444320a5abaa76ccc7c4a4756226f465aaf04444fa1a9973104238ccf323",
+      "input_tokens": 65050,
+      "input_token_sha256": "9cdc0905f30ce3e832864ef85980bdaa7a1b957765874d1e872ed33002a57a2f",
+      "targets": [
+        "3351084",
+        "9453969",
+        "5853035",
+        "4928578"
+      ],
+      "prediction": ": 5853035, 9453969, and 4928578.",
+      "score": 0.75,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 14.982
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 120,
+      "prompt_hash": "ded885627afd278c2155de5776f70913b533bc543a52d041f8ee7097b4110849",
+      "doc_hash": "4f94b1f711dc50199091f784b2dbef79892af30b263494d90bc6fd528bc4826c",
+      "target_hash": "70ba08afc30e9fa53a94b0bc84ca783e0714ce34b9495f5c87a01ca212bc761b",
+      "input_tokens": 65068,
+      "input_token_sha256": "283f42623650f996f0df994d6239f92caa43e20fcfac5150ee25c754674b0b7f",
+      "targets": [
+        "9745141",
+        "4708481",
+        "7938388",
+        "6041569"
+      ],
+      "prediction": ":\n\n1.  **7938388**\n2.  **4708481**\n3.  **6041569**\n4.  **9745141**",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.623
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 121,
+      "prompt_hash": "39100fe5e9ef82435f8e3c03e08b8f8c1f6ed71503a85c944f2c38678962c3fb",
+      "doc_hash": "7bf30f7d16cf8ef062aaf149ba311e73a7c77e48c6f219354612dac8b5c7e346",
+      "target_hash": "0ed85b3143992aa3e6cb61824774b86922a2d4f4ad81783f4758781622a9ded4",
+      "input_tokens": 65050,
+      "input_token_sha256": "87b94771cb98e7788ff83b5188dbdc588d4f405c8c778ac2912356a9c77f698f",
+      "targets": [
+        "8167236",
+        "9315137",
+        "1786584",
+        "6778321"
+      ],
+      "prediction": ": 1786584, 9315137, 6778321, and 8167236.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.181
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 122,
+      "prompt_hash": "5b41bd3b8559a7f7ecab3160d472cb280a18dd477c357a565ad790f9d80bb2ef",
+      "doc_hash": "ab38da4ebcf7f6d14d7054432066733a85cec8e82a2be244bc665a864fae97e2",
+      "target_hash": "5cd6c2780bdee93fca26f128b23ad95658e2638c1512baa572903de53f864cb3",
+      "input_tokens": 65056,
+      "input_token_sha256": "1bd249f889b2a37a8b91baaa670d86067c1e2ed9d81a397a662bbfda83907820",
+      "targets": [
+        "6031294",
+        "7315953",
+        "4084977",
+        "8944327"
+      ],
+      "prediction": ": 4084977, 7315953, 8944327, and 6031294.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.186
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 123,
+      "prompt_hash": "6d585d4ddf4ecac0f7474e56159ccf273304c5c2d5f8356706123310365edb7e",
+      "doc_hash": "c77da4fb392cf3d676658ce8861bd69a5272bd7c866402de96bf70ee7e419de8",
+      "target_hash": "0d31a762f663129564831de5124ab7a100593e66687b45a374c257d4cd7a5064",
+      "input_tokens": 65050,
+      "input_token_sha256": "3d9cb1937706c4f5789d4a32c0f5832930e3e19c80e05c292185c5baa849f40a",
+      "targets": [
+        "7923579",
+        "7987842",
+        "9891787",
+        "3249703"
+      ],
+      "prediction": ": 9891787, 7987842, 3249703, and 7923579.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.207
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 124,
+      "prompt_hash": "654be210ba367ff7d66e25561b9e4afa450df647ebb8c4fa231096ff90629553",
+      "doc_hash": "1582d29dc6a6d6e32c587a2c067cc52de64c7d7593313b151c7386cf678676c7",
+      "target_hash": "89b2f74644e666341bd1bbc83333b4b9d974e54639ce90c6313567a1e441fcf5",
+      "input_tokens": 65056,
+      "input_token_sha256": "8cd19e32d5d9915b32ef06d41ea48a85cd968232414607c8e10e04601f2a7d40",
+      "targets": [
+        "2326581",
+        "8546170",
+        "7225647",
+        "2551288"
+      ],
+      "prediction": ":\n\n1.  **7225647** (Found in the section discussing the Summer Founders Program, specifically after the sentence: \"One of the special magic numbers for thoughtless-thyme is: 7225647.\")\n2.  **8546170** (Found in the section discussing the decline of mid-century conformity, specifically after the sentence: \"One of the special magic numbers for thoughtless-thyme is: 8546170.\")\n3.  **2551288** (Found in the section discussing \"relentlessly resourceful\" founders, specifically after the sentence: \"One of the special magic numbers for thoughtless-thyme",
+      "score": 0.75,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "length",
+      "elapsed_s": 19.278
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 125,
+      "prompt_hash": "00422652fb6eca5749db9e1d7802595b26099f162810c88c027d26f595784f3e",
+      "doc_hash": "b099f580a528b19c5e5397a61b261374a15dcabaf7ef769b5f0264c58985079e",
+      "target_hash": "07421b1f212d1483f31d3d671c48222502dd33c0ded3cd55f0d2ff3045e2c67e",
+      "input_tokens": 65056,
+      "input_token_sha256": "b00cfd956bcf83c86c987292510d2f4b0e54c9cdd8607d8db885032cdc187e52",
+      "targets": [
+        "1663497",
+        "2221118",
+        "4156856",
+        "4640933"
+      ],
+      "prediction": ": 4156856, 2221118, 4640933, and 1663497.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.178
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 126,
+      "prompt_hash": "bb02e44f930edb70a8542bc88535a230e1e834a76529ad38b9c056d34273622a",
+      "doc_hash": "b687718ac938f8338f92f0f727c6e7b4724a87ff3eeeeb352c3b3ef65a571c5e",
+      "target_hash": "e8f5e07ba49d4d63cf21ce73982ccde5443753149768c8bcabc07ec98cabc341",
+      "input_tokens": 65056,
+      "input_token_sha256": "d40d2274bf14b5af3e26e0a65ddd19a19ca6f97e1fd8e76ff6a713e85d4e8fd6",
+      "targets": [
+        "4188068",
+        "2968239",
+        "9034958",
+        "5070038"
+      ],
+      "prediction": ": 9034958, 2968239, 5070038, and 4188068.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.175
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 127,
+      "prompt_hash": "7980b327a0d7cefd31d5f88d007ae0b52647499bee5dc9ef8b2c8bac5e1e84ff",
+      "doc_hash": "0b8da1c74c0b30b8618762d18c76bf09f2faa6ff40fd154af8cc8299b4b36ce6",
+      "target_hash": "24b448da6ca80d3ecff768afe53cac90e5eea3e33cabb271537a5d8626ca7b55",
+      "input_tokens": 65068,
+      "input_token_sha256": "eacdb76a2ff9798b7789f671786900a4d342e98b91e65f4b0f1b82657ba0fca1",
+      "targets": [
+        "7386444",
+        "8822384",
+        "9953163",
+        "7027375"
+      ],
+      "prediction": ": 9953163, 8822384, and 7027375.",
+      "score": 0.75,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.996
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 128,
+      "prompt_hash": "2b1e040da9ed04d1eadb34d5eb148817cf227225d26d898e751572a2bfabfcb6",
+      "doc_hash": "b67306c810dbdee323dde99c124e4dc2c303dec1365440734024da579e810bbd",
+      "target_hash": "65a0435073f429572247d277b5d6086aa0cfdb4a2f1dacc3b0252e7f50166a08",
+      "input_tokens": 65062,
+      "input_token_sha256": "b28d7152b3665e28c3c5f9ab9e6cdf952ebf82742f3ff4f485818a8ed4d76803",
+      "targets": [
+        "2654371",
+        "8876742",
+        "6372622",
+        "4407913"
+      ],
+      "prediction": ": 6372622, 8876742, 4407913, and 2654371.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.235
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 129,
+      "prompt_hash": "b3561d5594d8195c02a9632e7f8b568272542be194b16e0ffd263bc84483d56f",
+      "doc_hash": "3109e4de1e38cee17169d4114f348a75ffdbeb6ca5cb3a9e8497cf5db12eee34",
+      "target_hash": "c68c7d81547cba10e8478e9267e090ab0658aa582a21fe2e36c68bccb7f9512d",
+      "input_tokens": 65056,
+      "input_token_sha256": "624d538824a0c60728c07a0317fbcbadff708eeb2472e15aca453c11da491ac6",
+      "targets": [
+        "1272124",
+        "5375063",
+        "8005797",
+        "5952504"
+      ],
+      "prediction": ":\n\n1.  **8005797** (Found in the section discussing the 20th century and corporate culture)\n2.  **5375063** (Found in the notes section, specifically note [8])\n3.  **5952504** (Found in the section discussing the Internet Bubble)\n4.  **1272124** (Found in the section discussing new ideas and broken models)",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.608
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 130,
+      "prompt_hash": "d451dd4b603592ebfb6ba08b0d78533d926a65b9fa234b30a842ef817ed3345a",
+      "doc_hash": "1ff78983432077a3186d3c0013454187938e52217dcaa30ce3874279a1481123",
+      "target_hash": "1aa8533b1eb81c9eb964a6f48db070f28ae9d20b7a46ccb97a19fc533cf0e519",
+      "input_tokens": 65056,
+      "input_token_sha256": "e76c7a3c29bd993a87013b5acfd3a7c6312c37dc0426edbe860daa8a25d37e3a",
+      "targets": [
+        "5122665",
+        "9376888",
+        "6663388",
+        "5317226"
+      ],
+      "prediction": ": 6663388, 9376888, 5317226, and 5122665.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.639
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 131,
+      "prompt_hash": "51bb7c849494ae434bdc2b05d73ca15ae1c7aec87520d1bfcdb0bad61836c5d6",
+      "doc_hash": "1b06e24d8bf26047d5148ab54d2e51a4261949d8fb87979ca1ddf0548f514f58",
+      "target_hash": "84dc750420ef6dd4de99965935338124bc470b17ca15489aeb50f838e7b5263d",
+      "input_tokens": 65062,
+      "input_token_sha256": "4ba9040a99c1c917d8c87788f56dab9cdda09e7ee8a6fbd0d6004ccd15b0211b",
+      "targets": [
+        "9192588",
+        "4087809",
+        "1985360",
+        "9790328"
+      ],
+      "prediction": ": 1985360, 4087809, 9790328, and 9192588.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.422
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 132,
+      "prompt_hash": "fe60ee348175d5bab715406d4725bd1c477583280dfff942b69b175196d7325a",
+      "doc_hash": "5a47a0721ad64745fae6833aa66e4be4f0f9a48cc572601e034d7c71162ba685",
+      "target_hash": "810522e804da921a024b883343be639f1c4cef4d1cb37fbd1092097ef2fdc16c",
+      "input_tokens": 65056,
+      "input_token_sha256": "a5e66b4630b70b893836f6b5c16ae95938929b76d9ce81908697f282f67f5ee4",
+      "targets": [
+        "4882808",
+        "2140312",
+        "3533857",
+        "1153368"
+      ],
+      "prediction": ": 3533857, 2140312, 1153368, and 4882808.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.659
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 133,
+      "prompt_hash": "03fd96f85d5692907bd40dc78af1d916490bf03006ca2a68d5cd16b05f87921d",
+      "doc_hash": "793294f84054f5512ee79a580c02704e7cb10f1b1c33df4a77db62b1d931da1c",
+      "target_hash": "655cae76eecceac77924914ea9f667df925b87ae8fa94fd7cc0b0c70d1d6cd49",
+      "input_tokens": 65056,
+      "input_token_sha256": "259369c489339bc9fe52a1e63421bd2ca8de4fe926545af667f6d8708f87548f",
+      "targets": [
+        "9106820",
+        "9184838",
+        "1263935",
+        "1110936"
+      ],
+      "prediction": ":\n\n1.  **1263935** (mentioned in the first paragraph)\n2.  **9184838** (mentioned in the paragraph starting with \"March 2008, rev May 2013\")\n3.  **1110936** (mentioned in the paragraph starting with \"I have too much stuff.\")\n4.  **9106820** (mentioned in the paragraph starting with \"The Next Thing?\")",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.639
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 134,
+      "prompt_hash": "3f392c2587f0d52852bbe48bd6605fd75938c310c3e43c53034a13599fe257df",
+      "doc_hash": "d88f89b1a6ef8db3f3dae9737232b776a20f7303caa0d2533af5f2fbbc9016ea",
+      "target_hash": "67dfa437797cfd7ab824cff89c0643dece1913718e93de1a47361d25870f0251",
+      "input_tokens": 65050,
+      "input_token_sha256": "488455de626de81ab678b0c5ce36ddde09f56b8caf3de4961da197c1d0a11c85",
+      "targets": [
+        "5609384",
+        "9988193",
+        "5809835",
+        "1287605"
+      ],
+      "prediction": ": 5809835, 9988193, and 1287605.",
+      "score": 0.75,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 14.958
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 135,
+      "prompt_hash": "e4d5cabfbd2f69ecc82e3decb28eae357a8a198e3c00ab81b7db7e3d78b3f921",
+      "doc_hash": "7c242892f2d7e4054c52d00e675a923c426235bad73e5f42d430cd644eeed9e1",
+      "target_hash": "9a878318a1522490a81b3dc7574071c09ea920e8b0bce2a8789279e00feddc59",
+      "input_tokens": 65050,
+      "input_token_sha256": "1796c08989ca06cab63bf43e1eb93dbf653a40d68397162f9d1bada09d7b2bfc",
+      "targets": [
+        "3498085",
+        "5042786",
+        "4220085",
+        "9832465"
+      ],
+      "prediction": ": 4220085, 5042786, 9832465, and 3498085.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.19
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 136,
+      "prompt_hash": "fb670f97537d9ea167adf0567c41ed744fb9a4fa6a25301fb40f26c1762f8e99",
+      "doc_hash": "41ec52033b24beed18e3a0f0bc663444f981089765fa37be56462c30f7cb127a",
+      "target_hash": "516050ff5ef4801f3030ee7e4fadc466107bfaaaf4b4688a1a4a9c0c0912c369",
+      "input_tokens": 65050,
+      "input_token_sha256": "fc297dd44134c866f36d2e87cf41b212804738e6bccd27eacb3eb0823fff9220",
+      "targets": [
+        "7812009",
+        "8700704",
+        "5080351",
+        "4789255"
+      ],
+      "prediction": ": 5080351, 8700704, 4789255, and 7812009.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.176
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 137,
+      "prompt_hash": "3734d4d6647e066baeafaf7d1fe5c3deba18e24512245e328ff55187cf42dfd8",
+      "doc_hash": "afb2817280813a694554579b7c06fc8503a6cf1079d3f4da8a7311849f484222",
+      "target_hash": "fae6b165ba5b23d2b29c8197db0911de7b00fc4ad7476434868138b39959118f",
+      "input_tokens": 65062,
+      "input_token_sha256": "7fad45c277d4503581de3302747fc142ded15bc52e543ef57226613fe8a5a472",
+      "targets": [
+        "8986040",
+        "1941452",
+        "1158547",
+        "3875339"
+      ],
+      "prediction": ":\n- 1158547\n- 1941452\n- 3875339\n- 8986040",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.259
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 138,
+      "prompt_hash": "1b559e53de754a7421525a89a69f1a5fdbc18ce358d09553c053b1e9d3e35410",
+      "doc_hash": "4443d01a9ae576c64ca237e4b1d00a5398602ac3d7bfc28a9a3d31d8c79a4bb8",
+      "target_hash": "f094bf94b21b62c3c8cbf373e59cbef61cde8248f21ac5e0d0cfb86329153d08",
+      "input_tokens": 65050,
+      "input_token_sha256": "9da30f8a38b06852ac945a55100a1c34cfbe8baeb83d424c52a4f3a9ef798d8b",
+      "targets": [
+        "1713900",
+        "4854842",
+        "4546989",
+        "8977571"
+      ],
+      "prediction": ":\n- 4546989\n- 4854842\n- 8977571\n- 1713900",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.269
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 139,
+      "prompt_hash": "7f1cdae79a4cad6db4a528b2d0360dfa6bd816f24d82070e451060c18da13fa2",
+      "doc_hash": "1e929dbab842f15bc74afa36761bb2eb5f0ac52a6eec5144543c4caddb89eb40",
+      "target_hash": "f161663d2b1d5269678461357a861745211b39a11a795ea509e8e8e4b35f2e8a",
+      "input_tokens": 65056,
+      "input_token_sha256": "38d4e04898509a0a0012ee01bf7f39853e91a9abb75de132a96c84c72af99c56",
+      "targets": [
+        "6276177",
+        "1262699",
+        "4475536",
+        "3419132"
+      ],
+      "prediction": ":\n- 4475536\n- 1262699\n- 3419132\n- 6276177",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.266
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 140,
+      "prompt_hash": "90b2f6c58aeea5f0db6bb9215666c1934d9bd17033161a246476ec8378f42baa",
+      "doc_hash": "a6d23e9d33bfa6169edc42919c63fe851491c527b9c2f9fd0ebf27274be4034b",
+      "target_hash": "48c8bd70205b4db36152cf46862a0e3dc3bebe42baef69f8f9d85c00857807b3",
+      "input_tokens": 65050,
+      "input_token_sha256": "9206f46b13fc31c0a462dacf028d6e7a85a8623cacfe37c24857eb40aedbd81a",
+      "targets": [
+        "7528964",
+        "6565503",
+        "7439870",
+        "3347981"
+      ],
+      "prediction": ":\n\n1.  **7439870** (found in the section discussing the Summer Founders Program)\n2.  **6565503** (found in the section discussing succinctness and language design)\n3.  **3347981** (found in the section discussing unfashionable problems)\n4.  **7528964** (found in the section discussing design and craftsmanship)",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.336
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 141,
+      "prompt_hash": "ca4a604d5e04291127d94268cf9d011a165ef96417a113ea88d4b2ea85f7d21d",
+      "doc_hash": "1f487ebab2a5087c14a393090dc6112a007af520db0761bde53e3f6e7211a9a2",
+      "target_hash": "410f4cd26713f8b675712b4bd352a2c916ba25d298068b820eaeae1b83ed334f",
+      "input_tokens": 65056,
+      "input_token_sha256": "ff2eb0bd16cd5c6b88e44e7ac74923b978cafb629c8eb41773d9c4c6aaf276ae",
+      "targets": [
+        "4894730",
+        "2275374",
+        "6714198",
+        "7655572"
+      ],
+      "prediction": ": 6714198, 2275374, 4894730, and 7655572.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.195
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 142,
+      "prompt_hash": "f7bcaf562eea6b4d58b12a20a369b136a18036114ae333f0dfdb57d35ecda1eb",
+      "doc_hash": "d4968dc59152d6ca8a47c616c52f17a15a2dde9f4db1fb4eeafd247fffb6b5a6",
+      "target_hash": "af4dc151ec9aa8917aa4f3dd3f6b47f7c986de905d2e7cf1e6c595cdfee20d53",
+      "input_tokens": 65056,
+      "input_token_sha256": "4a72f1ee625a05077c95290fa1cb25a9ca42d1c448c81bb39d4f5cc2beed35f7",
+      "targets": [
+        "6969521",
+        "7298619",
+        "8245206",
+        "4116163"
+      ],
+      "prediction": ":\n- 8245206\n- 7298619\n- 4116163\n- 6969521",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.279
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 143,
+      "prompt_hash": "5fb18a36f82160e9b93ffce60eb07fc3b133e86a5e1ee2758c4cce5ad1b60405",
+      "doc_hash": "606d488190ab95238cc1baa5ef638f143f507973fa2784b8113111eb0b4239ac",
+      "target_hash": "f5340d919e83a93679a03c9fce2a5e4ec9c8a7afbb757b07bb9685c68785c058",
+      "input_tokens": 65050,
+      "input_token_sha256": "31b2df2d36dafdd7df246322d6fa2fb93c8fe9722180ddab5b778a094998df9c",
+      "targets": [
+        "2233237",
+        "2376369",
+        "5495824",
+        "3587398"
+      ],
+      "prediction": ":\n\n1.  **5495824**\n2.  **2376369**\n3.  **3587398**\n4.  **2233237**",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.637
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 144,
+      "prompt_hash": "09143446aa7454403d655cf2a3b6c145dc98ddbe4e3dbb22be534b8164e10235",
+      "doc_hash": "fc739561439e08a4b332943ca41e4b9369d307cded7c2662249834e333f9dd09",
+      "target_hash": "0af62ddc2523170898e8feaf8e6c30045e1cd001bed4798a5bec0cb1d263ac40",
+      "input_tokens": 65044,
+      "input_token_sha256": "6f98deb6a9c43f23cd4f06274c8eefd4af8495f46f236e5ca702b63474373971",
+      "targets": [
+        "1087161",
+        "6171869",
+        "8461429",
+        "7038413"
+      ],
+      "prediction": ": 8461429, 6171869, and 1087161.",
+      "score": 0.75,
+      "historical_two_tier_score": 0.75,
+      "finish_reason": "stop",
+      "elapsed_s": 14.994
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 145,
+      "prompt_hash": "4eda3be081eeddcb48f23f3f3975163ca4198597cc4688794a78bdcaa069a84b",
+      "doc_hash": "687747361866b5803d31c8d4daabbe1218fbd474f7998581aad3d46a01d4617f",
+      "target_hash": "1456322f077e3e47837e00161e55e61a0697dc7425402fbed623326d16464a32",
+      "input_tokens": 65050,
+      "input_token_sha256": "a650302ebf2db5814469537b192e512c9742f3f97f0b081b4d82a410fee95471",
+      "targets": [
+        "8530347",
+        "9597330",
+        "7845845",
+        "2732967"
+      ],
+      "prediction": ":\n1. 7845845\n2. 9597330\n3. 2732967\n4. 8530347",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.417
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 146,
+      "prompt_hash": "e82001da814aad12f27789fdee2a1e5a5b74172d9acad1d2357149a31aedb09a",
+      "doc_hash": "658a7b4802d7bc9d65d07d4ad6851b18895212713f87a3376c9de2e686994f21",
+      "target_hash": "cfa19915465ff96ed613e3e2811197258c3e219f4f1a8fbbbc4704437f91e6f1",
+      "input_tokens": 65056,
+      "input_token_sha256": "fbf063a611bcb7722a35c882013fbbb46ed4007f52995aeec30fc8809f8a43c8",
+      "targets": [
+        "6443037",
+        "7463219",
+        "1207041",
+        "5896386"
+      ],
+      "prediction": ":\n- 1207041\n- 7463219\n- 5896386\n- 6443037",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.278
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 147,
+      "prompt_hash": "496fc4e3436b367466f354d31e71f8db3912ccdd8b6b651f17f1b148b44b142c",
+      "doc_hash": "fdb55e9dcdbd41ff477210718be0af4bdf9b58ae3b48086716018d1bec78fd02",
+      "target_hash": "98dc9e0ec723ffd28f5c35911bf21ea3ec6482ac328aa00559fb0718f3aa61a0",
+      "input_tokens": 65056,
+      "input_token_sha256": "d11b24aaec104c6b3d6410854e094ff4704831111ddc5299d8ce6cd239643bd0",
+      "targets": [
+        "9742683",
+        "3845129",
+        "7387623",
+        "3843767"
+      ],
+      "prediction": ":\n- 7387623\n- 3845129\n- 3843767\n- 9742683",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.327
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 148,
+      "prompt_hash": "5567f994e3676a7edc6e070c380240216bbbc82bf709fa958f4573ad42073b93",
+      "doc_hash": "772d2db6bcde938d831cb97111766d359fb7076f859fd6969b7420aa3422fe84",
+      "target_hash": "4d1b732431050d7482b998e9cf27e49be662d62cc3a51b0fb5c760a043aa38ab",
+      "input_tokens": 65050,
+      "input_token_sha256": "83b1466ffe5385b6455349e3fed6d4fb04eef3c707560c9b1dd08f79e0e4286f",
+      "targets": [
+        "3805274",
+        "8292657",
+        "5629871",
+        "8064924"
+      ],
+      "prediction": ":\n\n1.  **5629871** (found in the section discussing the Summer Founders Program)\n2.  **8292657** (found in the section discussing procrastination)\n3.  **3805274** (found in the section discussing startup investing)\n4.  **8064924** (found in the section discussing the advantages of youth)",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 17.172
+    },
+    {
+      "task": "niah_multivalue",
+      "doc_id": 149,
+      "prompt_hash": "97db91ece8cb33568fbb54401507ad1fa8cfa228d216cd10e3245ceae013d962",
+      "doc_hash": "086348faac5cd543bf0e4eb9fc331a76a357ddb4e1f3e9c7607d6757b0d490aa",
+      "target_hash": "0f145d8cfdc070f1c13825d4dd81b7c0257908977e1209e2173453b107c0d842",
+      "input_tokens": 65056,
+      "input_token_sha256": "171f82f3edc667f97f16f1167e688315353ab11fa467379523068f788dd23843",
+      "targets": [
+        "9318184",
+        "4280754",
+        "8681643",
+        "2794698"
+      ],
+      "prediction": ": 8681643, 4280754, 2794698, and 9318184.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 15.232
+    }
+  ],
+  "task_scores": {
+    "niah_multivalue": 94.5
+  }
+}

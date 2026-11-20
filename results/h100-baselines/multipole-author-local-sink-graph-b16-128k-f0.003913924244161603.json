@@ -1,0 +1,32 @@
+{
+  "measurement_scope": "synthetic single-layer, independent author component fixtures",
+  "batch": 16,
+  "prefix_tokens": 130815,
+  "fraction": 0.003913924244161603,
+  "split": 2048,
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "connected_pipeline": false,
+  "cache_update_in_graph": false,
+  "sparse_dummy_merge_initialized_empty": true,
+  "graph_eager_max_abs": 0.0,
+  "local_graph_eager_max_abs": 0.0,
+  "combined_graph_eager_max_abs": 0.0,
+  "local_sink_perturbation_max_abs": {
+    "local": 20.40903091430664,
+    "sink": 13.639769554138184
+  },
+  "local_tokens": 256,
+  "sink_tokens": 1,
+  "total_tokens": 131072,
+  "local_remote_softmax_merged": true,
+  "replays": 512,
+  "paper_only_graph": {
+    "wall_ms_per_graph": 0.9229507441403939,
+    "gpu_timeline_ms_per_graph": 0.9228858947753906
+  },
+  "paper_plus_local_graph": {
+    "wall_ms_per_graph": 0.9396064960931483,
+    "gpu_timeline_ms_per_graph": 0.9395492076873779
+  }
+}

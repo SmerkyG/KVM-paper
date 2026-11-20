@@ -1,0 +1,52 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "4501ba926b41997090a850abe232c66d11dc6a4f008a3e66b3a91c843bcfedc6",
+      "source_file_count": 145
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 16.0,
+  "batch_size": 1,
+  "limit_per_task": 1,
+  "selection": "prefix",
+  "tasks": [
+    "niah_multikey_3"
+  ],
+  "records": [
+    {
+      "task": "niah_multikey_3",
+      "doc_id": 0,
+      "prompt_hash": "f78b3c4b909b841f4f8f039e90e7790df46ce20fb321d6356f63e8b493058f98",
+      "doc_hash": "e4ff7224ec6cdbde40cf4c6a2a54b119853c6340142005874e0f89a7fa9f6169",
+      "target_hash": "fccfecd96b9d8df83f29e72815bd56df5bb68271ba124ba9bd7cad524137f4de",
+      "input_tokens": 63582,
+      "input_token_sha256": "3cbc3bd5af8c8a76cd24f8995dbb598d68fc1743deab1ec6656426f163d6b539",
+      "targets": [
+        "e0c8b3bb-31d7-44d6-adcb-e90f3ea571b9"
+      ],
+      "prediction": ": **e0c8b3bb-31d7-44d6-adcb-e90f3ea571b9**.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 10.124
+    }
+  ],
+  "task_scores": {
+    "niah_multikey_3": 100.0
+  }
+}

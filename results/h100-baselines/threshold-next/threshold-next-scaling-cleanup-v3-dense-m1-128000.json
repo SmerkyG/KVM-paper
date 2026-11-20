@@ -1,0 +1,132 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-full",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": null,
+  "prefill_threshold": null,
+  "prompt_tokens": 128000,
+  "manifest": "/home/ubuntu/comparison/results/threshold-next-scaling-prompts.json",
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+  "prompt_token_sha256": "0c61c0a01112e18fae5f3fd10e8f7e3384723dc6622279f60a5f3d5e949512a6",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": false,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 15.839778135006782,
+      "decode_s": 0.013401983000221662,
+      "capture_s": 0.17156415999488672,
+      "cache_init_s": 0.09248709100211272,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        16,
+        345
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16128124416,
+        "after_run_before_collection": 16195233280,
+        "after_run_after_collection": 16195233280,
+        "peak_allocated": 36856646144
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 13.401983000221662,
+      "decode_ms_per_token": 13.401983000221662,
+      "decode_tokens_per_second": 74.61582364217746
+    },
+    {
+      "prefill_s": 15.664871420995041,
+      "decode_s": 0.013387100996624213,
+      "capture_s": 0.12769871899945429,
+      "cache_init_s": 0.10306104500341462,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        16,
+        345
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16195233280,
+        "after_run_before_collection": 16195233280,
+        "after_run_after_collection": 16195233280,
+        "peak_allocated": 36890200576
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 13.387100996624213,
+      "decode_ms_per_token": 13.387100996624213,
+      "decode_tokens_per_second": 74.69877161994722
+    },
+    {
+      "prefill_s": 15.694698347993835,
+      "decode_s": 0.013303264997375663,
+      "capture_s": 0.1285093739934382,
+      "cache_init_s": 0.0846201660024235,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        16,
+        345
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16195233280,
+        "after_run_before_collection": 16195233280,
+        "after_run_after_collection": 16195233280,
+        "peak_allocated": 36890200576
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 13.303264997375663,
+      "decode_ms_per_token": 13.303264997375663,
+      "decode_tokens_per_second": 75.16951667107813
+    },
+    {
+      "prefill_s": 15.709861192997778,
+      "decode_s": 0.013398663002590183,
+      "capture_s": 0.13686230999883264,
+      "cache_init_s": 0.09283686200069496,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        16,
+        345
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16195233280,
+        "after_run_before_collection": 16195233280,
+        "after_run_after_collection": 16195233280,
+        "peak_allocated": 36890200576
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 13.398663002590183,
+      "decode_ms_per_token": 13.398663002590183,
+      "decode_tokens_per_second": 74.6343123792787
+    }
+  ],
+  "median_decode_ms_per_batch_step": 13.387100996624213,
+  "median_decode_tokens_per_second": 74.69877161994722,
+  "median_decode_ms_per_token": 13.387100996624213,
+  "median_prefill_s": 15.694698347993835
+}

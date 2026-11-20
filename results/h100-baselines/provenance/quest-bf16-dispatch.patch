@@ -1,0 +1,13 @@
+--- /home/ubuntu/comparison/Quest/quest/ops/csrc/pytorch_extension_utils.h	2026-11-06 20:07:07.789964184 +0000
++++ /home/ubuntu/comparison/QuestBF16/quest/ops/csrc/pytorch_extension_utils.h	2026-11-06 20:25:33.195725926 +0000
+@@ -25,8 +25,8 @@
+ #define DISPATCH_PYTORCH_DTYPE_TO_CTYPE(pytorch_dtype, c_type, ...) \
+ 	[&]() -> bool {                                                 \
+ 		switch(pytorch_dtype) {                                     \
+-		case at::ScalarType::Half: {                                \
+-			using c_type = nv_half;                                 \
++		case at::ScalarType::BFloat16: {                                \
++			using c_type = nv_bfloat16;                                 \
+ 			return __VA_ARGS__();                                   \
+ 		}                                                           \
+ 		default:                                                    \

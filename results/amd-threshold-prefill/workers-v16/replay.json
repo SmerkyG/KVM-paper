@@ -1,0 +1,204 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "4acf00afcdcf9af33d8a5016a26f94a964f21e7cc14f6b0d27eaa7ee23f7e007",
+      "source_file_count": 245
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.021268039279512,
+      "leaves_ms": 16.551602172851563,
+      "remote_attention_ms": 33.760978088378906,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0049849748611450195
+      }
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "workers": 304,
+      "leaves_ms": 24.657250722249348,
+      "remote_attention_ms": 42.18193639119466,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "workers": 608,
+      "leaves_ms": 16.53826683892144,
+      "remote_attention_ms": 33.816559600830075,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "workers": 1216,
+      "leaves_ms": 16.58442162407769,
+      "remote_attention_ms": 33.97709274291992,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "workers": 2432,
+      "leaves_ms": 16.575292121039496,
+      "remote_attention_ms": 33.903604125976564,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "workers": 4864,
+      "leaves_ms": 16.77854404449463,
+      "remote_attention_ms": 34.01206169128418,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.409175872802734,
+      "mean_open_entries": 1504.1165771484375,
+      "route_coarse_ms": 16.341297403971353,
+      "leaves_ms": 18.01488666534424,
+      "remote_attention_ms": 35.347233581542966,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.00925445556640625
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "workers": 304,
+      "leaves_ms": 26.740680236816406,
+      "remote_attention_ms": 44.44261728922526,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "workers": 608,
+      "leaves_ms": 18.008361625671387,
+      "remote_attention_ms": 35.405500411987305,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "workers": 1216,
+      "leaves_ms": 18.01651973724365,
+      "remote_attention_ms": 35.41041946411133,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "workers": 2432,
+      "leaves_ms": 17.935537147521973,
+      "remote_attention_ms": 35.319572067260744,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "workers": 4864,
+      "leaves_ms": 18.126761436462402,
+      "remote_attention_ms": 35.47519798278809,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.860538482666016,
+      "mean_open_entries": 2088.41162109375,
+      "route_coarse_ms": 16.363273281521266,
+      "leaves_ms": 18.41243705749512,
+      "remote_attention_ms": 35.951959228515626,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06549263000488281
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "workers": 304,
+      "leaves_ms": 27.80251739501953,
+      "remote_attention_ms": 45.63365122477214,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "workers": 608,
+      "leaves_ms": 18.393916511535643,
+      "remote_attention_ms": 35.94458351135254,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "workers": 1216,
+      "leaves_ms": 18.337917137145997,
+      "remote_attention_ms": 35.78465728759765,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "workers": 2432,
+      "leaves_ms": 18.457278442382812,
+      "remote_attention_ms": 35.85429039001465,
+      "bitwise_identical": true
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "workers": 4864,
+      "leaves_ms": 18.521442413330078,
+      "remote_attention_ms": 36.02066993713379,
+      "bitwise_identical": true
+    }
+  ],
+  "scope": "Replay real Qwen prefill snapshots without reloading the full model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-08.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-15.pt"
+  ]
+}

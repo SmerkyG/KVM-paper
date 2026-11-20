@@ -1,0 +1,38 @@
+{
+  "measurement_scope": "synthetic single-layer attention-only graph, not full-model inference",
+  "batch": 4,
+  "prefix_tokens": 131072,
+  "mode": "two-tier",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "quality_matched": false,
+  "kv_writes_included": false,
+  "cache_updates_included": false,
+  "local_attention_included": true,
+  "sink_attention_included": true,
+  "sink_tokens": 1,
+  "new_kv_attention_included": false,
+  "excluded_kv_perturbation_max_abs": null,
+  "included_kv_perturbation_max_abs": {
+    "recent_v": 0.4005165100097656,
+    "sink_v": 0.008453369140625
+  },
+  "local_lengths": [
+    256,
+    256,
+    256,
+    256
+  ],
+  "same_cache_graph_eager_max_abs": 0.0,
+  "records": [
+    {
+      "wall_ms_per_batch_step": 0.13841248242307813,
+      "gpu_timeline_ms_per_batch_step": 0.13835355639457703
+    },
+    {
+      "wall_ms_per_batch_step": 0.1371972382813169,
+      "gpu_timeline_ms_per_batch_step": 0.13715530931949615
+    }
+  ],
+  "median_wall_ms_per_batch_step": 0.13780486035219752
+}

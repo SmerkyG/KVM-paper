@@ -1,0 +1,138 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-full",
+  "model": "Qwen/Qwen3-8B",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+  "qwen_yarn": true,
+  "cache_update_optimizations": {
+    "packed_max": true,
+    "fused_rms": false,
+    "fused_rescale": true
+  },
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": null,
+  "prefill_threshold": null,
+  "prompt_tokens": 128000,
+  "manifest": "/home/ubuntu/comparison/results/qwen-opt-v1-manifest-0-prepare.json",
+  "manifest_sha256": "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+  "prompt_token_sha256": "9653fd35cb9c62a2cf334ad214384e44a53f00b77401e623b9fc379fb199edb6",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": false,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 17.681782226994983,
+      "decode_s": 0.014232924004318193,
+      "capture_s": 0.1756907139933901,
+      "cache_init_s": 0.1234532779926667,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        10091,
+        279
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16449074688,
+        "after_run_before_collection": 16516183552,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 41124469248
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 14.232924004318193,
+      "decode_ms_per_token": 14.232924004318193,
+      "decode_tokens_per_second": 70.25963180135054
+    },
+    {
+      "prefill_s": 17.530952850007452,
+      "decode_s": 0.014623866998590529,
+      "capture_s": 0.14944804899278097,
+      "cache_init_s": 0.08562145099858753,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        10091,
+        279
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16516183552,
+        "after_run_before_collection": 16516183552,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 41158023680
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 14.623866998590529,
+      "decode_ms_per_token": 14.623866998590529,
+      "decode_tokens_per_second": 68.38136589291885
+    },
+    {
+      "prefill_s": 17.494105243997183,
+      "decode_s": 0.01462847099173814,
+      "capture_s": 0.14652844199736137,
+      "cache_init_s": 0.09757542300212663,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        10091,
+        279
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16516183552,
+        "after_run_before_collection": 16516183552,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 41158023680
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 14.62847099173814,
+      "decode_ms_per_token": 14.62847099173814,
+      "decode_tokens_per_second": 68.35984434496123
+    },
+    {
+      "prefill_s": 17.510090379000758,
+      "decode_s": 0.014578114001778886,
+      "capture_s": 0.13381671998649836,
+      "cache_init_s": 0.09680281500914134,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        10091,
+        279
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16516183552,
+        "after_run_before_collection": 16516183552,
+        "after_run_after_collection": 16516183552,
+        "peak_allocated": 41158023680
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 14.578114001778886,
+      "decode_ms_per_token": 14.578114001778886,
+      "decode_tokens_per_second": 68.5959788679095
+    }
+  ],
+  "median_decode_ms_per_batch_step": 14.623866998590529,
+  "median_decode_tokens_per_second": 68.38136589291885,
+  "median_decode_ms_per_token": 14.623866998590529,
+  "median_prefill_s": 17.510090379000758
+}

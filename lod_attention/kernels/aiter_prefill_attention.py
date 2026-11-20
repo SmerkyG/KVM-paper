@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from ._launch import hip_launch_kwargs
+
 import math
 import os
 import sys
@@ -53,6 +55,8 @@ class AiterPrefillCoarse:
     mean_v: torch.Tensor
     counts: torch.Tensor
     has_second_partition: bool
+    closed_regions_only: bool = False
+    route_counts: torch.Tensor | None = None
 
 
 @triton.jit(do_not_specialize=["STATE_LEN"])
@@ -1026,6 +1030,13 @@ def merge_aiter_prefill_refinement(
     output_buffer: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Apply the exact coarse-to-leaf replacement in one final GPU pass."""
+    if coarse.closed_regions_only:
+        from .lod_kernels import merge_attention_branches_with_sink
+        return merge_attention_branches_with_sink(
+            q, sink_k, sink_v, local_out, local_lse,
+            coarse.output_0, coarse.lse_0, route_out, route_lse,
+            kv_group_size=kv_group_size, scale=scale, output_buffer=output_buffer,
+        )
     batch, query_heads, query_len, head_dim = q.shape
     kv_heads = int(coarse.mean_k.size(1))
     state_len = int(coarse.mean_k.size(2))
@@ -1102,7 +1113,7 @@ def merge_aiter_prefill_refinement(
         HAS_SECOND_PARTITION=coarse.has_second_partition,
         ROUTE_COUNT=route_count,
         num_warps=num_warps,
-        waves_per_eu=1,
+        **hip_launch_kwargs(waves_per_eu=1),
     )
     return output
 

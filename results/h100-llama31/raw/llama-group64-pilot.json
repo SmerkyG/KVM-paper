@@ -1,0 +1,144 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "7b0d01fbc043cc9593fa41ebc58c0e05e808cdc7b530899b9ee2aae1cfbc2dfc"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 66577,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 66577,
+  "measurements": {
+    "32768": {
+      "decode_ms_per_batch_step": 8.007001221679744,
+      "prefill_seconds": 1.47907922100012,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "745893b9a405926f3aff351d3af7d43c12364b0a497af5ff7a11ea002d32f198",
+          "unique_16_token_block_ratio": 0.998046875
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.025658965820082,
+          "decode_seconds": 8.218274780999764,
+          "elapsed_seconds": 9.743747885000175,
+          "output_token_sha256": [
+            "f0c6cdf8b6499d1a5c9471db35c2b07bab3f60fef745f763b966859b11b323f7"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 1.5199020969998855
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.007001221679744,
+          "decode_seconds": 8.199169251000058,
+          "elapsed_seconds": 9.680806518999816,
+          "output_token_sha256": [
+            "f0c6cdf8b6499d1a5c9471db35c2b07bab3f60fef745f763b966859b11b323f7"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 1.47907922100012
+        }
+      ]
+    }
+  },
+  "mode": "three-tier-bf16",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "7f4b667f0a77edffe0cff8a599834afcccff77a8f596b94d69bccaaa186adeeb",
+  "prompt_source": {
+    "batch_size": 1,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "repeats": 1,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 19.99470359099996,
+  "warmups": 1,
+  "worker_state": [
+    [
+      {
+        "attribute": "_vllm_lod_runtime",
+        "layers": 32,
+        "pool_size": 1,
+        "pools": [
+          {
+            "cuda_routes": true,
+            "family": "llama3.1-8b",
+            "kv_bits": 0,
+            "layer": "model.layers.0.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn"
+          },
+          {
+            "cuda_routes": true,
+            "family": "llama3.1-8b",
+            "kv_bits": 0,
+            "layer": "model.layers.1.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn"
+          }
+        ],
+        "request_capacity": 66577
+      }
+    ]
+  ]
+}

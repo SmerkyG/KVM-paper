@@ -10,6 +10,7 @@ query-by-state score tensor.
 from __future__ import annotations
 
 import math
+import os
 
 import torch
 import triton
@@ -21,6 +22,16 @@ def _launch_kwargs(num_warps: int) -> dict[str, int]:
     if torch.version.hip is not None:
         kwargs["waves_per_eu"] = 1
     return kwargs
+
+
+def state_score_max(scores):
+    """Optionally reduce BF16 scores with identical first-index semantics."""
+    if (os.environ.get('LOD_H100_STATE_PACKED_MAX')=='1'and scores.is_cuda and scores.dtype==torch.bfloat16
+            and scores.is_contiguous()and torch.version.hip is None and 0<scores.size(-1)<=65535):
+        from .state_maxsim import maximum
+        return maximum(scores)
+    result=scores.max(dim=-1)
+    return result.values,result.indices
 
 
 @triton.jit(
@@ -1102,6 +1113,10 @@ def _apply_state_deltas_kernel(
         mask=update,
     )
 
+    # Every warp must finish reading touched and the delta buffers before any
+    # warp clears them for the next update.  Otherwise a later warp can see a
+    # cleared slot and silently skip part of its value update on CUDA.
+    tl.debug_barrier()
     tl.store(
         delta_k
         + row * DELTA_K_ROW_STRIDE
@@ -2173,13 +2188,13 @@ def streaming_state_maxsim(
                 # Separate-sink spherical routing uses the same logits for
                 # append selection and merge assignment. Reduce the 512 MiB
                 # score field once instead of launching two identical maxima.
-                route_score, route_index = route_scores_dense.max(dim=-1)
+                route_score, route_index = state_score_max(route_scores_dense)
                 select_score = route_score
             else:
                 if append_scores_dense is not None:
-                    select_score = append_scores_dense.max(dim=-1).values
+                    select_score = state_score_max(append_scores_dense)[0]
                 route_scores_dense[..., :sink_len] = float("-inf")
-                route_score, route_index = route_scores_dense.max(dim=-1)
+                route_score, route_index = state_score_max(route_scores_dense)
             return route_score, route_index, select_score
     raise ValueError(
         "the LoD release requires prepared spherical/coherence state routing"

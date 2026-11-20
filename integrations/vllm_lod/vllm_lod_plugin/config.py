@@ -157,7 +157,7 @@ class VLLMLODSettings:
         )
 
     def for_family(self, family: ModelFamily) -> VLLMLODSettings:
-        if family not in (ModelFamily.QWEN38, ModelFamily.K2):
+        if family not in (ModelFamily.QWEN38, ModelFamily.K2, ModelFamily.LLAMA31):
             raise ValueError(f"unsupported LoD model family: {family}")
         return replace(self, family=family)
 

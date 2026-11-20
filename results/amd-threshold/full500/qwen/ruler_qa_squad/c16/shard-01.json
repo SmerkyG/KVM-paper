@@ -1,0 +1,986 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": 16.0,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 50,
+      "prompt_hash": "e169428c377c98da87c72a3a82baf49a04cab5e31644e470cd3d71d3f18bd7e3",
+      "doc_hash": "1f039fbfc57669deab7da59e0dcc9aa3c28adcfc426d9cace3fbc2ec546d21a9",
+      "target_hash": "aa89b022e3a75447e49a29a7297b55905bc381eaa016cdd18f827f247c53ce98",
+      "input_tokens": 63229,
+      "input_token_sha256": "103ad8987018c2c0540a8ecb157b95c7dd3589ef11d16e121bd5c3ae861d84dd",
+      "targets": [
+        "King Malcolm III of Scotland",
+        "King Malcolm III",
+        "King Malcolm III"
+      ],
+      "prediction": " Edgar Atheling",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.213
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 51,
+      "prompt_hash": "9a1ba9a6ff5f461b748e9306fc73551d15d477c2615006ceb82f208f0c4a3f4a",
+      "doc_hash": "9d7286fa9eeaa7642330e3c29d8ce4ea58f1ebfcc1260a1e6fecaa17330dab8b",
+      "target_hash": "434958cd595026dba32d19b4a1baa8cea04fdd52d84cffa9758fb8ead5f52f82",
+      "input_tokens": 62907,
+      "input_token_sha256": "69841cf3947091408bf4acf1c8fa1a112e75b941b4853aabda1ef915bb25b6c4",
+      "targets": [
+        "1072",
+        "1072",
+        "1072"
+      ],
+      "prediction": " 1072",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.005
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 52,
+      "prompt_hash": "c57717e29ece663f378d5322226d9b190f4517665993899de557370c691ee1ac",
+      "doc_hash": "55361bec2a248fcbca520f61f5e418ab164dc6c135d19d86f9ea7984abdfac9e",
+      "target_hash": "6e1e679698f2e42855b18e318813a2a779571417d25cef3d8b329a30759d5484",
+      "input_tokens": 63793,
+      "input_token_sha256": "a5ec3660a1d5e28b1649032722961dae80aa2598ef94d0450832f1ad1e711501",
+      "targets": [
+        "Duncan",
+        "Duncan",
+        "Duncan"
+      ],
+      "prediction": " Duncan",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.029
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 53,
+      "prompt_hash": "b34c5376117f46146b1a6ec37d8a5f516cd6cd2e9e09b30d541b481084bd1e32",
+      "doc_hash": "10921a123532a0e426a626f124edcf4b61a8641e9bc3fb5b9fa926add7ee564c",
+      "target_hash": "7919aa5fbcb83c20fa4190c71fab46308a4d44203b9e3333ac8958b24436bc44",
+      "input_tokens": 64169,
+      "input_token_sha256": "a2dd034470aeeb5bcba6750b8fbdd8500bd537b1939a7d4bcf83aaa7838b6364",
+      "targets": [
+        "Sybilla of Normandy",
+        "Sybilla of Normandy",
+        "Sybilla"
+      ],
+      "prediction": " Sybilla of Normandy",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.234
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 54,
+      "prompt_hash": "e25816fd818ed8178cfc01371a04ec65e5f6df246c57947fa498987f9eefdee8",
+      "doc_hash": "5e716f1468a870097ab99668f779e5b381089d5fbe1b58c8e0c16388375aae02",
+      "target_hash": "a9b94ed83b0d8ba5853d6f29cda4c8e07643b384ef05c46bbfb143f6653d5930",
+      "input_tokens": 64372,
+      "input_token_sha256": "806b354f58a08bd50af706106b8d1f574757a5672c174cfac21907602f2d9e58",
+      "targets": [
+        "Norman",
+        "Norman",
+        "Norman"
+      ],
+      "prediction": " Norman",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.087
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 55,
+      "prompt_hash": "5dac3427f2c99b3b95b109f13b2ce4f5ca7bedad2aff381399ea0218b58c63d6",
+      "doc_hash": "1efa42d4a567018dab44cebc819542e3e426bca81e39e01ce5d8a3888d440f21",
+      "target_hash": "09b569d5c0b648e3d6a5ec05fe6d88c7cd73266461a81da0bd459c085712ac77",
+      "input_tokens": 64777,
+      "input_token_sha256": "e1708ad2f3e5bf496ea89e55368d0460f77d8cb8478969fc207106f36eda1d3f",
+      "targets": [
+        "Hereford",
+        "Hereford",
+        "Hereford"
+      ],
+      "prediction": " Hereford",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.204
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 56,
+      "prompt_hash": "7ea5f2755dba1614016910839ab5c5cfdca339b762374a88ff386dec3cd67c83",
+      "doc_hash": "a47bce377dcf56c91ece8b43c18ccdec07fc93e1beffcc5d44553444ff750d59",
+      "target_hash": "311e6167d2c7d2e8c4fc82576136fea91004817ecb2a925cf4cb0de8773aebf2",
+      "input_tokens": 62831,
+      "input_token_sha256": "9778820aa8896cab369f1a6fd6ea97cfd1f25178524111982011d1d382066503",
+      "targets": [
+        "the Welsh",
+        "the Welsh",
+        "the Welsh"
+      ],
+      "prediction": " the Welsh",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.927
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 57,
+      "prompt_hash": "0435511c0f6ccefa97bb58c7362490eb5a7dfcb204cea247d411a836afe6c38a",
+      "doc_hash": "adad7246b9edf7e1483d881cb8bbf4462d43b27e35bae514cbcbf29c00a89aa2",
+      "target_hash": "8ab37092e2e7ea04bd7195893bd0a3ddbc5a8c9a590d86f40f7123e1816ef095",
+      "input_tokens": 64168,
+      "input_token_sha256": "111e0dbc71c3b03421548d3a961546f71fa823db7ad3d9c4caf0ecaf2261b93c",
+      "targets": [
+        "Edward the Confessor",
+        "Edward the Confessor",
+        "Edward the Confessor"
+      ],
+      "prediction": " Edward the Confessor",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.184
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 58,
+      "prompt_hash": "9775adc4a9a9d9598392694b99b309e6f1a7b082705c6d6eb1b17dfc02989ab7",
+      "doc_hash": "d7c713c949aedf97a1b8a8ad2ab06b23d913f042cbac216b760aee7ec6fbf7f5",
+      "target_hash": "ca846194fa95bdeb3bc794a467397e8adffb79379b2e652f7774ad6e0bbeb261",
+      "input_tokens": 62182,
+      "input_token_sha256": "59834c567efb6ef4a891c2b6ae08677e1f1e6402785ef15d2b8be0211e72f2d3",
+      "targets": [
+        "Wales",
+        "Wales",
+        "Wales"
+      ],
+      "prediction": " Wales",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.805
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 59,
+      "prompt_hash": "a881f94733531a43e7f75f3730c90533fbe8977e68b98c702547879d327cdaa7",
+      "doc_hash": "d4f3250cc606f01b1146ce9c75afae88ef90200bc65f4b082e3e7f83abb173fb",
+      "target_hash": "b96fa21c153f541bb8ecc0c85908ca27af7cb08e940f322737f4574b25829c85",
+      "input_tokens": 63489,
+      "input_token_sha256": "a4ae8d5306890c17b5bfeb95e65ffabdf7c10db2444a47dc9c03487356c38f33",
+      "targets": [
+        "1018",
+        "1064",
+        "1018"
+      ],
+      "prediction": " 1018",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.101
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 60,
+      "prompt_hash": "a94682be87a8701c252ed750ab168b4303f532ed611b0600676edbc13ce34dc7",
+      "doc_hash": "b0b9168d7eacbaa9906c03c0c148a49f0a825921206e5aa9d085ae99e3db10d3",
+      "target_hash": "a2c6bd6a0f6dd13664cc2a1f246133c798c62897fde18639240561bb7694fef4",
+      "input_tokens": 62823,
+      "input_token_sha256": "5a38fab99d8fabb85acb3f9fefbd2522651d3be22b801ac97b7a0b30b8ce8a64",
+      "targets": [
+        "William of Montreuil",
+        "William of Montreuil",
+        "William of Montreuil"
+      ],
+      "prediction": " William of Montreuil",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.998
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 61,
+      "prompt_hash": "bf51e5ed505af41f12868408ab3d2be669f30af6d14a9c6dd77be41dc7e1ef5e",
+      "doc_hash": "ac6f46649d09b3f2d8bac4907f02b4baf1efdc4bf7677291765c14d15aa3ae23",
+      "target_hash": "86d7551daf347cc8e3f38ad0c016bbaae4e5110155acc174fe9bb7b5c2ed2f48",
+      "input_tokens": 63745,
+      "input_token_sha256": "ca774420c900e2c49542f5ddc8399efdada67ceb7d99a4ac48c306ebc35735e9",
+      "targets": [
+        "1097",
+        "1097",
+        "1097"
+      ],
+      "prediction": " 1097",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.143
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 62,
+      "prompt_hash": "4fbbdfe191eb55761893a44d8ebe55449b778d2d4155b952063ba671b9402ef8",
+      "doc_hash": "72a45d9c9aa53ef3fc0d4d57a1e2a40338f88d225f3807eafc6b0f8a368d1aac",
+      "target_hash": "b0c3cf726fe1c0b4ed886f393ee320aa463c75d74a729dbbc7df9cf8880d01ea",
+      "input_tokens": 63631,
+      "input_token_sha256": "bcc934c8951766506630bf156dd6fa71cbdd37bfd6f71e635eb20656829aed91",
+      "targets": [
+        "Tancred",
+        "Tancred",
+        "Tancred"
+      ],
+      "prediction": " Tancred",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.03
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 63,
+      "prompt_hash": "45accfb8d9ebbdcced231804a711b049bf7e582fbdeda1a8d6801c4d726d06e1",
+      "doc_hash": "b0031b87c8ece70894d0672e02f0cd01abee30ad52c6ee09de4242525efa07e6",
+      "target_hash": "65460bcd6c3fc4eb730923b374d67fa85ef44a26468131e697204c1d6d277245",
+      "input_tokens": 64865,
+      "input_token_sha256": "55a4465a5a4c8d11cbcca81e82f4b2920c15a1128f28a078c781b0b1548b5632",
+      "targets": [
+        "Jerusalem",
+        "Jerusalem",
+        "Jerusalem"
+      ],
+      "prediction": " the conquest of Jerusalem",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.27
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 64,
+      "prompt_hash": "a4363b256456f524de047d0b234dd3ceb2b1e8938b6e63af54e987674c36f196",
+      "doc_hash": "36f3707204eef6f3ac700d1ca888a323a641dfb3d8ae99f8681bcc20080ea1ee",
+      "target_hash": "6cbc92196d54c1d73a2f2ca0a9339ab2c77283228cf24d7e6b91abe6edc0204b",
+      "input_tokens": 65046,
+      "input_token_sha256": "39c9b257a2c335dce0c725547bba17ffbfa6b1eb89aa581b7d9313ca489ce7d9",
+      "targets": [
+        "380 years",
+        "380 years",
+        "380 years"
+      ],
+      "prediction": " 380 years",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.33
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 65,
+      "prompt_hash": "a79904052afcfd7337ad0e96d5eb8336238d8a09c597b49e5f8ae1a3b75110f3",
+      "doc_hash": "163bccb518d8bbf532d2ad12928f0fc00c2f3fa38b41bac30902523b560719c9",
+      "target_hash": "ac21f7d3c07dc8f457cb0a4b7f58e003c6ce9a91202b1577112fa5474bf8c8ae",
+      "input_tokens": 64380,
+      "input_token_sha256": "8b024d22f8746644a366e223ddea10d57cf4e0550eee800560789844f6b03250",
+      "targets": [
+        "a storm",
+        "a storm",
+        "a storm"
+      ],
+      "prediction": " a storm",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.153
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 66,
+      "prompt_hash": "02985c62010997e82a0075a3e314dae4884faec1eacd8755a2aea9c1e700e268",
+      "doc_hash": "2cccfd3c770c1cd83da035903fb380d74d7e57134bac8ac1ac22a5b2e5e29867",
+      "target_hash": "a5db9937c83fdbe8d2c7b7c842fa46d7eb0e246e55ec85ca80843839377ee7f6",
+      "input_tokens": 64038,
+      "input_token_sha256": "913d663c7824e9eb04b10dd35536a380b5baa242ddf2864715f6ec32937f78b8",
+      "targets": [
+        "Berengaria",
+        "Berengaria",
+        "Berengaria"
+      ],
+      "prediction": " Berengaria",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.131
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 67,
+      "prompt_hash": "a4d5558d2499ae57e14a5bf0255584afb43519a80a3f3eeb124d8297d12a3d1d",
+      "doc_hash": "67837d746c31c4a374891458649285b0836c36315c4eae3b4e8e971ae3c3d544",
+      "target_hash": "473174f8d89313d640a7231e0d1386a9b2ded9d3eb31cf3824e3935946813934",
+      "input_tokens": 63817,
+      "input_token_sha256": "186782357e513f92413dc7886784fcc053ebff2f240dd0a3df2536787d05c758",
+      "targets": [
+        "1191",
+        "1191",
+        "1191"
+      ],
+      "prediction": " 1191",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.174
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 68,
+      "prompt_hash": "85b053fed52cf7983a8f67191e2bbfb2175d0af8cebd1ae597b332a1b149bb83",
+      "doc_hash": "4061ed2fb9c4db59f8d06e9c491dc0d6adca14a08666324f567a17ea924a79c5",
+      "target_hash": "e744e47ab39e2870a3a705b49bc792894b4451bd8646629c412f03c0c5a962ef",
+      "input_tokens": 63878,
+      "input_token_sha256": "af3b22fdf9408af038535d3f7d2baedbf7c1a77227c166cf6071a93889898da5",
+      "targets": [
+        "Isaac Komnenos",
+        "Isaac",
+        "Isaac Komnenos"
+      ],
+      "prediction": " Isaac Komnenos",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.479
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 69,
+      "prompt_hash": "96ce1ccbcb2006d2a5752a1f8caabeedd69601db607425622830b499c6e534f2",
+      "doc_hash": "cf3e0b1722766b6ba237c57fb94603ed5e1895bd6b450b623b8f22c43e17f362",
+      "target_hash": "8f288a098ffda5d5e1942aca6e6f2b8691499e9e59680dfcdf76096385069627",
+      "input_tokens": 64877,
+      "input_token_sha256": "6d645a365ceed477218e0274e22a0ec105d5935b67a6300c9bb7da4c96daaaeb",
+      "targets": [
+        "Conrad of Montferrat",
+        "Conrad of Montferrat",
+        "Conrad of Montferrat"
+      ],
+      "prediction": " Conrad of Montferrat",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.464
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 70,
+      "prompt_hash": "72e8e9827b733d3e0f020b70e64291eac5f474e07841f9f1ea2b9098aa38908b",
+      "doc_hash": "ce04eed0af53b2e7b11c17c0ef1b37c5328b84311f9f4fe78864f84d18502ba9",
+      "target_hash": "97cf4754ce152609be68cdacef32af142edfe8b7059646223b1d490332b842b5",
+      "input_tokens": 65506,
+      "input_token_sha256": "cdfc649f6d6fa3451f080fdfeebabb61919f426ea3fc08f9a52bd8e1c5fbfa95",
+      "targets": [
+        "silver",
+        "silver",
+        "silver"
+      ],
+      "prediction": " silver",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.277
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 71,
+      "prompt_hash": "f70f314ed718ed15c6d921116d659ad331031811c5a2d075dd069682f3d9ceb8",
+      "doc_hash": "06da546599df61a067929c09afad2eef74e25c7eb7b88ed2c64d66faa032d1b2",
+      "target_hash": "c0a3bc522b8aeb489ce2711dd7c68856b48c7499e867c73f6e2d2d876bef8a59",
+      "input_tokens": 65236,
+      "input_token_sha256": "fa712adcbb0133da20c8c49c8b8fe0a06cc5b5765bf8d38f2aaf272c89f27fa5",
+      "targets": [
+        "Guy de Lusignan",
+        "Guy de Lusignan",
+        "Guy de Lusignan"
+      ],
+      "prediction": " Guy de Lusignan",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.364
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 72,
+      "prompt_hash": "5024a7fd3225ffa360574ca182f279aa55fd1bb648934728f072a824953c9b1d",
+      "doc_hash": "e3a94b56a0e2d0d52fd0b46e5f8442f4d62fef488e41be74ed9b8afa96230038",
+      "target_hash": "a959c589265064acc79afc98c58b647d2ee81883a3a829bf6080c54b9b35f1e9",
+      "input_tokens": 64606,
+      "input_token_sha256": "e49c385138550f0b57d89b2e6396d727a298d63e4cae980710703d19c448800e",
+      "targets": [
+        "Africa",
+        "Africa",
+        "Africa"
+      ],
+      "prediction": " Africa",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.136
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 73,
+      "prompt_hash": "437e4128ddca4f134ceaf8da238bd2ba808f4d21b6f671056ab0ae210c20e180",
+      "doc_hash": "e6ce16feb9608ebc4e3395ca9c6b24c114c057ff0af637f7ba98624c8aed746c",
+      "target_hash": "518c923610d0b684f2e8796c25d370b4013d188c54cca3c96ad79139d97fcaa8",
+      "input_tokens": 62036,
+      "input_token_sha256": "d3a6f7b36a591b94e9bdfb94fa9f259220ff22fdd5368dc96fc4d06654b219f4",
+      "targets": [
+        "Bethencourt",
+        "Bethencourt",
+        "Bethencourt"
+      ],
+      "prediction": " Jean de Bethencourt",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.89
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 74,
+      "prompt_hash": "ca8ac3608a71bba2c23c4a6611a9748fbde9ff78aff76492c01037d29dcaf3aa",
+      "doc_hash": "830f4e26c3e2a116bc157e167ac3725e651b089b4416b2f577fa6fece1a03587",
+      "target_hash": "4bb7ce2525462a2f93c7f6be3de7e141d9d4b0926dd4a5dfb8e5f2b4eabc0429",
+      "input_tokens": 64221,
+      "input_token_sha256": "ce391ef6fe2db96ded6f44df36fbc281f979b148e17349ef76c18682be5cdb66",
+      "targets": [
+        "Enrique P\u00e9rez de Guzm\u00e1n",
+        "Enrique P\u00e9rez de Guzm\u00e1n",
+        "Enrique P\u00e9rez de Guzm\u00e1n"
+      ],
+      "prediction": " Macquarie Infrastructure and Real Assets",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.27
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 75,
+      "prompt_hash": "c45fa8a4bfc4dd79ae35c10930e712d14ba3e49320ca0697fe33879019e7f238",
+      "doc_hash": "07cd3d1d101c6448dfebf88ada10153dc222698945fa1fb67d6074ce1711eb80",
+      "target_hash": "12f70451eed5ba727b023d826e933c66d2010fbb8fc9f91def8b8872c17728b7",
+      "input_tokens": 63736,
+      "input_token_sha256": "bd7df1d48776d8df5203ef40cc7d4007c83f529200631881c0e789fecb203192",
+      "targets": [
+        "Maciot de Bethencourt",
+        "Maciot de Bethencourt",
+        "Maciot de Bethencourt"
+      ],
+      "prediction": " Jean's nephew Maciot de Bethencourt",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.241
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 76,
+      "prompt_hash": "daa2540d03195f67762e7233afa3e0d8737586d4e29f1074e188bc0860b8c962",
+      "doc_hash": "4b047e40e9bbd4b50dcf9784c10ecbb1ca8e19134d123a8be86837b2e9c5965a",
+      "target_hash": "c0e7e37c58629dc2dd9b14edfa89e390408374bb0e9bf5ee4d4681ce4c96ab76",
+      "input_tokens": 62542,
+      "input_token_sha256": "1ca556ab09683bf330e7e3a90d72c0dbf53510095b30804ce5cb2ef6a9226d72",
+      "targets": [
+        "Channel Islands",
+        "the Channel Islands",
+        "the Channel Islands"
+      ],
+      "prediction": " In the Channel Islands",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.938
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 77,
+      "prompt_hash": "6458cbe6a736cd55ff26ca4f38ab8036366527e72d52c8f0e0cac405c21d2ced",
+      "doc_hash": "44c47fae757727c677370668b984b6e30a9b329b04a474280216e8df117adb03",
+      "target_hash": "d299a109bf1e89326dd1b3422e24a34508d0a1a75555df8a23eca06f08e830d2",
+      "input_tokens": 63380,
+      "input_token_sha256": "497f8f4308fc32428fe1f5c098bdc57464c50e96e9da1a944879d95c1b09d224",
+      "targets": [
+        "two",
+        "two",
+        "two"
+      ],
+      "prediction": " two",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.993
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 78,
+      "prompt_hash": "d82f14b6d7b781a18b740787473a2c31fa9edfe0b146c429027c2fec9cb4a593",
+      "doc_hash": "9d529f7d81c40dc2027e52a5c0d6f447651e1141d389b88d5b0fcf5014a278fa",
+      "target_hash": "df9efb50d09d359fb62a65f050d1404573b4f1152b0eee81e2b439d59501df4e",
+      "input_tokens": 63322,
+      "input_token_sha256": "a396d1530b89fd22031494c19c92214619b7ebc8a8924fd72b7d3e25910c41e6",
+      "targets": [
+        "Romanesque",
+        "Romanesque",
+        "Romanesque"
+      ],
+      "prediction": " A unique Romanesque idiom characterized by rounded arches, particularly over windows and doorways, and massive proportions.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.635
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 79,
+      "prompt_hash": "2819f1f959ecde4b26e51c0a7b4a3fb392ee032293a47dd7d4b116c4c44198f9",
+      "doc_hash": "01508ee75fae0604b09166886b7923b71943bd019dc141210a9c556f7dee2aff",
+      "target_hash": "eb11e135e78cf553e00af63e3dd192a273513fe3f99f01bc4c9137d69a88d9de",
+      "input_tokens": 64265,
+      "input_token_sha256": "d24e516a282b1164fd90fbcd8df05f7f3d6c47c64f74c3c4accf94ce9e39017d",
+      "targets": [
+        "rounded",
+        "rounded",
+        "rounded"
+      ],
+      "prediction": " rounded arches",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.163
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 80,
+      "prompt_hash": "8973a5961b74b7fbd879455b7219e131755786848b612177062976803ae3dae4",
+      "doc_hash": "b6e66c2377de1e9507bb6397c38fa99602957611e0b77b3192717128e3e20a75",
+      "target_hash": "f02ad37a0f89310ea6b4597c422df21b67b4b8db3780c1050617a7d4e73090ad",
+      "input_tokens": 64449,
+      "input_token_sha256": "672acb4b32a73421ed142cde8ead8d13c8918492f22cf8d0d636e3f89bfdbd1c",
+      "targets": [
+        "Early Gothic",
+        "Early Gothic",
+        "Early Gothic"
+      ],
+      "prediction": " Early Gothic",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.148
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 81,
+      "prompt_hash": "45f15ae7ab4e05e6800e674ed4f9689213f32091224fc69e9f29a45704f9e855",
+      "doc_hash": "98e53351c3ef0b40f04cdc8e864eb906341aa401aac75022d69e11727e94570c",
+      "target_hash": "5ed65abbfe7fdc2f55c0ee9a07209db44eb0c21f37a38ad301fdea32288a9b7d",
+      "input_tokens": 65018,
+      "input_token_sha256": "a6237a43d9ab9f0133c8c11bcd96d026725fd0bbf64bf23ab47e24131bcd5877",
+      "targets": [
+        "Anglo-Saxon",
+        "Anglo-Saxon",
+        "Anglo-Saxon"
+      ],
+      "prediction": " Anglo-Saxon",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.279
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 82,
+      "prompt_hash": "c265a1a41ebfcb8d33a53c57b393d88fa2eb46d3a44b3dbb8a5b4180aed97dd2",
+      "doc_hash": "b479cb194a7b4d1820493f4ab44998598635006fa983ac25d311c7d647d1d3be",
+      "target_hash": "f09730f176a025c5257e8b05d1d6adf3fa092496863e75847c4cd100964e16d2",
+      "input_tokens": 62883,
+      "input_token_sha256": "0a0e933892ae50e926336ac361ef8893d6638f94516677fa6f014b17c9d0fae3",
+      "targets": [
+        "Sicily",
+        "Sicily",
+        "Kingdom of Sicily"
+      ],
+      "prediction": " the Kingdom of Sicily",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.034
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 83,
+      "prompt_hash": "928e888b44971606f3f4e75ef6e93e6ea8b6b65857899e5f37d78858408f4a4b",
+      "doc_hash": "8e60ce5ff48538cc564b22f0a653e025361426b740102b04e91e82d86e561305",
+      "target_hash": "29c61fa150f975d004aa7bf87e6141804997fbf3397c30b998fd35054c323785",
+      "input_tokens": 65149,
+      "input_token_sha256": "839bc44c4a745e1ef3639647b21e26cfaa95292b89360b945a7e0d9765322cdd",
+      "targets": [
+        "early 11th century",
+        "11th century",
+        "in the early 11th century"
+      ],
+      "prediction": " in the early 11th century",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.416
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 84,
+      "prompt_hash": "bfa5ec3af78a0cf76c54257d2f72f1b5f0de6fa98aa1bfd9b51ea5f20936f175",
+      "doc_hash": "1560218b144e8c74ffb7b1d57f2e8e3c10eac9b4053829175228d49279dd65cc",
+      "target_hash": "b463ec9f75424b59e4d0b196b59049bcf6e7fa35605059b955f9b2c7cba98773",
+      "input_tokens": 62225,
+      "input_token_sha256": "7fd25227dea6f17b23e2343c681bf106892630e0c40f09d225e003e1149369a1",
+      "targets": [
+        "dukes",
+        "the dukes",
+        "dukes"
+      ],
+      "prediction": " The Normans",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.895
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 85,
+      "prompt_hash": "42164c64f9caf6026f514f878da29048da4159982644866b3b90d8d8b3172635",
+      "doc_hash": "b33a32c75d05cadeb3f201e834becd2ec1268a49c901f9f14f266f46081877f1",
+      "target_hash": "ecd04b8064e91d3320e312e0daf5d6925d11f3c5814203083eb94ce42dacce2b",
+      "input_tokens": 63376,
+      "input_token_sha256": "7209923504afa21b9a773ad3c54fd9bcb14d9c2495838daa0736811059a4e79a",
+      "targets": [
+        "16th century",
+        "the 16th century",
+        "in the 16th century"
+      ],
+      "prediction": " 1562 to 1598",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.331
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 86,
+      "prompt_hash": "f7625460455a77c6c2974035fc46a653df52e1d82f1c600312e95b563c3217ef",
+      "doc_hash": "710bd93d0f1723dbe4c5f064876ee373b0ddb01639f75b57e477045d1dfa4678",
+      "target_hash": "943500a34b60d836c97a971d7ca4368a55a1c7740aaef5806f4a8b10f1c6f6e7",
+      "input_tokens": 61736,
+      "input_token_sha256": "d286758faedd5e7b6fd92d73bd02658a29042155c0ae4a8ca2769127f4f29356",
+      "targets": [
+        "embroidery",
+        "embroidery",
+        "embroidery"
+      ],
+      "prediction": " embroidery",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.087
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 87,
+      "prompt_hash": "9940e8568a0eeaa3a12878b11490f7e974d286c8522fa7dda0fb2ed82886fcc4",
+      "doc_hash": "42cebe74e9e21969b37cf532321324d60fa6b1bdbb3911010ab337fca8a12526",
+      "target_hash": "6b6036b3e570c2979470fce5f0ea0812617ada90a89260163cfa20864c871a9a",
+      "input_tokens": 63577,
+      "input_token_sha256": "c6d97f2fc52e7c199e9edad4c07323301f3f86f93619bf754c583cfbadbf3ff5",
+      "targets": [
+        "Bayeux Tapestry",
+        "the Bayeux Tapestry",
+        "the Bayeux Tapestry"
+      ],
+      "prediction": " The Bayeux Tapestry",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.145
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 88,
+      "prompt_hash": "cad4946973b7336540091868a1959025a01b79a725901e7acdd8b23315734001",
+      "doc_hash": "c6889250e0c5fcea82e2683c27ff31ff263201b0b9752e600b8f97a7fb1af7f8",
+      "target_hash": "b484124395a5820995b97dd281191618fcdde0537bd84db133efbb7dd0e75b82",
+      "input_tokens": 64866,
+      "input_token_sha256": "355f8f4048bf167d0bc9c42623953ac625a74219eb52e007f1265fec886ad80c",
+      "targets": [
+        "Odo",
+        "Odo",
+        "Odo"
+      ],
+      "prediction": " Odo, the Bishop of Bayeux and first Earl of Kent",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.519
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 89,
+      "prompt_hash": "73b81e271ae1a46bbdeff444a5cf3408ee9b8ef902f725de7eba3a234e509791",
+      "doc_hash": "52123ce798cd36f9eb3d09ca32ceef5eb3f972bcf10b05a707662b3b6a8259d1",
+      "target_hash": "a443d9bbcd8564f66945c72a93d59057a74c85248082f785b7f7bb3a4386786f",
+      "input_tokens": 63283,
+      "input_token_sha256": "decfde0a8a1fb038f699903a28eedd545694f2d897ac791e917792491b85333d",
+      "targets": [
+        "mosaics",
+        "mosaics",
+        "mosaics"
+      ],
+      "prediction": " mosaics",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.006
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 90,
+      "prompt_hash": "4bf7fe23f91adb6d38b83f0ba3350a25632dab592643e03f2e4b8363d32c7926",
+      "doc_hash": "031ab35ad107194ddc0749e7093e38b377f1ec3b5b6faed51673063c560e1698",
+      "target_hash": "fa46347fea7c3eaffed8a6e159b8ed10a24d1bc3f2e78fd131a865eb07fa556f",
+      "input_tokens": 62188,
+      "input_token_sha256": "3a14a2088923465411846b14395f980e9d0572bfef70ae98d97862fe379364fa",
+      "targets": [
+        "11th",
+        "the 11th",
+        "11th"
+      ],
+      "prediction": " 11th century",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.931
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 91,
+      "prompt_hash": "dea289b7a71f423fee1f6bea915a6a0e0f6527147ce05cf161c977f3e2a512bc",
+      "doc_hash": "a0653eb76cbdddb35f0c6980942a8abe30b1d7434f8df74cc42f428e8d7cc668",
+      "target_hash": "3ef449052f0708fa90a1e9f84b99f3799abd61b738dc78d880bc1b85761227a9",
+      "input_tokens": 65441,
+      "input_token_sha256": "5c41c6e2e332736ced35b94f1712ad33b3dbaa78236291468c69602facfafaac",
+      "targets": [
+        "William of Volpiano and John of Ravenna",
+        "William of Volpiano and John of Ravenna",
+        "William of Volpiano and John of Ravenna"
+      ],
+      "prediction": " William of Volpiano and John of Ravenna",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.52
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 92,
+      "prompt_hash": "6468efe8decd66216237ae6f9163c7ef5242a72e72cd0fd6143fbe08928bb2a8",
+      "doc_hash": "cfb0242a0a5b9a0d7c9002589d6bcfb8b8bbf760a7b472b0cc3e67743fea4fbf",
+      "target_hash": "f6efb3bb3d2fc342868820681dba00f3e5c0e34beb162b51e0b16a7ae09dc672",
+      "input_tokens": 61948,
+      "input_token_sha256": "423fe8787d824ff93581ef3a155a248ce8022cbef2ee1c8f3db9083716f6226a",
+      "targets": [
+        "southern Italy",
+        "southern Italy",
+        "southern Italy"
+      ],
+      "prediction": " southern Italy",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.804
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 93,
+      "prompt_hash": "7c8c6537014bf1d365ad089670b1ecbb5b3dfa63ffa393cc93d667940e64f003",
+      "doc_hash": "8ac04779bb7416fe5072ee32a4db883873022ec555c6e44e5cbab2d75a3c1cd9",
+      "target_hash": "32fcfea1834b9c76f44c2961f6e367c41c81f228267e1841792f5f9d286b1ffd",
+      "input_tokens": 63714,
+      "input_token_sha256": "cbafb7d2c38a04294cb0fcec7ad32563724dbcd6e58c5956e30881946840652d",
+      "targets": [
+        "Latin monastery at Sant'Eufemia.",
+        "a Latin monastery at Sant'Eufemia",
+        "Sant'Eufemia"
+      ],
+      "prediction": " Sant'Eufemia",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 8.09
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 94,
+      "prompt_hash": "695d6c6740f4bf2403c7d8b183b662a65ca64f05720a25df9fccdb12ddc46d65",
+      "doc_hash": "1529a76d3a01ad8e7932b7b8a6a704a8b7e09c099a42e6dd83e7c4f682f9af84",
+      "target_hash": "926c41f43aa3322c1c43ec3b1821ff6b4c6651bd1e416ed11179218ca72c741a",
+      "input_tokens": 62624,
+      "input_token_sha256": "ad2dfceeb986d5efb27ac1b8b95f4853c5ebd9d7a41cb237396233f5761643f2",
+      "targets": [
+        "Robert Guiscard",
+        "Robert Guiscard",
+        "Robert Guiscard"
+      ],
+      "prediction": " Robert Guiscard",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.915
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 95,
+      "prompt_hash": "2c8f6ff2f4f560e42848386f832078a376c7680db03bfca84e19a6eff934d3f3",
+      "doc_hash": "0b663712ca735f5cc2bf0591c1e6460d444e2d6332e37f288a1cc7b8ffc31d99",
+      "target_hash": "b0b0c47e8031522b3735a57c29cbfdbb5eca01f260d7faa71b33ebb750834bd4",
+      "input_tokens": 63513,
+      "input_token_sha256": "75744b8f44d9d42c2281ebf12924f5243b7a83fccc89cfb92d3bbc5d08c85243",
+      "targets": [
+        "singing",
+        "singing",
+        "singing"
+      ],
+      "prediction": " singing",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.994
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 96,
+      "prompt_hash": "5ad0e53f2bbbfffa9396665978dc5de3882216a8f2faecb90a29e476f742fa75",
+      "doc_hash": "6cf709d155462fce6800843a6f6c9c6226ee85240d2754fbd49ab5129fb636b2",
+      "target_hash": "df347384105bf71efefe69ee471ccf6d5747f4d53b9e36d37758b1ca172b2a49",
+      "input_tokens": 64097,
+      "input_token_sha256": "6ce0a7563d16a4876a234a1e56d48656b1cf7c25738b9c1305591dd53f5078f4",
+      "targets": [
+        "Computational complexity theory",
+        "Computational complexity theory",
+        "Computational complexity theory"
+      ],
+      "prediction": " Computational complexity theory",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.14
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 97,
+      "prompt_hash": "d82c47b805b9bbc1b19f5324ad208a24f92e52d236f7a491051f7897ca3bfc19",
+      "doc_hash": "3d184a7b57658e3ede0f30c95753d10c4caee9c606bcc9177918b4fb64cc827d",
+      "target_hash": "c1217695f73c1b1f3e23eefa9196758a5c5ebcfb9b2f842c014a45e562e7da70",
+      "input_tokens": 62560,
+      "input_token_sha256": "23f2e2d17acdefa47024699fcbb6025fa5198e74ec3fbce3106fa3ca3b85e207",
+      "targets": [
+        "inherent difficulty",
+        "their inherent difficulty",
+        "inherent difficulty"
+      ],
+      "prediction": " inherent difficulty",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.875
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 98,
+      "prompt_hash": "17fe93018c966917510e1a7425b5c4932cbd03db50b5b43c0c28381e7575972c",
+      "doc_hash": "fa30e374e24e3e530163e6454eed69c239936e5c611fd609e32ddfbc453392e6",
+      "target_hash": "9983966e5f8684dfe6305e7245f8ec16bcbf08c5fca3831d6aaf8e38cded41dc",
+      "input_tokens": 64556,
+      "input_token_sha256": "bac2011a3ecaf2fbb4e9557e206be902cb3a1adae8da3a44734a3c60a90c7319",
+      "targets": [
+        "computational problems",
+        "A computational problem",
+        "computational problem"
+      ],
+      "prediction": " computational problem",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 8.163
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 99,
+      "prompt_hash": "6579d6f65f8b8ac4a40326a0cc92ec2764a121961d0cce4eb49904f219ac8bd5",
+      "doc_hash": "22e56028e59db7b027e1724e90b6d23568ee62b3b29c8feafbf5a0ea2822f592",
+      "target_hash": "7c29378da0139e80528cd11c8833de909d9a766d42b61fd7fc45cef264588ee9",
+      "input_tokens": 64680,
+      "input_token_sha256": "9cf3b5fd376fb5b8457bb6c186ed019ae1f99223901d8174d0d03f89e0b27cdd",
+      "targets": [
+        "if its solution requires significant resources",
+        "its solution requires significant resources",
+        "if its solution requires significant resources"
+      ],
+      "prediction": " the amount of resources needed to solve them, such as time and storage",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.668
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 85.33333333333331
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c58d4e3fcca67fe0755f969a9d0206c54b93e71920c27c3f080b363e4eefb5c3",
+      "source_file_count": 242
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 7.8669233322143555,
+      "mean_open_entries": 566.4828491210938,
+      "route_coarse_ms": 9.19497709274292,
+      "leaves_ms": 3.9704968502647,
+      "remote_attention_ms": 14.894339425223215
+    },
+    {
+      "layer": 0,
+      "variant": "triton",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408260345458984,
+      "mean_open_entries": 1660.845947265625,
+      "route_coarse_ms": 38.139855575561526,
+      "leaves_ms": 28.725388793945314,
+      "remote_attention_ms": 68.58569869995117
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408260345458984,
+      "mean_open_entries": 1660.845947265625,
+      "route_coarse_ms": 19.8246579851423,
+      "leaves_ms": 29.1472998046875,
+      "remote_attention_ms": 49.06027755737305
+    },
+    {
+      "layer": 8,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 318.6315612792969,
+      "route_coarse_ms": 11.249449504505504,
+      "leaves_ms": 3.117769152052859,
+      "remote_attention_ms": 14.686022127591647
+    },
+    {
+      "layer": 8,
+      "variant": "triton",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.42523765563965,
+      "mean_open_entries": 1504.4827880859375,
+      "route_coarse_ms": 38.38179499308268,
+      "leaves_ms": 29.853880310058596,
+      "remote_attention_ms": 68.52849502563477
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.42523765563965,
+      "mean_open_entries": 1504.4827880859375,
+      "route_coarse_ms": 18.902274894714356,
+      "leaves_ms": 29.426715393066406,
+      "remote_attention_ms": 49.33180732727051
+    },
+    {
+      "layer": 15,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 650.066162109375,
+      "route_coarse_ms": 9.357954597473144,
+      "leaves_ms": 4.208948800223214,
+      "remote_attention_ms": 14.174130358014787
+    },
+    {
+      "layer": 15,
+      "variant": "triton",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.916547775268555,
+      "mean_open_entries": 2095.4716796875,
+      "route_coarse_ms": 36.9971420288086,
+      "leaves_ms": 29.641328430175783,
+      "remote_attention_ms": 67.52323913574219
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.916547775268555,
+      "mean_open_entries": 2095.4716796875,
+      "route_coarse_ms": 18.542675018310547,
+      "leaves_ms": 29.62798858642578,
+      "remote_attention_ms": 49.0429069519043
+    }
+  ],
+  "context": 65536,
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

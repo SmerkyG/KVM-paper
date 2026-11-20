@@ -1,0 +1,66 @@
+{
+  "stage": "complete",
+  "scope": "Tune fused selection on live 128K inputs, then stop without a model timing.\n\nAccepts h100_comparison arguments. No Q/K/V fixture is written to disk.\n",
+  "fixture": {
+    "scores": [
+      32,
+      4096,
+      4096
+    ],
+    "width": 512,
+    "region_slots": 4096
+  },
+  "records": [
+    {
+      "warps": 4,
+      "valid": true,
+      "samples_ms": [
+        3.2376991271972657,
+        3.2318111419677735,
+        3.23221435546875
+      ],
+      "median_ms": 3.23221435546875,
+      "n_regs": 225,
+      "n_spills": 0,
+      "errors": [
+        0.0,
+        6.103515625e-05,
+        1.9073486328125e-06
+      ]
+    },
+    {
+      "warps": 8,
+      "valid": true,
+      "samples_ms": [
+        4.213276672363281,
+        4.2132415771484375,
+        4.212774276733398
+      ],
+      "median_ms": 4.2132415771484375,
+      "n_regs": 149,
+      "n_spills": 0,
+      "errors": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "warps": 16,
+      "valid": true,
+      "samples_ms": [
+        4.004457473754883,
+        3.996787261962891,
+        3.9974624633789064
+      ],
+      "median_ms": 3.9974624633789064,
+      "n_regs": 81,
+      "n_spills": 0,
+      "errors": [
+        0.0,
+        6.103515625e-05,
+        1.9073486328125e-06
+      ]
+    }
+  ]
+}

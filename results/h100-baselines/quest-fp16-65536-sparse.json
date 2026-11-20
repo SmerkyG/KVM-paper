@@ -1,0 +1,49 @@
+{
+  "method": "quest",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "float16",
+  "prompt_tokens": 65536,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 1025,
+  "quest_budget_ratio": 0.25,
+  "records": [
+    {
+      "prefill_s": 6.23773835800057,
+      "decode_s": 15.425696899000286,
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_token": 15.064157127929967
+    },
+    {
+      "prefill_s": 6.039744324999447,
+      "decode_s": 15.363086848000421,
+      "iteration": 1,
+      "warmup": true,
+      "decode_ms_per_token": 15.003014500000411
+    },
+    {
+      "prefill_s": 6.149601314999927,
+      "decode_s": 15.358275344000504,
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_token": 14.998315765625492
+    },
+    {
+      "prefill_s": 6.054596984999989,
+      "decode_s": 15.362668635999398,
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_token": 15.002606089843162
+    },
+    {
+      "prefill_s": 6.214185267000175,
+      "decode_s": 15.302869326000291,
+      "iteration": 4,
+      "warmup": false,
+      "decode_ms_per_token": 14.94420832617216
+    }
+  ],
+  "median_decode_ms_per_token": 14.998315765625492,
+  "median_prefill_s": 6.149601314999927
+}

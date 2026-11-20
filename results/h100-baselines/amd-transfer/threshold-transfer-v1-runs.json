@@ -1,0 +1,54 @@
+{
+  "jobs": [
+    {
+      "name": "threshold-transfer-v1-candidate-32k-check",
+      "id": "1794263735348740231-threshold-transfer-v1-candidate-32k-check"
+    },
+    {
+      "name": "threshold-transfer-v1-candidate-64k-check",
+      "id": "1794263735406552249-threshold-transfer-v1-candidate-64k-check"
+    },
+    {
+      "name": "threshold-transfer-v1-control-32k",
+      "id": "1794263735463350034-threshold-transfer-v1-control-32k"
+    },
+    {
+      "name": "threshold-transfer-v1-candidate-32k",
+      "id": "1794263735520025023-threshold-transfer-v1-candidate-32k"
+    },
+    {
+      "name": "threshold-transfer-v1-control-after-32k",
+      "id": "1794263735579178979-threshold-transfer-v1-control-after-32k"
+    },
+    {
+      "name": "threshold-transfer-v1-control-64k",
+      "id": "1794263735636175860-threshold-transfer-v1-control-64k"
+    },
+    {
+      "name": "threshold-transfer-v1-candidate-64k",
+      "id": "1794263735692932509-threshold-transfer-v1-candidate-64k"
+    },
+    {
+      "name": "threshold-transfer-v1-control-after-64k",
+      "id": "1794263735747722707-threshold-transfer-v1-control-after-64k"
+    }
+  ],
+  "chosen": {
+    "32768": {
+      "implementation": "materialized",
+      "splits": 32,
+      "block": 128,
+      "merge_block": 32,
+      "fixed_query_us": 24.01098261276881,
+      "control_fixed_query_us": 35.49258311589559
+    },
+    "65536": {
+      "implementation": "materialized",
+      "splits": 32,
+      "block": 128,
+      "merge_block": 32,
+      "fixed_query_us": 30.359949668248493,
+      "control_fixed_query_us": 49.95666444301605
+    }
+  }
+}

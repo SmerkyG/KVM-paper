@@ -1,0 +1,107 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "32fa7f409652d249a6a7cbcf796fcb8a85691af4632c9a62a622580fe156f02d",
+      "source_file_count": 243
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 7.8669233322143555,
+      "mean_open_entries": 566.4828491210938,
+      "route_coarse_ms": 9.008194160461425,
+      "leaves_ms": 3.9923365824931376,
+      "remote_attention_ms": 13.672424970354353
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.40825653076172,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 19.961739676339285,
+      "leaves_ms": 20.18128160749163,
+      "remote_attention_ms": 41.26834373474121
+    },
+    {
+      "layer": 8,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 313.31475830078125,
+      "route_coarse_ms": 9.223361206054687,
+      "leaves_ms": 3.019706888401762,
+      "remote_attention_ms": 13.042007242838542
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.443662643432617,
+      "mean_open_entries": 1490.184326171875,
+      "route_coarse_ms": 20.296525355747768,
+      "leaves_ms": 23.47374674479167,
+      "remote_attention_ms": 44.722900009155275
+    },
+    {
+      "layer": 15,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 640.4996337890625,
+      "route_coarse_ms": 9.17096767425537,
+      "leaves_ms": 4.215571459601907,
+      "remote_attention_ms": 14.085507420131139
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.98775291442871,
+      "mean_open_entries": 2103.731201171875,
+      "route_coarse_ms": 20.39754442487444,
+      "leaves_ms": 22.046131388346353,
+      "remote_attention_ms": 43.60652961730957
+    }
+  ],
+  "context": 65536,
+  "prompt_metadata": [
+    {
+      "request_index": 0,
+      "source_stream_indices": [
+        0
+      ],
+      "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+      "unique_16_token_block_ratio": 1.0
+    }
+  ]
+}

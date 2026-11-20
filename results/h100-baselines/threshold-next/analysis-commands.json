@@ -1,0 +1,24 @@
+{
+  "report_command": [
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/.venv/bin/python",
+    "-m",
+    "benchmarks.h100_threshold_next_report",
+    "--directory",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/threshold-next"
+  ],
+  "watcher_command": [
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/benchmarks/h100_threshold_next_finalize.py",
+    "--host",
+    "ubuntu@217.18.55.35",
+    "--directory",
+    "results/h100-baselines/threshold-next"
+  ],
+  "score_policy": "Validated tokenizer decode; first EOS/EOT; substring metrics; matched input token hashes",
+  "source_sha256": {
+    "benchmarks/h100_threshold_next_report.py": "c4a8656d243540f46ac877fbfc6245c2d6a39da93f007cf53a00610e586056eb",
+    "benchmarks/h100_threshold_next_finalize.py": "6a599a7657af6e6f5daa4ad90c1ea2fcbef82303d550c5d047b6fdb388c3fd32"
+  },
+  "environment": {
+    "python": "3.12.13 (main, May 10 2026, 19:30:01) [Clang 22.1.3 ]"
+  }
+}

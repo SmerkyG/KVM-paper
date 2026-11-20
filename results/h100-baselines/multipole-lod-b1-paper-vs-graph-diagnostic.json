@@ -1,0 +1,88 @@
+{
+  "measurement_scope": "synthetic single-layer attention-only graph, not full-model inference",
+  "batch": 1,
+  "prefix_tokens": 131072,
+  "mode": "three-tier-bf16",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "quality_matched": false,
+  "kv_writes_included": false,
+  "cache_updates_included": false,
+  "local_attention_included": false,
+  "sink_attention_included": false,
+  "new_kv_attention_included": false,
+  "excluded_kv_perturbation_max_abs": 0.0,
+  "local_lengths": [
+    256
+  ],
+  "same_cache_graph_eager_max_abs": 0.0,
+  "records": [
+    {
+      "wall_ms_per_batch_step": 0.05594696289001888,
+      "gpu_timeline_ms_per_batch_step": 0.055884625762701035
+    },
+    {
+      "wall_ms_per_batch_step": 0.055763978515699364,
+      "gpu_timeline_ms_per_batch_step": 0.055724501609802246
+    }
+  ],
+  "median_wall_ms_per_batch_step": 0.05585547070285912,
+  "attention_diagnostic": {
+    "event_panels": {
+      "graph_warm": {
+        "median_ms": 0.057472001761198044,
+        "p20_ms": 0.057023998349905014,
+        "p80_ms": 0.05795200169086456
+      },
+      "graph_cold": {
+        "median_ms": 0.06627199798822403,
+        "p20_ms": 0.06579200178384781,
+        "p80_ms": 0.06700800359249115
+      },
+      "eager_warm": {
+        "median_ms": 0.3620000034570694,
+        "p20_ms": 0.3495680093765259,
+        "p80_ms": 0.3806079924106598
+      },
+      "eager_cold": {
+        "median_ms": 0.30217599868774414,
+        "p20_ms": 0.28803199529647827,
+        "p80_ms": 0.3189440071582794
+      }
+    },
+    "profile_kernel_count": 6,
+    "profile_kernel_sum_ms": 0.050047,
+    "profile_kernel_span_ms": 2.073671875,
+    "profile_kernels": [
+      {
+        "name": "_decode_route_coarse_gqa_groups_kernel",
+        "duration_us": 28.959
+      },
+      {
+        "name": "_reduce_decode_route_coarse_vector_topk_kernel",
+        "duration_us": 5.344
+      },
+      {
+        "name": "_query_major_residual_page_attention_kernel",
+        "duration_us": 10.368
+      },
+      {
+        "name": "_reduce_routed_split_decode_lod_attention_kernel",
+        "duration_us": 2.624
+      },
+      {
+        "name": "kernel_exact_tiered_attention_3d",
+        "duration_us": 1.664
+      },
+      {
+        "name": "_reduce_aiter_page1_segments_with_lse_kernel",
+        "duration_us": 1.088
+      }
+    ]
+  },
+  "paper_style_attention_quantiles_ms_20_50_80": [
+    0.2982400059700012,
+    0.3150720000267029,
+    0.3312320113182068
+  ]
+}

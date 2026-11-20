@@ -1,0 +1,49 @@
+{
+  "measurement_scope": "synthetic single attention layer, not full-model inference",
+  "model_geometry": "Qwen3-8B",
+  "batch": 16,
+  "prefix_tokens": 131072,
+  "mode": "three-tier-int4",
+  "query_heads": 32,
+  "kv_heads": 8,
+  "head_dim": 128,
+  "weights_loaded": false,
+  "seed": 105,
+  "quality_matched": false,
+  "same_cache_graph_eager_max_abs": 0.0,
+  "warmup": {
+    "steps": 512,
+    "wall_ms_per_batch_step": 0.5393828437498804,
+    "gpu_timeline_ms_per_batch_step": 0.5393491387367249,
+    "catch_up_batches": 28,
+    "context_start": 131073,
+    "context_end": 131585
+  },
+  "records": [
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 0.4423326132814154,
+      "gpu_timeline_ms_per_batch_step": 0.44231268763542175,
+      "catch_up_batches": 28,
+      "context_start": 131585,
+      "context_end": 132097
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 0.4519047167970136,
+      "gpu_timeline_ms_per_batch_step": 0.451884925365448,
+      "catch_up_batches": 28,
+      "context_start": 132097,
+      "context_end": 132609
+    }
+  ],
+  "post_update_graph_eager_max_abs": 0.0,
+  "median_wall_ms_per_batch_step": 0.4471186650392145,
+  "median_gpu_timeline_ms_per_batch_step": 0.4470988065004349,
+  "update_interval": 256,
+  "route_geometry": {
+    "group_size": 64,
+    "warps": 2,
+    "page_block": 16
+  }
+}

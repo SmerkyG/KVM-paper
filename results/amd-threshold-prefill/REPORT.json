@@ -1,0 +1,649 @@
+{
+  "stage": "complete",
+  "phase": "final-v15",
+  "timing": [
+    {
+      "context": 32768,
+      "top8_before": 3.9032435324043036,
+      "threshold": 4.130098327994347,
+      "top8_after": 3.9091258719563484,
+      "dense": 5.281616929918528,
+      "control_median": 3.9058280140161514,
+      "threshold_change_percent": 5.741940330536721,
+      "dense_speedup": 1.2788114254130556,
+      "completion_seconds": {
+        "top8": 3.9308800157159567,
+        "threshold": 4.157832831144333,
+        "top8-after": 3.9367397036403418,
+        "dense": 5.312080141156912
+      }
+    },
+    {
+      "context": 65536,
+      "top8_before": 8.067910082638264,
+      "threshold": 8.989665685221553,
+      "top8_after": 8.07396588101983,
+      "dense": 14.099998349323869,
+      "control_median": 8.069380765780807,
+      "threshold_change_percent": 11.404653543470488,
+      "dense_speedup": 1.5684674873397553,
+      "completion_seconds": {
+        "top8": 8.09545773640275,
+        "threshold": 9.016928246244788,
+        "top8-after": 8.101600820198655,
+        "dense": 14.13173272460699
+      }
+    }
+  ],
+  "quality": [
+    {
+      "task": "niah_multikey_2",
+      "examples": 32,
+      "top8": 100.0,
+      "threshold": 100.0,
+      "improved": 0,
+      "declined": 0,
+      "min_tokens": 64920,
+      "max_tokens": 65140
+    },
+    {
+      "task": "niah_multikey_3",
+      "examples": 32,
+      "top8": 100.0,
+      "threshold": 100.0,
+      "improved": 0,
+      "declined": 0,
+      "min_tokens": 63515,
+      "max_tokens": 63820
+    }
+  ],
+  "frontier_checks": [
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 1.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 3.0,
+      "max_abs": 0.01861119270324707
+    },
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 4.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 3.0,
+      "max_abs": 0.02006673812866211
+    },
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 16.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 0.2860696315765381,
+      "max_abs": 0.012431144714355469
+    },
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 100.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 0.0,
+      "max_abs": 0.011248350143432617
+    },
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 4.0,
+      "normalized": false,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 3.082089424133301,
+      "max_abs": 0.0192108154296875
+    },
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 16.0,
+      "normalized": true,
+      "empty": true,
+      "stress": false,
+      "mean_regions": 0.0,
+      "max_abs": 0.014645099639892578
+    },
+    {
+      "dim": 256,
+      "group": 6,
+      "multiplier": 1.0,
+      "normalized": true,
+      "empty": false,
+      "stress": true,
+      "mean_regions": 105.35820770263672,
+      "max_abs": 0.016713857650756836
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 1.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 3.0,
+      "max_abs": 0.018563270568847656
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 4.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 3.0,
+      "max_abs": 0.015408515930175781
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 16.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 0.2901119291782379,
+      "max_abs": 0.012059926986694336
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 100.0,
+      "normalized": true,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 0.0,
+      "max_abs": 0.007913827896118164
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 4.0,
+      "normalized": false,
+      "empty": false,
+      "stress": false,
+      "mean_regions": 3.087686538696289,
+      "max_abs": 0.016785860061645508
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 16.0,
+      "normalized": true,
+      "empty": true,
+      "stress": false,
+      "mean_regions": 0.0,
+      "max_abs": 0.00921010971069336
+    },
+    {
+      "dim": 128,
+      "group": 8,
+      "multiplier": 1.0,
+      "normalized": true,
+      "empty": false,
+      "stress": true,
+      "mean_regions": 105.59980773925781,
+      "max_abs": 0.016682147979736328
+    }
+  ],
+  "real_state": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 7.8669233322143555,
+      "mean_open_entries": 566.4828491210938,
+      "route_coarse_ms": 9.009461498260498,
+      "leaves_ms": 3.919538466994827,
+      "remote_attention_ms": 13.730674852643695,
+      "validation": {}
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.099238755967882,
+      "leaves_ms": 16.603298780653212,
+      "remote_attention_ms": 33.94178466796875,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0049849748611450195
+      }
+    },
+    {
+      "layer": 8,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 318.3464050292969,
+      "route_coarse_ms": 9.275502014160157,
+      "leaves_ms": 3.0197024730925865,
+      "remote_attention_ms": 13.512967732747395,
+      "validation": {}
+    },
+    {
+      "layer": 8,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 31.409175872802734,
+      "mean_open_entries": 1504.1165771484375,
+      "route_coarse_ms": 16.65697784423828,
+      "leaves_ms": 19.084344373430525,
+      "remote_attention_ms": 38.045618591308596,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.00925445556640625
+      }
+    },
+    {
+      "layer": 15,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 8.0,
+      "mean_open_entries": 647.0458374023438,
+      "route_coarse_ms": 11.182777303059895,
+      "leaves_ms": 4.470112378669508,
+      "remote_attention_ms": 16.61882349650065,
+      "validation": {}
+    },
+    {
+      "layer": 15,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 21.860538482666016,
+      "mean_open_entries": 2088.41162109375,
+      "route_coarse_ms": 17.398361015319825,
+      "leaves_ms": 22.08069674173991,
+      "remote_attention_ms": 41.094620895385745,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.06549263000488281
+      }
+    }
+  ],
+  "all_runs": [
+    {
+      "phase": "bucket-v14",
+      "id": "24770-amd-qwen-prefill-check-v14",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "bucket-v14",
+      "id": "24771-amd-qwen-prefill-replay-v14",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "capture-v13",
+      "id": "24769-amd-qwen-prefill-real-profile-v13",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "check-v1",
+      "id": "24731-amd-qwen-threshold-prefill-check-v1",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "check-v1",
+      "id": "24732-amd-qwen-threshold-prefill-speed-v1",
+      "selected": false,
+      "status": "cancelled",
+      "exit_code": "signal"
+    },
+    {
+      "phase": "debug-v8",
+      "id": "24755-amd-qwen-prefill-pack-debug-v8",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "134"
+    },
+    {
+      "phase": "debug-v9",
+      "id": "24756-amd-qwen-prefill-pack-debug-v9",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24772-amd-qwen-prefill-check-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24773-amd-qwen-prefill-native-checks-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24774-amd-qwen-prefill-replay-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24775-amd-qwen-prefill-speed-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24776-amd-qwen-prefill-ruler-niah_multikey_2-top8-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24777-amd-qwen-prefill-ruler-niah_multikey_2-threshold-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24778-amd-qwen-prefill-ruler-niah_multikey_3-top8-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v15",
+      "id": "24779-amd-qwen-prefill-ruler-niah_multikey_3-threshold-v15",
+      "selected": true,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24739-amd-qwen-prefill-check-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24740-amd-qwen-prefill-probe-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24741-amd-qwen-prefill-speed-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24742-amd-qwen-prefill-ruler-niah_multikey_2-top8-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24743-amd-qwen-prefill-ruler-niah_multikey_2-threshold-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24744-amd-qwen-prefill-ruler-niah_multikey_3-top8-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "final-v4",
+      "id": "24745-amd-qwen-prefill-ruler-niah_multikey_3-threshold-v4",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "flash-v6",
+      "id": "24749-amd-qwen-prefill-check-v6",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "flash-v6",
+      "id": "24750-amd-qwen-prefill-probe-v6",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "group-pack-v7",
+      "id": "24751-amd-qwen-prefill-check-blas-v7",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "134"
+    },
+    {
+      "phase": "group-pack-v7",
+      "id": "24752-amd-qwen-prefill-check-flash-v7",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "134"
+    },
+    {
+      "phase": "group-pack-v7",
+      "id": "24753-amd-qwen-prefill-probe-v7",
+      "selected": false,
+      "status": "cancelled",
+      "exit_code": "signal"
+    },
+    {
+      "phase": "parallel-scan-v11",
+      "id": "24759-amd-qwen-prefill-check-v11",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "parallel-scan-v11",
+      "id": "24760-amd-qwen-prefill-profile-v11",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "persistent-v5",
+      "id": "24746-amd-qwen-prefill-check-v5",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "persistent-v5",
+      "id": "24747-amd-qwen-prefill-probe-v5",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "persistent-v5",
+      "id": "24748-amd-qwen-prefill-speed-v5",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "probe-v1",
+      "id": "24733-amd-qwen-threshold-prefill-real-probe-v1",
+      "selected": false,
+      "status": "cancelled",
+      "exit_code": "signal"
+    },
+    {
+      "phase": "probe-v2",
+      "id": "24734-amd-qwen-prefill-probe-v2",
+      "selected": false,
+      "status": "cancelled",
+      "exit_code": "signal"
+    },
+    {
+      "phase": "probe-v2",
+      "id": "24735-amd-qwen-prefill-check-blas-v2",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "probe-v3",
+      "id": "24736-amd-qwen-prefill-probe-v3",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "probe-v3",
+      "id": "24737-amd-qwen-prefill-check-triton-v3",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "probe-v3",
+      "id": "24738-amd-qwen-prefill-check-blas-v3",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "profile-v7",
+      "id": "24754-amd-qwen-prefill-stage-profile-v7",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "scan-v10",
+      "id": "24757-amd-qwen-prefill-check-v10",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "1"
+    },
+    {
+      "phase": "scan-v10",
+      "id": "24758-amd-qwen-prefill-profile-v10",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24761-amd-qwen-prefill-check-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24762-amd-qwen-prefill-tune-groups-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24763-amd-qwen-prefill-speed-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24764-amd-qwen-prefill-probe-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24765-amd-qwen-prefill-ruler-niah_multikey_2-top8-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24766-amd-qwen-prefill-ruler-niah_multikey_2-threshold-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24767-amd-qwen-prefill-ruler-niah_multikey_3-top8-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "tuned-v12",
+      "id": "24768-amd-qwen-prefill-ruler-niah_multikey_3-threshold-v12",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    },
+    {
+      "phase": "workers-v16",
+      "id": "24780-amd-qwen-prefill-worker-tune-v16",
+      "selected": false,
+      "status": "finished",
+      "exit_code": "0"
+    }
+  ]
+}

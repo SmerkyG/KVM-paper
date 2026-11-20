@@ -1,0 +1,193 @@
+{
+  "measurement_scope": "synthetic single attention layer, not full-model inference",
+  "model_geometry": "Qwen3-8B",
+  "batch": 4,
+  "prefix_tokens": 131072,
+  "mode": "three-tier-bf16",
+  "query_heads": 32,
+  "kv_heads": 8,
+  "head_dim": 128,
+  "weights_loaded": false,
+  "seed": 105,
+  "quality_matched": false,
+  "same_cache_graph_eager_max_abs": 0.0,
+  "warmup": {
+    "steps": 512,
+    "wall_ms_per_batch_step": 0.17358940429623715,
+    "gpu_timeline_ms_per_batch_step": 0.1735280603170395,
+    "catch_up_batches": 8,
+    "profiled_updates": [
+      {
+        "context": 131328,
+        "host_submit_ms": 43.88321099941095,
+        "catch_up_batches": 4,
+        "gpu_timeline_ms": 15.109184265136719
+      },
+      {
+        "context": 131584,
+        "host_submit_ms": 35.92500499962625,
+        "catch_up_batches": 4,
+        "gpu_timeline_ms": 7.02345609664917
+      }
+    ],
+    "sampled_graphs": [
+      {
+        "context": 131073,
+        "gpu_timeline_ms": 0.16227200627326965
+      },
+      {
+        "context": 131137,
+        "gpu_timeline_ms": 0.13142399489879608
+      },
+      {
+        "context": 131201,
+        "gpu_timeline_ms": 0.1321599930524826
+      },
+      {
+        "context": 131265,
+        "gpu_timeline_ms": 0.1329279989004135
+      },
+      {
+        "context": 131329,
+        "gpu_timeline_ms": 0.13068799674510956
+      },
+      {
+        "context": 131393,
+        "gpu_timeline_ms": 0.1308159977197647
+      },
+      {
+        "context": 131457,
+        "gpu_timeline_ms": 0.13315199315547943
+      },
+      {
+        "context": 131521,
+        "gpu_timeline_ms": 0.1327359974384308
+      }
+    ],
+    "context_start": 131073,
+    "context_end": 131585
+  },
+  "records": [
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 0.13973456640492543,
+      "gpu_timeline_ms_per_batch_step": 0.13970018923282623,
+      "catch_up_batches": 8,
+      "profiled_updates": [
+        {
+          "context": 131840,
+          "host_submit_ms": 7.4389239998708945,
+          "catch_up_batches": 4,
+          "gpu_timeline_ms": 2.5271999835968018
+        },
+        {
+          "context": 132096,
+          "host_submit_ms": 7.3921800003518,
+          "catch_up_batches": 4,
+          "gpu_timeline_ms": 2.530463933944702
+        }
+      ],
+      "sampled_graphs": [
+        {
+          "context": 131585,
+          "gpu_timeline_ms": 0.13967999815940857
+        },
+        {
+          "context": 131649,
+          "gpu_timeline_ms": 0.13023999333381653
+        },
+        {
+          "context": 131713,
+          "gpu_timeline_ms": 0.1319040060043335
+        },
+        {
+          "context": 131777,
+          "gpu_timeline_ms": 0.13222399353981018
+        },
+        {
+          "context": 131841,
+          "gpu_timeline_ms": 0.13120000064373016
+        },
+        {
+          "context": 131905,
+          "gpu_timeline_ms": 0.1326719969511032
+        },
+        {
+          "context": 131969,
+          "gpu_timeline_ms": 0.13209599256515503
+        },
+        {
+          "context": 132033,
+          "gpu_timeline_ms": 0.13395200669765472
+        }
+      ],
+      "context_start": 131585,
+      "context_end": 132097
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 0.15671363085978385,
+      "gpu_timeline_ms_per_batch_step": 0.15667444467544556,
+      "catch_up_batches": 8,
+      "profiled_updates": [
+        {
+          "context": 132352,
+          "host_submit_ms": 7.216618000711605,
+          "catch_up_batches": 4,
+          "gpu_timeline_ms": 2.543839931488037
+        },
+        {
+          "context": 132608,
+          "host_submit_ms": 7.419135999953141,
+          "catch_up_batches": 4,
+          "gpu_timeline_ms": 2.4211199283599854
+        }
+      ],
+      "sampled_graphs": [
+        {
+          "context": 132097,
+          "gpu_timeline_ms": 0.15520000457763672
+        },
+        {
+          "context": 132161,
+          "gpu_timeline_ms": 0.14451199769973755
+        },
+        {
+          "context": 132225,
+          "gpu_timeline_ms": 0.1488959938287735
+        },
+        {
+          "context": 132289,
+          "gpu_timeline_ms": 0.14528000354766846
+        },
+        {
+          "context": 132353,
+          "gpu_timeline_ms": 0.15427200496196747
+        },
+        {
+          "context": 132417,
+          "gpu_timeline_ms": 0.15401600301265717
+        },
+        {
+          "context": 132481,
+          "gpu_timeline_ms": 0.15324799716472626
+        },
+        {
+          "context": 132545,
+          "gpu_timeline_ms": 0.15299199521541595
+        }
+      ],
+      "context_start": 132097,
+      "context_end": 132609
+    }
+  ],
+  "post_update_graph_eager_max_abs": 0.0,
+  "median_wall_ms_per_batch_step": 0.14822409863235464,
+  "median_gpu_timeline_ms_per_batch_step": 0.1481873169541359,
+  "update_interval": 256,
+  "route_geometry": {
+    "group_size": 64,
+    "warps": 2,
+    "page_block": 16
+  }
+}

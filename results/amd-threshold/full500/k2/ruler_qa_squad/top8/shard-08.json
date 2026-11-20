@@ -1,0 +1,984 @@
+{
+  "stage": "complete",
+  "checkpoint": "IFM/K2-Horizon-32B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 400,
+      "prompt_hash": "462641bef9b9090c55a984d962f003253034a969aa27e2579eea6002c394ee74",
+      "doc_hash": "33829cae5848cf63dd7caa039b540d3720a8f56bb71873a5748d8e1da18426b7",
+      "target_hash": "d299a109bf1e89326dd1b3422e24a34508d0a1a75555df8a23eca06f08e830d2",
+      "input_tokens": 62819,
+      "input_token_sha256": "951d84abf5e032c04090ffc780a4877403b02064286adcf7e8b752343ce10f34",
+      "targets": [
+        "two",
+        "two",
+        "two"
+      ],
+      "prediction": " 2",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.749
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 401,
+      "prompt_hash": "609acd7a2d42ecf39c19a87ad0ec0ee4699804b67240e60c85c725e9b60068b3",
+      "doc_hash": "635442a694ffe8f6bffd76d5e593d6dd0a1272763b5e830bf7003eb185f0f506",
+      "target_hash": "f4c7c77a25ae3f6dfbcb98bdc8ea2be02c0ad82ee184cca252e9a92121a5bbc0",
+      "input_tokens": 64129,
+      "input_token_sha256": "bf74dfe8ebb66d9a42553774a31f2195060f764348e17a6cbb02184158c3a2eb",
+      "targets": [
+        "five million",
+        "five million",
+        "five million"
+      ],
+      "prediction": " 5,000,000",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.213
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 402,
+      "prompt_hash": "9de895a2ac6c8f19ae017d35aa7d0ffa78d5aee5c4b004b4917b7ccada73349f",
+      "doc_hash": "ed61239cfb8aeaa9dd868df87ff52c4e5ae7810eb4fbf84633dd1929142e0403",
+      "target_hash": "01a11360b7bf37b0d42ca85232352ea55ff68f159fbf9cbdd1f3757b1005cf38",
+      "input_tokens": 64570,
+      "input_token_sha256": "77e7b12f430ea6a9c641e4c000945b1c804ab66c12a505cef4358c310b74d581",
+      "targets": [
+        "Southern Border Region",
+        "the Southern Border Region",
+        "Southern Border Region"
+      ],
+      "prediction": " The Southern Border Region",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.224
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 403,
+      "prompt_hash": "cf139dbfbf8e151d266626f85ef2c7ffc73ed3fd08a7c88682595c129bb892d3",
+      "doc_hash": "d941408e5445dbfbb401ae07717aa2d353d8b4e5e6cc39ca13443bf760125bfe",
+      "target_hash": "8255fa67ffd48a9e467f5a22b17f70c9761d0794ab1ed68a9c25d0eb8318e0bc",
+      "input_tokens": 64077,
+      "input_token_sha256": "80dc35539201663f70056b3c4b9a73afd57a2c0c7cdf7de191ab67d854a69601",
+      "targets": [
+        "17,786,419",
+        "17,786,419",
+        "17,786,419"
+      ],
+      "prediction": " 17,786,419",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.185
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 404,
+      "prompt_hash": "6a12898e5e52bd330bc26887264cf13a06c63d8abca7c80ece895e466b28d0e0",
+      "doc_hash": "a2b7f9887b250091c01a1315eeec7a6af2b9e17a970b79bc1117e8e32783e2b7",
+      "target_hash": "05f663ebca61fde4b6493a5097186954cd18cc45fd1d0c8cfac14dfeccbbc5c8",
+      "input_tokens": 65138,
+      "input_token_sha256": "a422fbefea20b189dbb9ad91925fe6ce5d1499a93ce3e59da99f9004face4b11",
+      "targets": [
+        "Los Angeles",
+        "Los Angeles",
+        "Los Angeles"
+      ],
+      "prediction": " Los Angeles",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.324
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 405,
+      "prompt_hash": "061387937cb5293f66d201ff2de7a9a881542bb247779b467c6265099a8ebbb0",
+      "doc_hash": "cc097b4cca4de500edf2524a7c23c3541d38c9a539e4c9ef55070639d7d1571f",
+      "target_hash": "313a57bfba612ec1e0e5f4bcddee51e65cc5245949a26e49990a2ad5360b0a87",
+      "input_tokens": 64768,
+      "input_token_sha256": "1ba7c1b15f6cb56433d764ad0664c66a54389094aae37efc649c6b05c6b41b44",
+      "targets": [
+        "1.3 million",
+        "1.3 million",
+        "San Diego"
+      ],
+      "prediction": " 1,307,402",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.728
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 406,
+      "prompt_hash": "efdde7b2b5975ba16a95f9a7436f9bd9752efd98122e24b15fff28b2537c0f7d",
+      "doc_hash": "79e12b325dd202e0f7ed8ca9c32448c7b42e796e1d52d2c4a48e27614617ce4e",
+      "target_hash": "0fe8c0dd123e6f76d2d10bf365cdf8133fad9351924d9473d124f27a9850b7f3",
+      "input_tokens": 63527,
+      "input_token_sha256": "dbc0c838afefba64d98d32614d3c0ffb25e46897452e17166dec44133944e467",
+      "targets": [
+        "twelve",
+        "twelve",
+        "twelve"
+      ],
+      "prediction": " 12",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.83
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 407,
+      "prompt_hash": "f2a430ae360ecbacc51aef7a7bd2878a83662536a228ef48fbaf6cc38481f7ee",
+      "doc_hash": "30fe5cfe772f4e279789d318345803e27084a6dd9d2c696d730dd38820a34705",
+      "target_hash": "18d422eb6d41581a3d28ac8548b84066f444105026fa3361e5276ce2ffcf7609",
+      "input_tokens": 63734,
+      "input_token_sha256": "23a2bf671b06eee669d976981a6de9f7ca77dfac7f46bddbf37634471bdfe32d",
+      "targets": [
+        "100,000",
+        "100,000",
+        "100,000"
+      ],
+      "prediction": " 100,000",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.958
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 408,
+      "prompt_hash": "c11b6ae18efa99af3e60fa3a1977ad2e2680b5a0d69adfe343a06a3dec3e0b90",
+      "doc_hash": "313102dcb831b04f586c8548d3ce8c1e7fb5d3facd8ccacef83ec96f5eb46950",
+      "target_hash": "93f7e2c819355fa103e3d544a502af39f7be2863a5ca5712a97633e50688b1c2",
+      "input_tokens": 62596,
+      "input_token_sha256": "bfad1b231e4e796038c30e7258ca0dacb0db7a2cf3309d678678954152f00bcb",
+      "targets": [
+        "Riverside",
+        "Riverside",
+        "Riverside"
+      ],
+      "prediction": " Riverside",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.544
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 409,
+      "prompt_hash": "0d96093a981490add92b9be677a8f1e99bab3c5cb5480963bd4bb31c534cf5bd",
+      "doc_hash": "ade43d856343b27ec0cec032b44b6aaacaa300f29aaa5b6050e0417748702cbf",
+      "target_hash": "88e52f2b0228ca709ca3b0996cdf8658817fb4c76d201680419c43e47ef1616d",
+      "input_tokens": 65346,
+      "input_token_sha256": "be593d1d0296c6fa6831f0339ec4d8521da990cc1f17a93ee0276bbe8654bf9e",
+      "targets": [
+        "petroleum",
+        "petroleum",
+        "petroleum"
+      ],
+      "prediction": " petroleum",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.323
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 410,
+      "prompt_hash": "ffd3f34cd727e0328edcdb26d3d79df0418b872fbdab02ba71bf5936fc15ee66",
+      "doc_hash": "80a3875dfe27ce17575dad38557b2153f32cf2d7f1739fe0efae84b8c1afcb00",
+      "target_hash": "a70f23a8d712d0943c011560c9347cca7ebded2126c98dde51b87034b74f9afe",
+      "input_tokens": 64307,
+      "input_token_sha256": "a486c3f38e7af799eea6874e52d12d1c3bd58c6486095204f3c5c31c36d3ff62",
+      "targets": [
+        "Hollywood",
+        "Hollywood",
+        "Hollywood"
+      ],
+      "prediction": " Hollywood",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.103
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 411,
+      "prompt_hash": "9341fa59e7fb868eedc719adf47547204718f7186aeb15830ad25a974e16bc6c",
+      "doc_hash": "ed7aa45713fe96648c05dae5a2c19a9469cad2880c95ad24c0711705a53e34be",
+      "target_hash": "8abde7253822da6fee9363791ed02974c45741d6847681ed7e22a957d83de680",
+      "input_tokens": 65002,
+      "input_token_sha256": "a34ce4c36c99ed42f3ad40ba89e268dc5b9983f9c18c218ad0a77ef7d516a289",
+      "targets": [
+        "the housing bubble",
+        "the housing bubble"
+      ],
+      "prediction": " housing bubble",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.537
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 412,
+      "prompt_hash": "21c2e223e840d05178e77e945be274a23f5a5150960481f3d58d9970943495ea",
+      "doc_hash": "2c498e3c5969468cd3d8dc7f64d36bbe94c3ca0f3ca2bc492e004373f88648ea",
+      "target_hash": "00b5df922762366d9c300df794a1ec75520508160eefe3d2ae755bd055b44597",
+      "input_tokens": 62368,
+      "input_token_sha256": "0aaa690b38c6c5e71fd6c66e6c8f4d9b0dfc4eba0330b716090640e49d677d3a",
+      "targets": [
+        "diverse",
+        "diverse",
+        "diverse"
+      ],
+      "prediction": " dominated and heavily dependent upon the abundance of petroleum",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.103
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 413,
+      "prompt_hash": "c9574dd72c4ff71b1e9f3aab72e75ab091baf7fddba55fdcade53249011c952e",
+      "doc_hash": "d03b5d67d3e0e304db54e7fbcaaef30a40b4c4b7eb16c089433ccb4a93e55472",
+      "target_hash": "5f3756eb92f4e345f8325dc7d1379e8b970738f8d3fe2cd71000e443afbcd923",
+      "input_tokens": 63981,
+      "input_token_sha256": "cd7b886a70433301f2695d99454c8de9787a4b28fa691a7e281525e057bb5bb5",
+      "targets": [
+        "heavily impacted",
+        "heavily impacted"
+      ],
+      "prediction": " The region was heavily impacted by the housing crash.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.314
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 414,
+      "prompt_hash": "a0f099797ec12a8661f71ab571607b5b7a9661540119b719e608b61b9f86b5fe",
+      "doc_hash": "04b5bd8b60611a40f888cb6456b7308237d1b5a376f9ea2630cc30b3cddb007c",
+      "target_hash": "9e8f40b6461c40e82a45e1595d182e0a1c1c24a5eda437b6f31691d8cb1d61f8",
+      "input_tokens": 64509,
+      "input_token_sha256": "c6282c73f34379b61e59558d53c6b37f83e5069ba10b366f46665564e57e8223",
+      "targets": [
+        "1920s",
+        "1920s",
+        "1920s"
+      ],
+      "prediction": " 1920s",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.227
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 415,
+      "prompt_hash": "1b203cd40ddb9ef9f8f65ed8115f287329a0b83f8721216ad87adc1d9dd70702",
+      "doc_hash": "8529fb11d51b9d7b00f463571f0824094732ba2959a1e290da3728b3a949ac89",
+      "target_hash": "32e97e5281a448dee2b009a8c907bc6a86cd3ae368813c88b48817387a407120",
+      "input_tokens": 64601,
+      "input_token_sha256": "066ce503919c3ebcdbf386460abb7e740516724889e2536c577165407f930d5e",
+      "targets": [
+        "richest",
+        "rich",
+        "one of the richest"
+      ],
+      "prediction": " Fresno",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.112
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 416,
+      "prompt_hash": "c1bcb0172d3de309486750d81487acb8bd04513d93e26ea2f03d52a2f8e7e77a",
+      "doc_hash": "cb01c6d92f266ca6e52264c1d0dce24bc72e77a91531afb070d0855890a82934",
+      "target_hash": "a7fa65eda28124e09fe5bd58b8e005a907c102f1a4927df20e1e23ac532984fd",
+      "input_tokens": 65430,
+      "input_token_sha256": "7fe0eb50ac10f2ace434e4af7a1639f0addfb0c7ca7a9857fb99913b0b6a849f",
+      "targets": [
+        "cattle",
+        "cattle",
+        "cattle"
+      ],
+      "prediction": " cattle",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.404
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 417,
+      "prompt_hash": "e1d1da4bff71167ff30e9b1b7d78854f6daef359a3f8515445589ed7b8f0a4ac",
+      "doc_hash": "5380c8afd04ef0beab7384b613b3a1378e91726ab8bb1992b91dcd4f2e6063f0",
+      "target_hash": "aa7eaf0862a90dc1e36f7af19827f09e039243410943b9243cdd47bbbb510a81",
+      "input_tokens": 62953,
+      "input_token_sha256": "8043702d2ffc379f37d3f51456b19e309c6abcd6f6f67ad43e8ac5777d128341",
+      "targets": [
+        "citrus",
+        "citrus",
+        "citrus"
+      ],
+      "prediction": " cattle and citrus",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.721
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 418,
+      "prompt_hash": "5f9a6d5bdc519fe41d8c3aa63597b6e02aa84b5d062c41a725b9a66b51f08d00",
+      "doc_hash": "41b1f5f808dee3d43a60fbddc1922e72296ec56d87e905911ba68a11d334825b",
+      "target_hash": "57c17459be855302c8a9d7290db511e521bdbbaae7bdc45feefd575a7a0399cd",
+      "input_tokens": 64591,
+      "input_token_sha256": "ded7488726dd12a0c0ec1a99a152ff03a878cf8cfe336ee65aa18f737dadb2fd",
+      "targets": [
+        "aerospace",
+        "aerospace",
+        "aerospace"
+      ],
+      "prediction": " aerospace",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.136
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 419,
+      "prompt_hash": "62fe44a06d6f87ff7adfb8b6d01e6e8c3e7590afb2813e0324a908d1996dbd9b",
+      "doc_hash": "c2c54ebda589c78b2893b5413f32382d2cace638afc1703212d5a90f5370720a",
+      "target_hash": "a73ceeb96377759240881b0cae66da40089d366f97d0728c9ad4cb06b042f39d",
+      "input_tokens": 63618,
+      "input_token_sha256": "32f9418a0e9b1b3ad0915351a6b23406c78f6d97521956ac384ae41a2babb5e3",
+      "targets": [
+        "business",
+        "major business",
+        "major business"
+      ],
+      "prediction": " business",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 13.816
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 420,
+      "prompt_hash": "91e01056a12b9e562944409a768581e8233adef753d73d08b8b3ce8a0cc9a5cb",
+      "doc_hash": "af764eae59979842f75ee03d6a60bb8afa76e487f3cb9d554fca32835ebfb926",
+      "target_hash": "d766429654b767289c07b0bc5c89bb723f419d1cb33dc9b5fb90a1910f271cc0",
+      "input_tokens": 65318,
+      "input_token_sha256": "479b488726e597283efb4815fd55321101dc7804b7eed439fab606539f305884",
+      "targets": [
+        "Central business districts",
+        "Central business districts",
+        "Central business districts"
+      ],
+      "prediction": " Central business district",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.373
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 421,
+      "prompt_hash": "74bafde4324eb928482fc28f62329029e1a66ad33eaaa76a460ba230a03a904d",
+      "doc_hash": "ec93678409f7564f8877adca5fef53668691b441776561bfe33184e7510870d3",
+      "target_hash": "0a2dbf357180955adc8c92390d0fbfb9f4b60efccf2206cae0d66ecec2843345",
+      "input_tokens": 65392,
+      "input_token_sha256": "177d6cfcde0221c8a3b5e60aaf1af83126d89f572db684695c3fd4325edf00d9",
+      "targets": [
+        "South Coast Metro",
+        "South Coast Metro",
+        "South Coast Metro"
+      ],
+      "prediction": " South Coast Metro",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.407
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 422,
+      "prompt_hash": "7371dc9ccbe4f892b5ccec3664f5e0246cb085ceafbc509a8af184a9b48eb22e",
+      "doc_hash": "ad542ff284f37d56c45078560e8f37319bafa41bd621650884a61040a88db4a0",
+      "target_hash": "1b0c6da49d82959b7a48ef93c76b3227d3edf1e8b61a8b80a26a1835c172f60c",
+      "input_tokens": 64152,
+      "input_token_sha256": "af02bd6a8f5bd874e06d0230ed3aef964e61147044ad32fc68a6e0975bf40a24",
+      "targets": [
+        "business",
+        "major business districts",
+        "major business"
+      ],
+      "prediction": " business district",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 14.023
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 423,
+      "prompt_hash": "bda3a40e7da1dacdf0efd39a2e0d9e66ef920981e9715d4c93a8ed5701b72c3e",
+      "doc_hash": "131e8b0e451238ba21ed311a06af15bd84308352b59c9aac9dbe110a8720de28",
+      "target_hash": "ec6c5a15433d885ce7748f2bb15a2bc0787f7f55c42171b84e4831fc8970e826",
+      "input_tokens": 64692,
+      "input_token_sha256": "1d394bba47ac2187ad9db8d0af7fb91c6654b6a1bfbf8653817a194aa765d989",
+      "targets": [
+        "Los Angeles Area",
+        "the Los Angeles Area",
+        "major business"
+      ],
+      "prediction": " Downtown Santa Monica and Downtown Glendale are a part of the Los Angeles Area.",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 14.666
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 424,
+      "prompt_hash": "47b822c228cc91ee13dc0bc7b29a643ca003a2f733f8b3da2b9e1dc8c0845aa0",
+      "doc_hash": "95112c1a824c3ac92e68c5617d5adfbf59741b060a426be0c470aa78ba81771b",
+      "target_hash": "adeda7938426afbf7dd400e606ae63b3c2af13efdccbbb00fd0eadf666f0bb4d",
+      "input_tokens": 65225,
+      "input_token_sha256": "3c87463d8c950a47bdea173fdf36f1b0cd20c5c22ca6cda6802e0f3567764429",
+      "targets": [
+        "San Fernando Valley",
+        "the San Fernando Valley",
+        "San Fernando Valley"
+      ],
+      "prediction": " San Fernando Valley",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 14.36
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 425,
+      "prompt_hash": "1d69b725d6ffb67895afcff2c2bfe7001fea1f3ac1383d89b43c68112063b18b",
+      "doc_hash": "d32bf2a8d8a6b2c41b0bb3f00c17bddc77b9dbca201ce952889d9743dc34369f",
+      "target_hash": "05f663ebca61fde4b6493a5097186954cd18cc45fd1d0c8cfac14dfeccbbc5c8",
+      "input_tokens": 61617,
+      "input_token_sha256": "e4e5136414da112292cfaa1d1034cf16c6d8ede9dac73a35280b6d0ca011492b",
+      "targets": [
+        "Los Angeles",
+        "Los Angeles",
+        "Los Angeles"
+      ],
+      "prediction": " Los Angeles",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.292
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 426,
+      "prompt_hash": "5090720eef5c49c91dc9ca3a7f254d10823a8eed49959cec9d8ecac2882ad62a",
+      "doc_hash": "f70e7f71d80ee5439e8658a1b832f47d9e7d07ecb46796766a9e7e9b81cf08a7",
+      "target_hash": "44224a22570a564ab60a499314fc9154c765ee85caff0ec1b5789a2bdc067f70",
+      "input_tokens": 63356,
+      "input_token_sha256": "595a67b1be41d9c0a6d160e7c29e445529b9659ed0fd9ec3153d6268e0587ef9",
+      "targets": [
+        "business",
+        "business districts",
+        "business"
+      ],
+      "prediction": " business districts",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.765
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 427,
+      "prompt_hash": "c0250b7e430d8fe0f26a236aaba08c97c0c63fc87f837f5f4788204f89f18cc5",
+      "doc_hash": "0d1c9d75ca89d59d3002997d1b270bbb082e22cfcd7c8c0534e4a4c7a7208919",
+      "target_hash": "e117cc66835e761916ec279105dda94b0b56aa8d39c2201ea02087de62ba3f8e",
+      "input_tokens": 62830,
+      "input_token_sha256": "faa236e4ab42caddeab945e7785006f344489d1511e6c997d4c4ca239ec88f3f",
+      "targets": [
+        "Riverside",
+        "Riverside",
+        "Downtown Riverside"
+      ],
+      "prediction": " San Bernardino",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.65
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 428,
+      "prompt_hash": "2a40636df632250333f18d0546c89f3b448c35a0642b443df039ad43a3fde12c",
+      "doc_hash": "40a4a680bbc1a8eda4187c70a2ba7769042143bdb3ed814e78801b9b05c27c7b",
+      "target_hash": "22408b671848683d872dfe399c8b52b511b40fdd0095f081a973192b0c68c085",
+      "input_tokens": 62063,
+      "input_token_sha256": "aaa60ed0c55ba09cc9f0e7772a39f954659579de0b9ca512eadd6592b1ccd8e7",
+      "targets": [
+        "Hospitality Business/Financial Centre",
+        "Downtown Riverside",
+        "Hospitality Business/Financial Centre"
+      ],
+      "prediction": " Hospitality Business/Financial Centre",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 13.543
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 429,
+      "prompt_hash": "0332b6f1df349c8eac25154d827af8e968ab4699691c8130a961d301bc706c16",
+      "doc_hash": "e5da548b4537ed2442e1f91be14dc794c4027babc56649becda836017e2c8cc3",
+      "target_hash": "3980469bc0b877f0aa42113a542367a89b7995a792b0fda15462ed0dc644e76e",
+      "input_tokens": 64099,
+      "input_token_sha256": "b305583d86d8d3ba4c0c4e9ebb7bb7a5e233367702d1d71bd442103cc8091c3c",
+      "targets": [
+        "Orange",
+        "Orange County",
+        "Orange County"
+      ],
+      "prediction": " Orange County",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.024
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 430,
+      "prompt_hash": "9b52c5585b2360ef8874fe3adbf2c2b0249122a3530bcabe8ae34fa79b847906",
+      "doc_hash": "29f8e0d80ee0940b1eb9fe3e1f431540a94152edcaa2e72394d5efb1e7771618",
+      "target_hash": "f95fd0c0de03a73f5e25198f0b296d2d06c7e9d325ecb28b5a09cb8afd46fb97",
+      "input_tokens": 64186,
+      "input_token_sha256": "b2aa1bfb46ccb3600c07393b6d76babf9abc859975184b0ead141ac5a0e02094",
+      "targets": [
+        "University of California, Irvine",
+        "the University of California, Irvine",
+        "University of California"
+      ],
+      "prediction": " University of California, Irvine",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.135
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 431,
+      "prompt_hash": "e3550fc4638ffa5ea1cd6869f215ceeaf654b2559c81a1f44da93d94cb0bbd74",
+      "doc_hash": "0d2803e00321bc7c400b1c7465356505470d31ce21b716c92e508e75901a120e",
+      "target_hash": "94115e4651203c3470ed2837844947188af6c6f752ccb99732db4fb5aede2d4e",
+      "input_tokens": 63731,
+      "input_token_sha256": "736d2f1d4bbe8840cbcd5211c37f329cbbbecd3040c6c7755d7aaac6bb907545",
+      "targets": [
+        "West Irvine",
+        "West Irvine",
+        "West Irvine"
+      ],
+      "prediction": " West Irvine",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.855
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 432,
+      "prompt_hash": "71caffaca6f2f852c9a08535c8de18319aa615998b7be3645b4f7ceb609031bd",
+      "doc_hash": "64d23b299f2cd99193cfba1e38b4d2629d947116caad542d374dbc1a7720781f",
+      "target_hash": "020b168b83a85a50ff618378e5ca4834b7f93a8de7f918354422316da711e6ac",
+      "input_tokens": 63734,
+      "input_token_sha256": "9a55e4f1315284d0074962bf2be9e24829c0a717849117b79bb1c6bed82cf4d1",
+      "targets": [
+        "South Coast Metro",
+        "the South Coast Metro",
+        "South Coast Metro"
+      ],
+      "prediction": " The Irvine business centers",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.919
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 433,
+      "prompt_hash": "d75741e406040945ba6609ee73184d0d98a5dfecf4d48b7ac3f51bc2f5a76e80",
+      "doc_hash": "4437a95e8aa72f14b916591ae49450fb93869f507faa5cca17268e4a9c630489",
+      "target_hash": "93c9e9289bfdf571529b278571f1808d26338f19e5d94aaa3db86b5f69f46681",
+      "input_tokens": 65354,
+      "input_token_sha256": "27ac25ecd0d67b15b1ad2fcaf9305572d4c36f90f1ce848fb373c8772a97f789",
+      "targets": [
+        "rapidly",
+        "rapidly",
+        "rapidly"
+      ],
+      "prediction": " rapidly developing",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.316
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 434,
+      "prompt_hash": "2ed08a9b8dd206ce6f0c702823c11de8d5577f63ddfa2f8422dac7a89aaa588d",
+      "doc_hash": "8e39901047fdc40c005539ea1b69aa4845c9837ed62145c6f41bf03a7e62d2fa",
+      "target_hash": "20540efc07cf3e9eeaab32856d32a7745badb32aa48cebf5c22b0122f0c54c01",
+      "input_tokens": 64562,
+      "input_token_sha256": "c130db82b71be1a0c7e67019fe92197957411e196d7a32b7f7350180031bb869",
+      "targets": [
+        "Downtown San Diego",
+        "Downtown San Diego",
+        "Downtown"
+      ],
+      "prediction": " Downtown San Diego",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.192
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 435,
+      "prompt_hash": "9ff23ec4d33200226a9ecb225d29cf52a318f2c8ee51dea7f98aa9b982a8032b",
+      "doc_hash": "1d18dd4231ea21bab63d4eac3e71ca5f4350da8aa8030683c088718640c51737",
+      "target_hash": "517448f151b2229a61541a3b0ad2839937b25b6542977528bad16e6084eae254",
+      "input_tokens": 63564,
+      "input_token_sha256": "0a0386ba996ffa4f94dd43606b901bc764cc52f7f0b7ac038aa934389ede6dbb",
+      "targets": [
+        "Northern San Diego",
+        "Northern San Diego",
+        "Northern San Diego"
+      ],
+      "prediction": " Northern San Diego and some within North County regions.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.123
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 436,
+      "prompt_hash": "0db679b5322245337a642eb3323c3710462696eaa0d3a2e2a670ce3637ec0aed",
+      "doc_hash": "ad30c43e38aa5717d4548bd224d6c66d9ec1f10c1ac49753ca39014bdabeacd1",
+      "target_hash": "74093c7b58649faa523182487cd66c70b82009245731cc8b620aa86da2b05ba1",
+      "input_tokens": 64497,
+      "input_token_sha256": "895244b5ae0c1419d22cf9771cdb7942f33423d6e9eb42b39258b16d7f76d374",
+      "targets": [
+        "North County",
+        "North County",
+        "North County regions"
+      ],
+      "prediction": " Downtown San Diego",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.134
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 437,
+      "prompt_hash": "04aab1af5b30799cf1c786819015edaabab54a027cce7c56a5c7fd7eb43a5cc4",
+      "doc_hash": "21fa85c57f5dd9d36a58175c72412516fbf31fec144a83862db04ab6f6191c6d",
+      "target_hash": "beb62d1c8222ff3bc003b4a0e65ae89a31bd243e2e1e4dfb790170335702e306",
+      "input_tokens": 65463,
+      "input_token_sha256": "47b686f6048e8eccf5c7446049ff98a8b218b2013a002557d3985a1cbc77a20b",
+      "targets": [
+        "San Diego",
+        "San Diego",
+        "San Diego"
+      ],
+      "prediction": " San Diego",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.349
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 438,
+      "prompt_hash": "a12214ed12c064c580c73c3ef0747dcad5f0b1ffb849ff5d84bf7a8571ba84d1",
+      "doc_hash": "7219d1be165ff06ded31845422f14b47b13b6e239cfe7f9eb485d5e57fc9069b",
+      "target_hash": "8437bfa3cb6292089d6d1af6ed2315858b2e99e97755d7cd25572652c957832f",
+      "input_tokens": 64738,
+      "input_token_sha256": "df21631d5c9fa5d979f3e24d2f76dd511676e5e0056b976d5423251e3a359dc7",
+      "targets": [
+        "Los Angeles International Airport",
+        "Los Angeles International Airport",
+        "Los Angeles International Airport"
+      ],
+      "prediction": " San Diego International Airport",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.26
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 439,
+      "prompt_hash": "b8b01cbee2c8752d463b44a35bd7ffe2d2d9acc0c99208227b05d8a3e1ca076d",
+      "doc_hash": "69c5ac262c7c2977b0dd15a6aaed5744cbf965437724a3b5df75028fad9f42fb",
+      "target_hash": "6f4b65f5204e3d5baa68b1bda829eb7028ebd600e44afd8f8a710d5280c5dc74",
+      "input_tokens": 63952,
+      "input_token_sha256": "d7120ae3ed75e242ed86585bbb5c486e697e531ec3a7cefdd0651d27429dcdf3",
+      "targets": [
+        "passenger volume",
+        "passenger volume",
+        "passenger volume"
+      ],
+      "prediction": " passenger volume",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.978
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 440,
+      "prompt_hash": "3bef78ecdc55cb957bc7c29b68c30ab03d2a18f6bcf892d6924f88636ad5f550",
+      "doc_hash": "cd269b915474e6cb7a282af81d9a2a0c6c3f013a5ec89a1817978a03251f478b",
+      "target_hash": "5727cd6df03ebb7b0a403161d6fccb8eee1826f89cd46dec57078a3a46093fb0",
+      "input_tokens": 63752,
+      "input_token_sha256": "f2f60bcafeb499a639415bbd6e03fa4870751868503f956b88de9cf85e0e9e6f",
+      "targets": [
+        "third",
+        "third",
+        "third"
+      ],
+      "prediction": " third",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.912
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 441,
+      "prompt_hash": "54ba998a68bdae35ab29c67c6bb1cc47e7ca1eb413046dee0bba5d23551f6359",
+      "doc_hash": "d078c634f3f380553b997ed16ffddb0782153a88d669293ab1c276559cbe0cd2",
+      "target_hash": "51357426de18ec33b09ed3f8607bb51d8e965aabfb98c4a95e507a27e9e2f9bb",
+      "input_tokens": 65335,
+      "input_token_sha256": "148b0081d52b12af20d94b0bce40e4fa7d24a48609efb25f3a192386f8484404",
+      "targets": [
+        "San Diego International Airport",
+        "San Diego International Airport",
+        "San Diego International Airport"
+      ],
+      "prediction": " San Diego International Airport",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.402
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 442,
+      "prompt_hash": "6ff4f363d84fe0adf2b2a4cf8aaf5315ceeb128b70351021878b1700cd4ff583",
+      "doc_hash": "645727ee711142f434573273134e81df253bb7270dc4b7a7e2e0dcedad9f5012",
+      "target_hash": "4c4d410c7e4d6609dcaeea096848e4bffb8474d8a7b48ac01adca5583360bdbb",
+      "input_tokens": 63032,
+      "input_token_sha256": "c296712f6b882cffb87709145939d9f667a2c641d62c97ac160a01949aa89e6c",
+      "targets": [
+        "Van Nuys Airport",
+        "Van Nuys Airport",
+        "Van Nuys Airport"
+      ],
+      "prediction": " Van Nuys Airport",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.728
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 443,
+      "prompt_hash": "666c9a8149b85792a214dadeb6785b48161dc77231bcda660b1df3c94e95dc56",
+      "doc_hash": "8e02f9ea8f17ad5300fcb7fb7bc93a0a7031cedc14a39be6f47470be7f6de57d",
+      "target_hash": "4737b369d6fa08d346d9937d11194cf883124fdb4716e1765dc9dd9c04263f9f",
+      "input_tokens": 62875,
+      "input_token_sha256": "895e959406554b7a5aadfa381b89eb6ddc0f92af95c6bf0004e724ba5fa0c2c7",
+      "targets": [
+        "Metrolink",
+        "Metrolink",
+        "Metrolink"
+      ],
+      "prediction": " Metrolink",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.663
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 444,
+      "prompt_hash": "a9618d072aef57df9be2967750987b07540203f924e470e8028588ebb64d72c3",
+      "doc_hash": "18b883e841f6be682cac3232408277bfeb08dd5122b7e36c2c39965bbf3ec463",
+      "target_hash": "3d98efd0a6c9ec262c85e3a187bdd91246b6d2aa613420abbffba36967698409",
+      "input_tokens": 64610,
+      "input_token_sha256": "e2c690ba426f54f69da457329664b6dd12958507f710dfa460b64a6480d55bda",
+      "targets": [
+        "seven",
+        "seven",
+        "seven"
+      ],
+      "prediction": " 7",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.112
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 445,
+      "prompt_hash": "4aa6483ed07ccda2b8aa456acbe7687d796049eb92afc284800e5d2be5f3065b",
+      "doc_hash": "92df286c59fc046cf403ab103d50eeef066e328d25d45ba5b15d201cb5ea39de",
+      "target_hash": "5170837ac62e16950820799235ecfa201f8ab2429508cf87573084204056decb",
+      "input_tokens": 63889,
+      "input_token_sha256": "dbccfe0bdd1afaa353bf6ee4eb24ff67d8819069209b85b59f9688e746886b07",
+      "targets": [
+        "Six",
+        "Six",
+        "Six"
+      ],
+      "prediction": " 6",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.965
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 446,
+      "prompt_hash": "649999b99d4562c1340327a5a1720db55800400ce95c7a64091e71fbe5b73eec",
+      "doc_hash": "67a6ec401ec144eda5e76d0bdb5e0da8c8991eba9b12ad5690db89dea9bcc830",
+      "target_hash": "90f4d4789085fd7beeebc2d84d5cb442f8be5a96e50304467e475eef27c881ce",
+      "input_tokens": 64578,
+      "input_token_sha256": "140ea09250a437631aa7bdb337564c330d5ea3c4cc9b47890d660115ff61c9b3",
+      "targets": [
+        "Orange",
+        "Orange",
+        "Orange"
+      ],
+      "prediction": " Orange",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 14.092
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 447,
+      "prompt_hash": "f61e3fa337ad5438899db80a599fe038cd8c1deddd401c214623392d90d35b1c",
+      "doc_hash": "cfb3c4c928b7c999b02ec294bd52a818d599af35cee6c326439ac65c7a3107ab",
+      "target_hash": "e2671dc8ab0627f12c90a73fcdb963e5bc14007982c97525a66be00ea6f1b9d5",
+      "input_tokens": 63736,
+      "input_token_sha256": "206bc1b3ce5d8d7b97175895ce56716d71820360b0aa55b976ed0835d10c1ff1",
+      "targets": [
+        "Port of Los Angeles",
+        "the Port of Los Angeles",
+        "Port of Los Angeles"
+      ],
+      "prediction": " Port of Los Angeles",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 13.922
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 448,
+      "prompt_hash": "da2a08099e6db7dbe8f0eeea70e2acd3093fa10e0be9c573ed18ddca0a21f02d",
+      "doc_hash": "795571d16c60e46a2a264a8463923e30f8bd0efa11bf32c6e5f4e82bb0d4b264",
+      "target_hash": "811857ed478f00046c789e81c73812424df6a9655e3400040be18a1859bb751f",
+      "input_tokens": 63886,
+      "input_token_sha256": "e7589a89dff52c99ed149715ffb59aef880753231b584bfadf651dec3baecf8a",
+      "targets": [
+        "Port of San Diego",
+        "Port of Long Beach",
+        "Port of Long Beach"
+      ],
+      "prediction": " Port of Long Beach",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 14.043
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 449,
+      "prompt_hash": "9b18b091d814caa116fb5d1a6afd2d0530527f686a584a2ef12e646d27c09946",
+      "doc_hash": "42ed0ab5f3567780fdc55625406f98b63510126028ce1e0d7e2aeae95c6372f1",
+      "target_hash": "af92652ade53eedfcc9d0f921b38c0739a2522a12c727cd011dd0c2c8030144f",
+      "input_tokens": 63334,
+      "input_token_sha256": "9101d8bbcf52f0d115d0fae398c7543334f5392fc378762b4eb9496b0348a1d1",
+      "targets": [
+        "Southern",
+        "Southern California",
+        "Southern"
+      ],
+      "prediction": " Southern California",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 13.738
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 65.33333333333333
+  }
+}

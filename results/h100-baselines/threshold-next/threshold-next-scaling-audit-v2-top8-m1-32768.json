@@ -1,0 +1,2006 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": {
+    "implementation": "materialized",
+    "rule": "region",
+    "multiplier": 16.0,
+    "entry_bound": 16,
+    "work_bound": 16,
+    "tile": 64,
+    "splits": 32,
+    "entry_block": 32,
+    "shared_entry_block": 64,
+    "shared_pack_workers": 16,
+    "shared_pack_shards": 4,
+    "shared_precise": true,
+    "merge_block": 0,
+    "three_tier_workers": 32,
+    "three_tier_page_warps": 1,
+    "three_tier_cached_means": true,
+    "three_tier_pages": 2,
+    "page_threshold_multiplier": null,
+    "page_threshold_rule": null,
+    "page_query": null,
+    "page_residual": null,
+    "page_threshold_warps": 4,
+    "selected_region_cap": null
+  },
+  "prefill_threshold": null,
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/comparison/results/threshold-next-scaling-prompts.json",
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+  "prompt_token_sha256": "120725db8565d8c9016bde24247bf17cb7ae51b3ce4acca38a8f54e710e2ce68",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": true,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 2.367550602000847,
+      "decode_s": 0.007775147998472676,
+      "capture_s": 0.230551178996393,
+      "prefill_cache_completion_s": 0.0001699579952401109,
+      "prefill_before_cache_completion_s": 2.367380644005607,
+      "cache_init_s": 0.1786250220029615,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      "prefill_leaf_profile": [
+        {
+          "dispatch_prepare": 2.099199965596199e-05,
+          "dispatch_group": 0.01222009563446045,
+          "dispatch_blocks": 1.9711999222636224e-05,
+          "dispatch": 0.012275296211242676,
+          "pack": 0.0019155199527740479,
+          "kernel": 0.008485568046569825
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00019356800615787507,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019766399264335631,
+          "pack": 1.5360000543296336e-06,
+          "kernel": 0.0024745280742645265
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019747200608253478,
+          "dispatch_blocks": 2.015999983996153e-06,
+          "dispatch": 0.00020207999646663666,
+          "pack": 1.8240000354126095e-06,
+          "kernel": 0.0022239999771118163
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.00019971199333667755,
+          "dispatch_blocks": 1.728000002913177e-06,
+          "dispatch": 0.00020431999862194063,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.002419680118560791
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.00018940800428390503,
+          "dispatch_blocks": 1.9839999731630087e-06,
+          "dispatch": 0.0001943040043115616,
+          "pack": 1.888000057078898e-06,
+          "kernel": 0.0022585279941558837
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.00018831999599933625,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.00019283199310302736,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.0024522879123687743
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00019417600333690644,
+          "dispatch_blocks": 1.9839999731630087e-06,
+          "dispatch": 0.00019868800044059754,
+          "pack": 1.9519999623298645e-06,
+          "kernel": 0.002271552085876465
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.0001940480023622513,
+          "dispatch_blocks": 1.6639999812468886e-06,
+          "dispatch": 0.00019862399995326997,
+          "pack": 1.6319999704137444e-06,
+          "kernel": 0.002225919961929321
+        },
+        {
+          "dispatch_prepare": 1.6639999812468886e-06,
+          "dispatch_group": 0.00019811199605464935,
+          "dispatch_blocks": 1.9839999731630087e-06,
+          "dispatch": 0.0002033279985189438,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.00254038405418396
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.0001892479956150055,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00019411200284957886,
+          "pack": 1.2799999676644802e-06,
+          "kernel": 0.002552288055419922
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019407999515533446,
+          "dispatch_blocks": 1.91999995149672e-06,
+          "dispatch": 0.0001985599994659424,
+          "pack": 1.6319999704137444e-06,
+          "kernel": 0.002471263885498047
+        },
+        {
+          "dispatch_prepare": 1.8240000354126095e-06,
+          "dispatch_group": 0.00019308799505233764,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.0001977600008249283,
+          "pack": 1.247999956831336e-06,
+          "kernel": 0.0023947839736938475
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.0001908160001039505,
+          "dispatch_blocks": 2.0479999948292972e-06,
+          "dispatch": 0.00019539199769496918,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0028313920497894285
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00018691200017929076,
+          "dispatch_blocks": 1.6319999704137444e-06,
+          "dispatch": 0.00019103999435901643,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0026815359592437743
+        },
+        {
+          "dispatch_prepare": 1.5999999595806003e-06,
+          "dispatch_group": 0.00018697600066661834,
+          "dispatch_blocks": 2.1120000164955853e-06,
+          "dispatch": 0.00019225600361824036,
+          "pack": 1.2799999676644802e-06,
+          "kernel": 0.0024180479049682618
+        },
+        {
+          "dispatch_prepare": 1.6959999920800329e-06,
+          "dispatch_group": 0.00019155199825763702,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.00019574399292469024,
+          "pack": 1.9519999623298645e-06,
+          "kernel": 0.0027018558979034425
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00018675200641155243,
+          "dispatch_blocks": 1.9519999623298645e-06,
+          "dispatch": 0.00019158400595188142,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0025805120468139647
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019238400459289551,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.0001966080069541931,
+          "pack": 1.3119999784976245e-06,
+          "kernel": 0.002554656028747559
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00020230400562286377,
+          "dispatch_blocks": 2.1120000164955853e-06,
+          "dispatch": 0.00020739200711250306,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0027629759311676026
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.000191648006439209,
+          "dispatch_blocks": 1.567999948747456e-06,
+          "dispatch": 0.0001961600035429001,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.0024061119556427002
+        },
+        {
+          "dispatch_prepare": 1.6959999920800329e-06,
+          "dispatch_group": 0.00020931200683116914,
+          "dispatch_blocks": 2.272000070661306e-06,
+          "dispatch": 0.0002147520035505295,
+          "pack": 1.3119999784976245e-06,
+          "kernel": 0.0025289919376373293
+        },
+        {
+          "dispatch_prepare": 1.5999999595806003e-06,
+          "dispatch_group": 0.00019203199446201326,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019651199877262116,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.002388063907623291
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019679999351501464,
+          "dispatch_blocks": 2.1120000164955853e-06,
+          "dispatch": 0.00020185600221157073,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0024872639179229737
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019932800531387328,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020319999754428864,
+          "pack": 1.8560000462457537e-06,
+          "kernel": 0.002245728015899658
+        },
+        {
+          "dispatch_prepare": 1.6639999812468886e-06,
+          "dispatch_group": 0.00018854400515556336,
+          "dispatch_blocks": 2.272000070661306e-06,
+          "dispatch": 0.00019379200041294098,
+          "pack": 1.6319999704137444e-06,
+          "kernel": 0.0022417919635772704
+        },
+        {
+          "dispatch_prepare": 1.6959999920800329e-06,
+          "dispatch_group": 0.00019942399859428406,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00020371200144290923,
+          "pack": 1.9519999623298645e-06,
+          "kernel": 0.0024223361015319822
+        },
+        {
+          "dispatch_prepare": 1.6639999812468886e-06,
+          "dispatch_group": 0.00019648000597953795,
+          "dispatch_blocks": 1.888000057078898e-06,
+          "dispatch": 0.000201664000749588,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.0023140480518341064
+        },
+        {
+          "dispatch_prepare": 1.3119999784976245e-06,
+          "dispatch_group": 0.0001937599927186966,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00019769600033760071,
+          "pack": 1.8560000462457537e-06,
+          "kernel": 0.002725856065750122
+        },
+        {
+          "dispatch_prepare": 1.6639999812468886e-06,
+          "dispatch_group": 0.00019603200256824494,
+          "dispatch_blocks": 1.888000057078898e-06,
+          "dispatch": 0.00020118400454521179,
+          "pack": 1.3119999784976245e-06,
+          "kernel": 0.002259040117263794
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019407999515533446,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.0001982399970293045,
+          "pack": 1.5360000543296336e-06,
+          "kernel": 0.002251456022262573
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.0001974399983882904,
+          "dispatch_blocks": 2.1440000273287296e-06,
+          "dispatch": 0.00020262399315834045,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.0024326720237731934
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019753600656986236,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020172800123691558,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.002464576005935669
+        }
+      ],
+      "prefill_scaling_audit": {
+        "scope": "all remote prefill query heads; exact initial field and local/sink excluded",
+        "instrumented": true,
+        "layers": [
+          {
+            "layer": 0,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 122720059,
+                "maximum_regions": 8,
+                "maximum_entries": 999
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.011422880172729492,
+              "exact_total": 0.022728288650512695
+            }
+          },
+          {
+            "layer": 1,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 161942314,
+                "maximum_regions": 8,
+                "maximum_entries": 1589
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006672639846801758,
+              "exact_total": 0.002677472114562988
+            }
+          },
+          {
+            "layer": 2,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 103497895,
+                "maximum_regions": 8,
+                "maximum_entries": 1100
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006532288074493408,
+              "exact_total": 0.0024309120178222657
+            }
+          },
+          {
+            "layer": 3,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 129054561,
+                "maximum_regions": 8,
+                "maximum_entries": 1107
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007417376041412353,
+              "exact_total": 0.002628448009490967
+            }
+          },
+          {
+            "layer": 4,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 105111136,
+                "maximum_regions": 8,
+                "maximum_entries": 714
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007014463901519776,
+              "exact_total": 0.002457535982131958
+            }
+          },
+          {
+            "layer": 5,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 140067568,
+                "maximum_regions": 8,
+                "maximum_entries": 1337
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006961184024810791,
+              "exact_total": 0.002649791955947876
+            }
+          },
+          {
+            "layer": 6,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 107401963,
+                "maximum_regions": 8,
+                "maximum_entries": 961
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006821375846862793,
+              "exact_total": 0.0024751040935516357
+            }
+          },
+          {
+            "layer": 7,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 95252701,
+                "maximum_regions": 8,
+                "maximum_entries": 903
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006929120063781738,
+              "exact_total": 0.0024293439388275145
+            }
+          },
+          {
+            "layer": 8,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 138757283,
+                "maximum_regions": 8,
+                "maximum_entries": 1322
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007483391761779785,
+              "exact_total": 0.0027481598854064942
+            }
+          },
+          {
+            "layer": 9,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 161251267,
+                "maximum_regions": 8,
+                "maximum_entries": 1160
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006951007843017578,
+              "exact_total": 0.0027506239414215087
+            }
+          },
+          {
+            "layer": 10,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 136108328,
+                "maximum_regions": 8,
+                "maximum_entries": 1170
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0072082881927490235,
+              "exact_total": 0.002674015998840332
+            }
+          },
+          {
+            "layer": 11,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 124453177,
+                "maximum_regions": 8,
+                "maximum_entries": 849
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007075168132781982,
+              "exact_total": 0.0025963199138641356
+            }
+          },
+          {
+            "layer": 12,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 216772959,
+                "maximum_regions": 8,
+                "maximum_entries": 1312
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007170783996582031,
+              "exact_total": 0.0030308799743652345
+            }
+          },
+          {
+            "layer": 13,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 170417492,
+                "maximum_regions": 8,
+                "maximum_entries": 1265
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007234752178192139,
+              "exact_total": 0.0028766720294952394
+            }
+          },
+          {
+            "layer": 14,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 136038062,
+                "maximum_regions": 8,
+                "maximum_entries": 931
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006925600051879883,
+              "exact_total": 0.0026144959926605225
+            }
+          },
+          {
+            "layer": 15,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 176862575,
+                "maximum_regions": 8,
+                "maximum_entries": 1369
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007321728229522705,
+              "exact_total": 0.002902400016784668
+            }
+          },
+          {
+            "layer": 16,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 165988863,
+                "maximum_regions": 8,
+                "maximum_entries": 1070
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006924543857574463,
+              "exact_total": 0.00277622389793396
+            }
+          },
+          {
+            "layer": 17,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 163204595,
+                "maximum_regions": 8,
+                "maximum_entries": 1045
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007272160053253174,
+              "exact_total": 0.0027551679611206056
+            }
+          },
+          {
+            "layer": 18,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 197702646,
+                "maximum_regions": 8,
+                "maximum_entries": 1431
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0070371518135070804,
+              "exact_total": 0.0029744958877563478
+            }
+          },
+          {
+            "layer": 19,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 126410635,
+                "maximum_regions": 8,
+                "maximum_entries": 891
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007121471881866455,
+              "exact_total": 0.0026067519187927247
+            }
+          },
+          {
+            "layer": 20,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 138712428,
+                "maximum_regions": 8,
+                "maximum_entries": 1206
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.00720582389831543,
+              "exact_total": 0.0027479679584503174
+            }
+          },
+          {
+            "layer": 21,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 133194791,
+                "maximum_regions": 8,
+                "maximum_entries": 1066
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006945216178894043,
+              "exact_total": 0.0025891199111938478
+            }
+          },
+          {
+            "layer": 22,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 146962271,
+                "maximum_regions": 8,
+                "maximum_entries": 996
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007397632122039795,
+              "exact_total": 0.002693631887435913
+            }
+          },
+          {
+            "layer": 23,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 101963182,
+                "maximum_regions": 8,
+                "maximum_entries": 980
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006916384220123291,
+              "exact_total": 0.002453727960586548
+            }
+          },
+          {
+            "layer": 24,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 99184368,
+                "maximum_regions": 8,
+                "maximum_entries": 734
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007230720043182373,
+              "exact_total": 0.002440160036087036
+            }
+          },
+          {
+            "layer": 25,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 147943893,
+                "maximum_regions": 8,
+                "maximum_entries": 1083
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006763552188873291,
+              "exact_total": 0.0026309759616851805
+            }
+          },
+          {
+            "layer": 26,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 111399722,
+                "maximum_regions": 8,
+                "maximum_entries": 905
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007175487995147705,
+              "exact_total": 0.002520224094390869
+            }
+          },
+          {
+            "layer": 27,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 174162676,
+                "maximum_regions": 8,
+                "maximum_entries": 1919
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007203360080718994,
+              "exact_total": 0.002928031921386719
+            }
+          },
+          {
+            "layer": 28,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 105923789,
+                "maximum_regions": 8,
+                "maximum_entries": 992
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006833759784698487,
+              "exact_total": 0.0024646079540252687
+            }
+          },
+          {
+            "layer": 29,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 87157126,
+                "maximum_regions": 8,
+                "maximum_entries": 608
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007407936096191406,
+              "exact_total": 0.002453824043273926
+            }
+          },
+          {
+            "layer": 30,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 133130906,
+                "maximum_regions": 8,
+                "maximum_entries": 834
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006968128204345703,
+              "exact_total": 0.0026394240856170655
+            }
+          },
+          {
+            "layer": 31,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 129783296,
+                "maximum_regions": 8,
+                "maximum_entries": 905
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0073391680717468264,
+              "exact_total": 0.0026717441082000732
+            }
+          }
+        ]
+      },
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16077841920,
+        "after_run_before_collection": 23321052672,
+        "after_run_after_collection": 16144950784,
+        "peak_allocated": 25736530944
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 7.775147998472676,
+      "decode_ms_per_token": 7.775147998472676,
+      "decode_tokens_per_second": 128.61491513684842
+    },
+    {
+      "prefill_s": 1.6571130890006316,
+      "decode_s": 0.007777187995088752,
+      "capture_s": 0.1578661989988177,
+      "prefill_cache_completion_s": 0.00017133900109911337,
+      "prefill_before_cache_completion_s": 1.6569417499995325,
+      "cache_init_s": 0.010136381002666894,
+      "decode_warmup_s": 0.0,
+      "prefill_profile": [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {},
+        {}
+      ],
+      "prefill_leaf_profile": [
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019628800451755525,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.000200095996260643,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.002203808069229126
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019504000246524811,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019888000190258027,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.0025034239292144773
+        },
+        {
+          "dispatch_prepare": 1.3439999893307685e-06,
+          "dispatch_group": 0.00019913600385189055,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.0002033279985189438,
+          "pack": 1.2799999676644802e-06,
+          "kernel": 0.0023199360370635986
+        },
+        {
+          "dispatch_prepare": 1.567999948747456e-06,
+          "dispatch_group": 0.00019875200092792512,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020313599705696107,
+          "pack": 1.6959999920800329e-06,
+          "kernel": 0.002430783987045288
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.0001881600022315979,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.00019225600361824036,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.002272416114807129
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00018851199746131896,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019264000654220582,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.0024613120555877686
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.0001937279999256134,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019788800179958345,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0023534400463104247
+        },
+        {
+          "dispatch_prepare": 1.5999999595806003e-06,
+          "dispatch_group": 0.00019599999487400054,
+          "dispatch_blocks": 1.6319999704137444e-06,
+          "dispatch": 0.00020047999918460847,
+          "pack": 1.6959999920800329e-06,
+          "kernel": 0.002208992004394531
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00019830399751663208,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020214399695396424,
+          "pack": 2.0479999948292972e-06,
+          "kernel": 0.0025613760948181154
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00018886399269104004,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00019273599982261658,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.00251910400390625
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.0001939840018749237,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019804799556732177,
+          "pack": 1.247999956831336e-06,
+          "kernel": 0.002514784097671509
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00019491200149059296,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.00019868800044059754,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0024408318996429444
+        },
+        {
+          "dispatch_prepare": 1.6639999812468886e-06,
+          "dispatch_group": 0.00019456000626087187,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.0001990399956703186,
+          "pack": 1.247999956831336e-06,
+          "kernel": 0.00282588791847229
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.00018838399648666383,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.0001932159960269928,
+          "pack": 1.2799999676644802e-06,
+          "kernel": 0.0026154561042785645
+        },
+        {
+          "dispatch_prepare": 1.247999956831336e-06,
+          "dispatch_group": 0.00018435199558734894,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.0001884479969739914,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0024183359146118166
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019295999407768248,
+          "dispatch_blocks": 1.247999956831336e-06,
+          "dispatch": 0.00019676800072193146,
+          "pack": 1.9519999623298645e-06,
+          "kernel": 0.002635296106338501
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.00018694399297237396,
+          "dispatch_blocks": 1.6639999812468886e-06,
+          "dispatch": 0.00019152000546455384,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.002668639898300171
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.0001924159973859787,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019625599682331085,
+          "pack": 1.7600000137463212e-06,
+          "kernel": 0.002539520025253296
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00020265600085258483,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020649600028991699,
+          "pack": 1.6639999812468886e-06,
+          "kernel": 0.0028161919116973877
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019424000382423402,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00019833600521087646,
+          "pack": 1.3119999784976245e-06,
+          "kernel": 0.0023808639049530027
+        },
+        {
+          "dispatch_prepare": 1.5999999595806003e-06,
+          "dispatch_group": 0.0002094080001115799,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00021385599672794342,
+          "pack": 1.5360000543296336e-06,
+          "kernel": 0.0025969600677490236
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.0001937279999256134,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00019788800179958345,
+          "pack": 1.567999948747456e-06,
+          "kernel": 0.002385119915008545
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00020044800639152526,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.0002046719938516617,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.002553215980529785
+        },
+        {
+          "dispatch_prepare": 1.3119999784976245e-06,
+          "dispatch_group": 0.00020220799744129182,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00020614400506019593,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0023162240982055665
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.0001886720061302185,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.0001931840032339096,
+          "pack": 1.2799999676644802e-06,
+          "kernel": 0.0022857279777526857
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.0002006399929523468,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020543999969959258,
+          "pack": 1.2799999676644802e-06,
+          "kernel": 0.0025425279140472413
+        },
+        {
+          "dispatch_prepare": 1.3119999784976245e-06,
+          "dispatch_group": 0.00019939200580120086,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00020364800095558166,
+          "pack": 1.5999999595806003e-06,
+          "kernel": 0.0022811839580535887
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.0001940480023622513,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.00019791999459266662,
+          "pack": 1.9519999623298645e-06,
+          "kernel": 0.002686431884765625
+        },
+        {
+          "dispatch_prepare": 1.728000002913177e-06,
+          "dispatch_group": 0.0001982080042362213,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020281599462032318,
+          "pack": 1.3119999784976245e-06,
+          "kernel": 0.002337536096572876
+        },
+        {
+          "dispatch_prepare": 1.6319999704137444e-06,
+          "dispatch_group": 0.0001931840032339096,
+          "dispatch_blocks": 1.5999999595806003e-06,
+          "dispatch": 0.0001979839950799942,
+          "pack": 1.3119999784976245e-06,
+          "kernel": 0.0021967039108276368
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.0001987839937210083,
+          "dispatch_blocks": 1.2799999676644802e-06,
+          "dispatch": 0.00020262399315834045,
+          "pack": 1.728000002913177e-06,
+          "kernel": 0.0025198719501495362
+        },
+        {
+          "dispatch_prepare": 1.2799999676644802e-06,
+          "dispatch_group": 0.00019676800072193146,
+          "dispatch_blocks": 1.3119999784976245e-06,
+          "dispatch": 0.0002006720006465912,
+          "pack": 1.7600000137463212e-06,
+          "kernel": 0.00237555193901062
+        }
+      ],
+      "prefill_scaling_audit": {
+        "scope": "all remote prefill query heads; exact initial field and local/sink excluded",
+        "instrumented": true,
+        "layers": [
+          {
+            "layer": 0,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 122720059,
+                "maximum_regions": 8,
+                "maximum_entries": 999
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006656832218170166,
+              "exact_total": 0.0024092159271240235
+            }
+          },
+          {
+            "layer": 1,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 161942314,
+                "maximum_regions": 8,
+                "maximum_entries": 1589
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006690112113952637,
+              "exact_total": 0.002706432104110718
+            }
+          },
+          {
+            "layer": 2,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 103497895,
+                "maximum_regions": 8,
+                "maximum_entries": 1100
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006977759838104248,
+              "exact_total": 0.0025280959606170652
+            }
+          },
+          {
+            "layer": 3,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 129054561,
+                "maximum_regions": 8,
+                "maximum_entries": 1107
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0075404481887817384,
+              "exact_total": 0.0026384639739990235
+            }
+          },
+          {
+            "layer": 4,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 105111136,
+                "maximum_regions": 8,
+                "maximum_entries": 714
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007206079959869385,
+              "exact_total": 0.002469599962234497
+            }
+          },
+          {
+            "layer": 5,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 140067568,
+                "maximum_regions": 8,
+                "maximum_entries": 1337
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.00716483211517334,
+              "exact_total": 0.002658047914505005
+            }
+          },
+          {
+            "layer": 6,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 107401963,
+                "maximum_regions": 8,
+                "maximum_entries": 961
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007177760124206543,
+              "exact_total": 0.002556544065475464
+            }
+          },
+          {
+            "layer": 7,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 95252701,
+                "maximum_regions": 8,
+                "maximum_entries": 903
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006870175838470459,
+              "exact_total": 0.002413664102554321
+            }
+          },
+          {
+            "layer": 8,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 138757283,
+                "maximum_regions": 8,
+                "maximum_entries": 1322
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007374623775482178,
+              "exact_total": 0.0027690880298614504
+            }
+          },
+          {
+            "layer": 9,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 161251267,
+                "maximum_regions": 8,
+                "maximum_entries": 1160
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006814591884613037,
+              "exact_total": 0.0027160000801086425
+            }
+          },
+          {
+            "layer": 10,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 136108328,
+                "maximum_regions": 8,
+                "maximum_entries": 1170
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007450047969818115,
+              "exact_total": 0.002717344045639038
+            }
+          },
+          {
+            "layer": 11,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 124453177,
+                "maximum_regions": 8,
+                "maximum_entries": 849
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007258975982666015,
+              "exact_total": 0.0026439359188079833
+            }
+          },
+          {
+            "layer": 12,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 216772959,
+                "maximum_regions": 8,
+                "maximum_entries": 1312
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007094592094421387,
+              "exact_total": 0.003029439926147461
+            }
+          },
+          {
+            "layer": 13,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 170417492,
+                "maximum_regions": 8,
+                "maximum_entries": 1265
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007031167984008789,
+              "exact_total": 0.002812959909439087
+            }
+          },
+          {
+            "layer": 14,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 136038062,
+                "maximum_regions": 8,
+                "maximum_entries": 931
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.006876832008361817,
+              "exact_total": 0.0026120638847351076
+            }
+          },
+          {
+            "layer": 15,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 176862575,
+                "maximum_regions": 8,
+                "maximum_entries": 1369
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007344480037689209,
+              "exact_total": 0.0028368959426879883
+            }
+          },
+          {
+            "layer": 16,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 165988863,
+                "maximum_regions": 8,
+                "maximum_entries": 1070
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0072624959945678715,
+              "exact_total": 0.0028650879859924315
+            }
+          },
+          {
+            "layer": 17,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 163204595,
+                "maximum_regions": 8,
+                "maximum_entries": 1045
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0069194560050964355,
+              "exact_total": 0.002740096092224121
+            }
+          },
+          {
+            "layer": 18,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 197702646,
+                "maximum_regions": 8,
+                "maximum_entries": 1431
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.00723305606842041,
+              "exact_total": 0.003027616024017334
+            }
+          },
+          {
+            "layer": 19,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 126410635,
+                "maximum_regions": 8,
+                "maximum_entries": 891
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0069350719451904295,
+              "exact_total": 0.002583391904830933
+            }
+          },
+          {
+            "layer": 20,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 138712428,
+                "maximum_regions": 8,
+                "maximum_entries": 1206
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0074542717933654785,
+              "exact_total": 0.0028159680366516113
+            }
+          },
+          {
+            "layer": 21,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 133194791,
+                "maximum_regions": 8,
+                "maximum_entries": 1066
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0069788479804992675,
+              "exact_total": 0.0025871679782867433
+            }
+          },
+          {
+            "layer": 22,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 146962271,
+                "maximum_regions": 8,
+                "maximum_entries": 996
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007307040214538574,
+              "exact_total": 0.002762847900390625
+            }
+          },
+          {
+            "layer": 23,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 101963182,
+                "maximum_regions": 8,
+                "maximum_entries": 980
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.0072269439697265625,
+              "exact_total": 0.0025269119739532472
+            }
+          },
+          {
+            "layer": 24,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 99184368,
+                "maximum_regions": 8,
+                "maximum_entries": 734
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007206016063690186,
+              "exact_total": 0.002483423948287964
+            }
+          },
+          {
+            "layer": 25,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 147943893,
+                "maximum_regions": 8,
+                "maximum_entries": 1083
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007295775890350342,
+              "exact_total": 0.002752255916595459
+            }
+          },
+          {
+            "layer": 26,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 111399722,
+                "maximum_regions": 8,
+                "maximum_entries": 905
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007040063858032227,
+              "exact_total": 0.002490112066268921
+            }
+          },
+          {
+            "layer": 27,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 174162676,
+                "maximum_regions": 8,
+                "maximum_entries": 1919
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007346208095550537,
+              "exact_total": 0.002889375925064087
+            }
+          },
+          {
+            "layer": 28,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 105923789,
+                "maximum_regions": 8,
+                "maximum_entries": 992
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007004767894744873,
+              "exact_total": 0.0025448639392852785
+            }
+          },
+          {
+            "layer": 29,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 87157126,
+                "maximum_regions": 8,
+                "maximum_entries": 608
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007188767910003662,
+              "exact_total": 0.0023989439010620116
+            }
+          },
+          {
+            "layer": 30,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 133130906,
+                "maximum_regions": 8,
+                "maximum_entries": 834
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007303808212280273,
+              "exact_total": 0.0027277119159698484
+            }
+          },
+          {
+            "layer": 31,
+            "rows": [
+              {
+                "query_heads": 524288,
+                "queries": 16384,
+                "regions": 2048,
+                "route_capacity": 8,
+                "workspace_bytes": {},
+                "opened_regions": 4194304,
+                "opened_entries": 129783296,
+                "maximum_regions": 8,
+                "maximum_entries": 905
+              }
+            ],
+            "gpu_seconds": {
+              "producer_coarse_selection": 0.007016511917114257,
+              "exact_total": 0.002580928087234497
+            }
+          }
+        ]
+      },
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16144950784,
+        "after_run_before_collection": 23321052672,
+        "after_run_after_collection": 16144950784,
+        "peak_allocated": 25770085376
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 7.777187995088752,
+      "decode_ms_per_token": 7.777187995088752,
+      "decode_tokens_per_second": 128.58117877972012
+    }
+  ],
+  "median_decode_ms_per_batch_step": 7.777187995088752,
+  "median_decode_tokens_per_second": 128.58117877972012,
+  "median_decode_ms_per_token": 7.777187995088752,
+  "median_prefill_s": 1.6571130890006316
+}

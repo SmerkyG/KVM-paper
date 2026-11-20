@@ -1,0 +1,2961 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": {
+    "rule": "entry",
+    "mass_multiplier": 16.0,
+    "entry_bound": 16,
+    "max_regions": 8,
+    "leaf_backend": "grouped-eight",
+    "grouped_fused_counts": false,
+    "work_bound": 16,
+    "tile_queries": 512,
+    "prefill_block_size": 16384,
+    "reuse_mean": true,
+    "no_host_sync": true,
+    "packed": false,
+    "fuse_pack": false,
+    "pair_reuse": false,
+    "implementation": "fused"
+  },
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 3.0181685920106247,
+      "decode_s": 0.008411040995270014,
+      "capture_s": 0.19706627899722662,
+      "cache_init_s": 0.29428165800345596,
+      "decode_warmup_s": 0.0,
+      "prefill_overlap_audit": [
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 127399,
+            "active_head_regions": 6852,
+            "route_weighted_group_size_sum": 25076863,
+            "shared_region_query_pairs": 12474732,
+            "opened_entry_uses": 373167,
+            "unique_region_entries": 21486,
+            "shared_routes": 125394,
+            "shared_entry_uses": 366089,
+            "shared_head_regions": 4847,
+            "bins": {
+              "1-1": {
+                "groups": 2005,
+                "routes": 2005,
+                "entry_uses": 7078
+              },
+              "2-3": {
+                "groups": 1630,
+                "routes": 3898,
+                "entry_uses": 11835
+              },
+              "4-7": {
+                "groups": 1182,
+                "routes": 6178,
+                "entry_uses": 17817
+              },
+              "8-15": {
+                "groups": 811,
+                "routes": 8723,
+                "entry_uses": 23390
+              },
+              "16-31": {
+                "groups": 497,
+                "routes": 11028,
+                "entry_uses": 31392
+              },
+              "32-63": {
+                "groups": 320,
+                "routes": 14264,
+                "entry_uses": 46701
+              },
+              "64-127": {
+                "groups": 180,
+                "routes": 15940,
+                "entry_uses": 58114
+              },
+              "128-255": {
+                "groups": 114,
+                "routes": 20349,
+                "entry_uses": 57060
+              },
+              "256-511": {
+                "groups": 104,
+                "routes": 40406,
+                "entry_uses": 115172
+              },
+              "512-1023": {
+                "groups": 9,
+                "routes": 4608,
+                "entry_uses": 4608
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 78993,
+            "active_head_regions": 10990,
+            "route_weighted_group_size_sum": 12555371,
+            "shared_region_query_pairs": 6238189,
+            "opened_entry_uses": 187653,
+            "unique_region_entries": 40995,
+            "shared_routes": 75176,
+            "shared_entry_uses": 169521,
+            "shared_head_regions": 7173,
+            "bins": {
+              "1-1": {
+                "groups": 3817,
+                "routes": 3817,
+                "entry_uses": 18132
+              },
+              "2-3": {
+                "groups": 3150,
+                "routes": 7451,
+                "entry_uses": 28388
+              },
+              "4-7": {
+                "groups": 2083,
+                "routes": 10689,
+                "entry_uses": 32323
+              },
+              "8-15": {
+                "groups": 1185,
+                "routes": 12597,
+                "entry_uses": 30326
+              },
+              "16-31": {
+                "groups": 526,
+                "routes": 11056,
+                "entry_uses": 20548
+              },
+              "32-63": {
+                "groups": 139,
+                "routes": 5923,
+                "entry_uses": 10350
+              },
+              "64-127": {
+                "groups": 31,
+                "routes": 2612,
+                "entry_uses": 10322
+              },
+              "128-255": {
+                "groups": 13,
+                "routes": 2440,
+                "entry_uses": 2568
+              },
+              "256-511": {
+                "groups": 6,
+                "routes": 1928,
+                "entry_uses": 1928
+              },
+              "512-1023": {
+                "groups": 40,
+                "routes": 20480,
+                "entry_uses": 32768
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 130803,
+            "active_head_regions": 11881,
+            "route_weighted_group_size_sum": 8824831,
+            "shared_region_query_pairs": 4347014,
+            "opened_entry_uses": 440043,
+            "unique_region_entries": 65309,
+            "shared_routes": 127600,
+            "shared_entry_uses": 420524,
+            "shared_head_regions": 8678,
+            "bins": {
+              "1-1": {
+                "groups": 3203,
+                "routes": 3203,
+                "entry_uses": 19519
+              },
+              "2-3": {
+                "groups": 2848,
+                "routes": 6807,
+                "entry_uses": 41801
+              },
+              "4-7": {
+                "groups": 2308,
+                "routes": 11919,
+                "entry_uses": 79218
+              },
+              "8-15": {
+                "groups": 1628,
+                "routes": 17620,
+                "entry_uses": 82741
+              },
+              "16-31": {
+                "groups": 962,
+                "routes": 21086,
+                "entry_uses": 63233
+              },
+              "32-63": {
+                "groups": 554,
+                "routes": 24629,
+                "entry_uses": 65467
+              },
+              "64-127": {
+                "groups": 262,
+                "routes": 23130,
+                "entry_uses": 50222
+              },
+              "128-255": {
+                "groups": 101,
+                "routes": 17469,
+                "entry_uses": 30286
+              },
+              "256-511": {
+                "groups": 15,
+                "routes": 4940,
+                "entry_uses": 7556
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 130968,
+            "active_head_regions": 9408,
+            "route_weighted_group_size_sum": 11709930,
+            "shared_region_query_pairs": 5789481,
+            "opened_entry_uses": 377243,
+            "unique_region_entries": 42899,
+            "shared_routes": 128457,
+            "shared_entry_uses": 363205,
+            "shared_head_regions": 6897,
+            "bins": {
+              "1-1": {
+                "groups": 2511,
+                "routes": 2511,
+                "entry_uses": 14038
+              },
+              "2-3": {
+                "groups": 2206,
+                "routes": 5259,
+                "entry_uses": 27074
+              },
+              "4-7": {
+                "groups": 1691,
+                "routes": 8764,
+                "entry_uses": 39245
+              },
+              "8-15": {
+                "groups": 1191,
+                "routes": 12876,
+                "entry_uses": 52047
+              },
+              "16-31": {
+                "groups": 806,
+                "routes": 17725,
+                "entry_uses": 56501
+              },
+              "32-63": {
+                "groups": 562,
+                "routes": 25149,
+                "entry_uses": 61096
+              },
+              "64-127": {
+                "groups": 256,
+                "routes": 22300,
+                "entry_uses": 51129
+              },
+              "128-255": {
+                "groups": 155,
+                "routes": 26953,
+                "entry_uses": 56542
+              },
+              "256-511": {
+                "groups": 30,
+                "routes": 9431,
+                "entry_uses": 19571
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131047,
+            "active_head_regions": 9339,
+            "route_weighted_group_size_sum": 11248779,
+            "shared_region_query_pairs": 5558866,
+            "opened_entry_uses": 416527,
+            "unique_region_entries": 42135,
+            "shared_routes": 128759,
+            "shared_entry_uses": 403932,
+            "shared_head_regions": 7051,
+            "bins": {
+              "1-1": {
+                "groups": 2288,
+                "routes": 2288,
+                "entry_uses": 12595
+              },
+              "2-3": {
+                "groups": 2026,
+                "routes": 4886,
+                "entry_uses": 24628
+              },
+              "4-7": {
+                "groups": 1687,
+                "routes": 8845,
+                "entry_uses": 40785
+              },
+              "8-15": {
+                "groups": 1337,
+                "routes": 14472,
+                "entry_uses": 55686
+              },
+              "16-31": {
+                "groups": 1033,
+                "routes": 22737,
+                "entry_uses": 76410
+              },
+              "32-63": {
+                "groups": 571,
+                "routes": 24835,
+                "entry_uses": 72886
+              },
+              "64-127": {
+                "groups": 250,
+                "routes": 22015,
+                "entry_uses": 56259
+              },
+              "128-255": {
+                "groups": 116,
+                "routes": 20706,
+                "entry_uses": 53083
+              },
+              "256-511": {
+                "groups": 31,
+                "routes": 10263,
+                "entry_uses": 24195
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131071,
+            "active_head_regions": 9120,
+            "route_weighted_group_size_sum": 11754285,
+            "shared_region_query_pairs": 5811607,
+            "opened_entry_uses": 376010,
+            "unique_region_entries": 39940,
+            "shared_routes": 128699,
+            "shared_entry_uses": 362921,
+            "shared_head_regions": 6748,
+            "bins": {
+              "1-1": {
+                "groups": 2372,
+                "routes": 2372,
+                "entry_uses": 13089
+              },
+              "2-3": {
+                "groups": 2009,
+                "routes": 4779,
+                "entry_uses": 22468
+              },
+              "4-7": {
+                "groups": 1583,
+                "routes": 8298,
+                "entry_uses": 37998
+              },
+              "8-15": {
+                "groups": 1267,
+                "routes": 13815,
+                "entry_uses": 52662
+              },
+              "16-31": {
+                "groups": 933,
+                "routes": 20536,
+                "entry_uses": 62827
+              },
+              "32-63": {
+                "groups": 506,
+                "routes": 22215,
+                "entry_uses": 57465
+              },
+              "64-127": {
+                "groups": 287,
+                "routes": 25470,
+                "entry_uses": 63425
+              },
+              "128-255": {
+                "groups": 126,
+                "routes": 22047,
+                "entry_uses": 47608
+              },
+              "256-511": {
+                "groups": 37,
+                "routes": 11539,
+                "entry_uses": 18468
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 9321,
+            "route_weighted_group_size_sum": 9811630,
+            "shared_region_query_pairs": 4840279,
+            "opened_entry_uses": 411034,
+            "unique_region_entries": 43256,
+            "shared_routes": 128565,
+            "shared_entry_uses": 396449,
+            "shared_head_regions": 6814,
+            "bins": {
+              "1-1": {
+                "groups": 2507,
+                "routes": 2507,
+                "entry_uses": 14585
+              },
+              "2-3": {
+                "groups": 1949,
+                "routes": 4685,
+                "entry_uses": 24413
+              },
+              "4-7": {
+                "groups": 1562,
+                "routes": 8180,
+                "entry_uses": 36777
+              },
+              "8-15": {
+                "groups": 1251,
+                "routes": 13581,
+                "entry_uses": 53273
+              },
+              "16-31": {
+                "groups": 955,
+                "routes": 21287,
+                "entry_uses": 74986
+              },
+              "32-63": {
+                "groups": 672,
+                "routes": 29495,
+                "entry_uses": 87145
+              },
+              "64-127": {
+                "groups": 292,
+                "routes": 25657,
+                "entry_uses": 63156
+              },
+              "128-255": {
+                "groups": 116,
+                "routes": 20263,
+                "entry_uses": 44235
+              },
+              "256-511": {
+                "groups": 17,
+                "routes": 5417,
+                "entry_uses": 12464
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 8569,
+            "route_weighted_group_size_sum": 12854154,
+            "shared_region_query_pairs": 6361541,
+            "opened_entry_uses": 416920,
+            "unique_region_entries": 39487,
+            "shared_routes": 128919,
+            "shared_entry_uses": 405006,
+            "shared_head_regions": 6416,
+            "bins": {
+              "1-1": {
+                "groups": 2153,
+                "routes": 2153,
+                "entry_uses": 11914
+              },
+              "2-3": {
+                "groups": 1858,
+                "routes": 4411,
+                "entry_uses": 22539
+              },
+              "4-7": {
+                "groups": 1551,
+                "routes": 8051,
+                "entry_uses": 37005
+              },
+              "8-15": {
+                "groups": 1156,
+                "routes": 12570,
+                "entry_uses": 53708
+              },
+              "16-31": {
+                "groups": 851,
+                "routes": 18837,
+                "entry_uses": 63456
+              },
+              "32-63": {
+                "groups": 563,
+                "routes": 24859,
+                "entry_uses": 75642
+              },
+              "64-127": {
+                "groups": 260,
+                "routes": 23261,
+                "entry_uses": 72596
+              },
+              "128-255": {
+                "groups": 135,
+                "routes": 22910,
+                "entry_uses": 51584
+              },
+              "256-511": {
+                "groups": 42,
+                "routes": 14020,
+                "entry_uses": 28476
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131063,
+            "active_head_regions": 9416,
+            "route_weighted_group_size_sum": 12350761,
+            "shared_region_query_pairs": 6109849,
+            "opened_entry_uses": 382736,
+            "unique_region_entries": 41435,
+            "shared_routes": 128211,
+            "shared_entry_uses": 368032,
+            "shared_head_regions": 6564,
+            "bins": {
+              "1-1": {
+                "groups": 2852,
+                "routes": 2852,
+                "entry_uses": 14704
+              },
+              "2-3": {
+                "groups": 2175,
+                "routes": 5176,
+                "entry_uses": 23519
+              },
+              "4-7": {
+                "groups": 1498,
+                "routes": 7762,
+                "entry_uses": 35060
+              },
+              "8-15": {
+                "groups": 1087,
+                "routes": 11782,
+                "entry_uses": 48002
+              },
+              "16-31": {
+                "groups": 822,
+                "routes": 18165,
+                "entry_uses": 69444
+              },
+              "32-63": {
+                "groups": 514,
+                "routes": 22668,
+                "entry_uses": 62063
+              },
+              "64-127": {
+                "groups": 281,
+                "routes": 24656,
+                "entry_uses": 62451
+              },
+              "128-255": {
+                "groups": 148,
+                "routes": 26275,
+                "entry_uses": 49518
+              },
+              "256-511": {
+                "groups": 39,
+                "routes": 11727,
+                "entry_uses": 17975
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131069,
+            "active_head_regions": 10173,
+            "route_weighted_group_size_sum": 10622147,
+            "shared_region_query_pairs": 5245539,
+            "opened_entry_uses": 625980,
+            "unique_region_entries": 64480,
+            "shared_routes": 128058,
+            "shared_entry_uses": 604797,
+            "shared_head_regions": 7162,
+            "bins": {
+              "1-1": {
+                "groups": 3011,
+                "routes": 3011,
+                "entry_uses": 21183
+              },
+              "2-3": {
+                "groups": 2291,
+                "routes": 5430,
+                "entry_uses": 36607
+              },
+              "4-7": {
+                "groups": 1727,
+                "routes": 8956,
+                "entry_uses": 58217
+              },
+              "8-15": {
+                "groups": 1283,
+                "routes": 13887,
+                "entry_uses": 79090
+              },
+              "16-31": {
+                "groups": 872,
+                "routes": 19282,
+                "entry_uses": 114064
+              },
+              "32-63": {
+                "groups": 533,
+                "routes": 23454,
+                "entry_uses": 103837
+              },
+              "64-127": {
+                "groups": 285,
+                "routes": 24840,
+                "entry_uses": 106440
+              },
+              "128-255": {
+                "groups": 148,
+                "routes": 25212,
+                "entry_uses": 92227
+              },
+              "256-511": {
+                "groups": 23,
+                "routes": 6997,
+                "entry_uses": 14315
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131046,
+            "active_head_regions": 11119,
+            "route_weighted_group_size_sum": 9094210,
+            "shared_region_query_pairs": 4481582,
+            "opened_entry_uses": 608473,
+            "unique_region_entries": 71602,
+            "shared_routes": 127826,
+            "shared_entry_uses": 586550,
+            "shared_head_regions": 7899,
+            "bins": {
+              "1-1": {
+                "groups": 3220,
+                "routes": 3220,
+                "entry_uses": 21923
+              },
+              "2-3": {
+                "groups": 2563,
+                "routes": 6135,
+                "entry_uses": 39085
+              },
+              "4-7": {
+                "groups": 1957,
+                "routes": 10049,
+                "entry_uses": 69478
+              },
+              "8-15": {
+                "groups": 1430,
+                "routes": 15474,
+                "entry_uses": 112985
+              },
+              "16-31": {
+                "groups": 963,
+                "routes": 21262,
+                "entry_uses": 123939
+              },
+              "32-63": {
+                "groups": 566,
+                "routes": 24787,
+                "entry_uses": 130681
+              },
+              "64-127": {
+                "groups": 289,
+                "routes": 25972,
+                "entry_uses": 74862
+              },
+              "128-255": {
+                "groups": 120,
+                "routes": 20762,
+                "entry_uses": 32135
+              },
+              "256-511": {
+                "groups": 11,
+                "routes": 3385,
+                "entry_uses": 3385
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131050,
+            "active_head_regions": 10002,
+            "route_weighted_group_size_sum": 9083576,
+            "shared_region_query_pairs": 4476263,
+            "opened_entry_uses": 656449,
+            "unique_region_entries": 59746,
+            "shared_routes": 128385,
+            "shared_entry_uses": 639694,
+            "shared_head_regions": 7337,
+            "bins": {
+              "1-1": {
+                "groups": 2665,
+                "routes": 2665,
+                "entry_uses": 16755
+              },
+              "2-3": {
+                "groups": 2242,
+                "routes": 5303,
+                "entry_uses": 32343
+              },
+              "4-7": {
+                "groups": 1681,
+                "routes": 8740,
+                "entry_uses": 50839
+              },
+              "8-15": {
+                "groups": 1344,
+                "routes": 14495,
+                "entry_uses": 94134
+              },
+              "16-31": {
+                "groups": 1009,
+                "routes": 22525,
+                "entry_uses": 124782
+              },
+              "32-63": {
+                "groups": 631,
+                "routes": 27785,
+                "entry_uses": 146129
+              },
+              "64-127": {
+                "groups": 305,
+                "routes": 26464,
+                "entry_uses": 130294
+              },
+              "128-255": {
+                "groups": 111,
+                "routes": 18647,
+                "entry_uses": 51816
+              },
+              "256-511": {
+                "groups": 14,
+                "routes": 4426,
+                "entry_uses": 9357
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 130805,
+            "active_head_regions": 10370,
+            "route_weighted_group_size_sum": 9447713,
+            "shared_region_query_pairs": 4658454,
+            "opened_entry_uses": 694504,
+            "unique_region_entries": 54687,
+            "shared_routes": 128275,
+            "shared_entry_uses": 682126,
+            "shared_head_regions": 7840,
+            "bins": {
+              "1-1": {
+                "groups": 2530,
+                "routes": 2530,
+                "entry_uses": 12378
+              },
+              "2-3": {
+                "groups": 2288,
+                "routes": 5453,
+                "entry_uses": 26634
+              },
+              "4-7": {
+                "groups": 1970,
+                "routes": 10387,
+                "entry_uses": 55784
+              },
+              "8-15": {
+                "groups": 1498,
+                "routes": 16352,
+                "entry_uses": 94204
+              },
+              "16-31": {
+                "groups": 1098,
+                "routes": 24096,
+                "entry_uses": 135415
+              },
+              "32-63": {
+                "groups": 620,
+                "routes": 27494,
+                "entry_uses": 153938
+              },
+              "64-127": {
+                "groups": 260,
+                "routes": 22067,
+                "entry_uses": 151478
+              },
+              "128-255": {
+                "groups": 79,
+                "routes": 13382,
+                "entry_uses": 50497
+              },
+              "256-511": {
+                "groups": 27,
+                "routes": 9044,
+                "entry_uses": 14176
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 130918,
+            "active_head_regions": 9883,
+            "route_weighted_group_size_sum": 10672836,
+            "shared_region_query_pairs": 5270959,
+            "opened_entry_uses": 731126,
+            "unique_region_entries": 74980,
+            "shared_routes": 128093,
+            "shared_entry_uses": 709869,
+            "shared_head_regions": 7058,
+            "bins": {
+              "1-1": {
+                "groups": 2825,
+                "routes": 2825,
+                "entry_uses": 21257
+              },
+              "2-3": {
+                "groups": 2191,
+                "routes": 5192,
+                "entry_uses": 40533
+              },
+              "4-7": {
+                "groups": 1767,
+                "routes": 9146,
+                "entry_uses": 72166
+              },
+              "8-15": {
+                "groups": 1265,
+                "routes": 13561,
+                "entry_uses": 107891
+              },
+              "16-31": {
+                "groups": 850,
+                "routes": 18629,
+                "entry_uses": 153630
+              },
+              "32-63": {
+                "groups": 512,
+                "routes": 22833,
+                "entry_uses": 178182
+              },
+              "64-127": {
+                "groups": 302,
+                "routes": 26903,
+                "entry_uses": 87487
+              },
+              "128-255": {
+                "groups": 151,
+                "routes": 25639,
+                "entry_uses": 55891
+              },
+              "256-511": {
+                "groups": 20,
+                "routes": 6190,
+                "entry_uses": 14089
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131027,
+            "active_head_regions": 12493,
+            "route_weighted_group_size_sum": 8557371,
+            "shared_region_query_pairs": 4213172,
+            "opened_entry_uses": 909378,
+            "unique_region_entries": 97344,
+            "shared_routes": 127395,
+            "shared_entry_uses": 880324,
+            "shared_head_regions": 8861,
+            "bins": {
+              "1-1": {
+                "groups": 3632,
+                "routes": 3632,
+                "entry_uses": 29054
+              },
+              "2-3": {
+                "groups": 3129,
+                "routes": 7432,
+                "entry_uses": 55368
+              },
+              "4-7": {
+                "groups": 2248,
+                "routes": 11774,
+                "entry_uses": 86906
+              },
+              "8-15": {
+                "groups": 1541,
+                "routes": 16489,
+                "entry_uses": 134616
+              },
+              "16-31": {
+                "groups": 1011,
+                "routes": 22301,
+                "entry_uses": 191973
+              },
+              "32-63": {
+                "groups": 576,
+                "routes": 25361,
+                "entry_uses": 232939
+              },
+              "64-127": {
+                "groups": 228,
+                "routes": 20058,
+                "entry_uses": 129243
+              },
+              "128-255": {
+                "groups": 116,
+                "routes": 20444,
+                "entry_uses": 45443
+              },
+              "256-511": {
+                "groups": 12,
+                "routes": 3536,
+                "entry_uses": 3836
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 130822,
+            "active_head_regions": 11534,
+            "route_weighted_group_size_sum": 10335998,
+            "shared_region_query_pairs": 5102588,
+            "opened_entry_uses": 765807,
+            "unique_region_entries": 77922,
+            "shared_routes": 127413,
+            "shared_entry_uses": 742538,
+            "shared_head_regions": 8125,
+            "bins": {
+              "1-1": {
+                "groups": 3409,
+                "routes": 3409,
+                "entry_uses": 23269
+              },
+              "2-3": {
+                "groups": 2635,
+                "routes": 6332,
+                "entry_uses": 39040
+              },
+              "4-7": {
+                "groups": 2140,
+                "routes": 11084,
+                "entry_uses": 72783
+              },
+              "8-15": {
+                "groups": 1458,
+                "routes": 15715,
+                "entry_uses": 114657
+              },
+              "16-31": {
+                "groups": 992,
+                "routes": 21852,
+                "entry_uses": 166692
+              },
+              "32-63": {
+                "groups": 525,
+                "routes": 22734,
+                "entry_uses": 192902
+              },
+              "64-127": {
+                "groups": 225,
+                "routes": 19644,
+                "entry_uses": 79066
+              },
+              "128-255": {
+                "groups": 122,
+                "routes": 20950,
+                "entry_uses": 66390
+              },
+              "256-511": {
+                "groups": 28,
+                "routes": 9102,
+                "entry_uses": 11008
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131070,
+            "active_head_regions": 9065,
+            "route_weighted_group_size_sum": 13535194,
+            "shared_region_query_pairs": 6702062,
+            "opened_entry_uses": 440120,
+            "unique_region_entries": 50903,
+            "shared_routes": 128459,
+            "shared_entry_uses": 423534,
+            "shared_head_regions": 6454,
+            "bins": {
+              "1-1": {
+                "groups": 2611,
+                "routes": 2611,
+                "entry_uses": 16586
+              },
+              "2-3": {
+                "groups": 2018,
+                "routes": 4842,
+                "entry_uses": 28449
+              },
+              "4-7": {
+                "groups": 1497,
+                "routes": 7771,
+                "entry_uses": 45283
+              },
+              "8-15": {
+                "groups": 1199,
+                "routes": 13027,
+                "entry_uses": 74576
+              },
+              "16-31": {
+                "groups": 815,
+                "routes": 17914,
+                "entry_uses": 92316
+              },
+              "32-63": {
+                "groups": 478,
+                "routes": 20645,
+                "entry_uses": 64011
+              },
+              "64-127": {
+                "groups": 248,
+                "routes": 21854,
+                "entry_uses": 51450
+              },
+              "128-255": {
+                "groups": 151,
+                "routes": 27279,
+                "entry_uses": 48313
+              },
+              "256-511": {
+                "groups": 48,
+                "routes": 15127,
+                "entry_uses": 19136
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 7410,
+            "route_weighted_group_size_sum": 16735118,
+            "shared_region_query_pairs": 8302023,
+            "opened_entry_uses": 466420,
+            "unique_region_entries": 42640,
+            "shared_routes": 128966,
+            "shared_entry_uses": 453142,
+            "shared_head_regions": 5304,
+            "bins": {
+              "1-1": {
+                "groups": 2106,
+                "routes": 2106,
+                "entry_uses": 13278
+              },
+              "2-3": {
+                "groups": 1585,
+                "routes": 3762,
+                "entry_uses": 22895
+              },
+              "4-7": {
+                "groups": 1201,
+                "routes": 6164,
+                "entry_uses": 34442
+              },
+              "8-15": {
+                "groups": 932,
+                "routes": 10017,
+                "entry_uses": 58583
+              },
+              "16-31": {
+                "groups": 661,
+                "routes": 14496,
+                "entry_uses": 95047
+              },
+              "32-63": {
+                "groups": 417,
+                "routes": 18601,
+                "entry_uses": 90086
+              },
+              "64-127": {
+                "groups": 289,
+                "routes": 25970,
+                "entry_uses": 72441
+              },
+              "128-255": {
+                "groups": 148,
+                "routes": 26607,
+                "entry_uses": 49213
+              },
+              "256-511": {
+                "groups": 71,
+                "routes": 23349,
+                "entry_uses": 30435
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131068,
+            "active_head_regions": 8169,
+            "route_weighted_group_size_sum": 14559708,
+            "shared_region_query_pairs": 7214320,
+            "opened_entry_uses": 542109,
+            "unique_region_entries": 43432,
+            "shared_routes": 128751,
+            "shared_entry_uses": 529420,
+            "shared_head_regions": 5852,
+            "bins": {
+              "1-1": {
+                "groups": 2317,
+                "routes": 2317,
+                "entry_uses": 12689
+              },
+              "2-3": {
+                "groups": 1749,
+                "routes": 4177,
+                "entry_uses": 24100
+              },
+              "4-7": {
+                "groups": 1342,
+                "routes": 6956,
+                "entry_uses": 36618
+              },
+              "8-15": {
+                "groups": 1025,
+                "routes": 11134,
+                "entry_uses": 63939
+              },
+              "16-31": {
+                "groups": 743,
+                "routes": 16250,
+                "entry_uses": 80006
+              },
+              "32-63": {
+                "groups": 520,
+                "routes": 22754,
+                "entry_uses": 95894
+              },
+              "64-127": {
+                "groups": 271,
+                "routes": 23948,
+                "entry_uses": 120987
+              },
+              "128-255": {
+                "groups": 149,
+                "routes": 25729,
+                "entry_uses": 78617
+              },
+              "256-511": {
+                "groups": 53,
+                "routes": 17803,
+                "entry_uses": 29259
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 7121,
+            "route_weighted_group_size_sum": 16650044,
+            "shared_region_query_pairs": 8259486,
+            "opened_entry_uses": 382954,
+            "unique_region_entries": 33621,
+            "shared_routes": 129144,
+            "shared_entry_uses": 373098,
+            "shared_head_regions": 5193,
+            "bins": {
+              "1-1": {
+                "groups": 1928,
+                "routes": 1928,
+                "entry_uses": 9856
+              },
+              "2-3": {
+                "groups": 1492,
+                "routes": 3552,
+                "entry_uses": 18328
+              },
+              "4-7": {
+                "groups": 1255,
+                "routes": 6592,
+                "entry_uses": 32391
+              },
+              "8-15": {
+                "groups": 889,
+                "routes": 9618,
+                "entry_uses": 48978
+              },
+              "16-31": {
+                "groups": 621,
+                "routes": 13523,
+                "entry_uses": 63040
+              },
+              "32-63": {
+                "groups": 411,
+                "routes": 18215,
+                "entry_uses": 62717
+              },
+              "64-127": {
+                "groups": 295,
+                "routes": 26408,
+                "entry_uses": 56860
+              },
+              "128-255": {
+                "groups": 168,
+                "routes": 30341,
+                "entry_uses": 50853
+              },
+              "256-511": {
+                "groups": 62,
+                "routes": 20895,
+                "entry_uses": 39931
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131047,
+            "active_head_regions": 6845,
+            "route_weighted_group_size_sum": 17108271,
+            "shared_region_query_pairs": 8488612,
+            "opened_entry_uses": 335455,
+            "unique_region_entries": 31669,
+            "shared_routes": 129073,
+            "shared_entry_uses": 324280,
+            "shared_head_regions": 4871,
+            "bins": {
+              "1-1": {
+                "groups": 1974,
+                "routes": 1974,
+                "entry_uses": 11175
+              },
+              "2-3": {
+                "groups": 1421,
+                "routes": 3353,
+                "entry_uses": 18462
+              },
+              "4-7": {
+                "groups": 1097,
+                "routes": 5723,
+                "entry_uses": 24551
+              },
+              "8-15": {
+                "groups": 840,
+                "routes": 9132,
+                "entry_uses": 38326
+              },
+              "16-31": {
+                "groups": 554,
+                "routes": 12112,
+                "entry_uses": 48205
+              },
+              "32-63": {
+                "groups": 417,
+                "routes": 18631,
+                "entry_uses": 50647
+              },
+              "64-127": {
+                "groups": 301,
+                "routes": 27137,
+                "entry_uses": 62068
+              },
+              "128-255": {
+                "groups": 172,
+                "routes": 30249,
+                "entry_uses": 48930
+              },
+              "256-511": {
+                "groups": 69,
+                "routes": 22736,
+                "entry_uses": 33091
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131043,
+            "active_head_regions": 8853,
+            "route_weighted_group_size_sum": 16707057,
+            "shared_region_query_pairs": 8288007,
+            "opened_entry_uses": 463893,
+            "unique_region_entries": 45115,
+            "shared_routes": 128536,
+            "shared_entry_uses": 449703,
+            "shared_head_regions": 6346,
+            "bins": {
+              "1-1": {
+                "groups": 2507,
+                "routes": 2507,
+                "entry_uses": 14190
+              },
+              "2-3": {
+                "groups": 2037,
+                "routes": 4897,
+                "entry_uses": 25679
+              },
+              "4-7": {
+                "groups": 1567,
+                "routes": 8213,
+                "entry_uses": 41955
+              },
+              "8-15": {
+                "groups": 1168,
+                "routes": 12567,
+                "entry_uses": 63048
+              },
+              "16-31": {
+                "groups": 726,
+                "routes": 15980,
+                "entry_uses": 72772
+              },
+              "32-63": {
+                "groups": 433,
+                "routes": 18779,
+                "entry_uses": 74029
+              },
+              "64-127": {
+                "groups": 205,
+                "routes": 18407,
+                "entry_uses": 81625
+              },
+              "128-255": {
+                "groups": 136,
+                "routes": 24043,
+                "entry_uses": 53812
+              },
+              "256-511": {
+                "groups": 74,
+                "routes": 25650,
+                "entry_uses": 36783
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 7588,
+            "route_weighted_group_size_sum": 17858710,
+            "shared_region_query_pairs": 8863819,
+            "opened_entry_uses": 445919,
+            "unique_region_entries": 34663,
+            "shared_routes": 128921,
+            "shared_entry_uses": 435756,
+            "shared_head_regions": 5437,
+            "bins": {
+              "1-1": {
+                "groups": 2151,
+                "routes": 2151,
+                "entry_uses": 10163
+              },
+              "2-3": {
+                "groups": 1642,
+                "routes": 3926,
+                "entry_uses": 20139
+              },
+              "4-7": {
+                "groups": 1253,
+                "routes": 6505,
+                "entry_uses": 30383
+              },
+              "8-15": {
+                "groups": 962,
+                "routes": 10492,
+                "entry_uses": 42756
+              },
+              "16-31": {
+                "groups": 708,
+                "routes": 15307,
+                "entry_uses": 75628
+              },
+              "32-63": {
+                "groups": 404,
+                "routes": 17946,
+                "entry_uses": 70144
+              },
+              "64-127": {
+                "groups": 240,
+                "routes": 21044,
+                "entry_uses": 71226
+              },
+              "128-255": {
+                "groups": 152,
+                "routes": 27178,
+                "entry_uses": 67769
+              },
+              "256-511": {
+                "groups": 76,
+                "routes": 26523,
+                "entry_uses": 57711
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131067,
+            "active_head_regions": 7246,
+            "route_weighted_group_size_sum": 17888643,
+            "shared_region_query_pairs": 8878788,
+            "opened_entry_uses": 357500,
+            "unique_region_entries": 27946,
+            "shared_routes": 129104,
+            "shared_entry_uses": 348567,
+            "shared_head_regions": 5283,
+            "bins": {
+              "1-1": {
+                "groups": 1963,
+                "routes": 1963,
+                "entry_uses": 8933
+              },
+              "2-3": {
+                "groups": 1588,
+                "routes": 3793,
+                "entry_uses": 15979
+              },
+              "4-7": {
+                "groups": 1175,
+                "routes": 6123,
+                "entry_uses": 22583
+              },
+              "8-15": {
+                "groups": 979,
+                "routes": 10560,
+                "entry_uses": 37721
+              },
+              "16-31": {
+                "groups": 636,
+                "routes": 14268,
+                "entry_uses": 49116
+              },
+              "32-63": {
+                "groups": 438,
+                "routes": 19385,
+                "entry_uses": 47192
+              },
+              "64-127": {
+                "groups": 244,
+                "routes": 21888,
+                "entry_uses": 64066
+              },
+              "128-255": {
+                "groups": 144,
+                "routes": 26155,
+                "entry_uses": 62969
+              },
+              "256-511": {
+                "groups": 79,
+                "routes": 26932,
+                "entry_uses": 48941
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131063,
+            "active_head_regions": 7765,
+            "route_weighted_group_size_sum": 15630137,
+            "shared_region_query_pairs": 7749537,
+            "opened_entry_uses": 338268,
+            "unique_region_entries": 29999,
+            "shared_routes": 129016,
+            "shared_entry_uses": 328746,
+            "shared_head_regions": 5718,
+            "bins": {
+              "1-1": {
+                "groups": 2047,
+                "routes": 2047,
+                "entry_uses": 9522
+              },
+              "2-3": {
+                "groups": 1626,
+                "routes": 3886,
+                "entry_uses": 16658
+              },
+              "4-7": {
+                "groups": 1350,
+                "routes": 7108,
+                "entry_uses": 27920
+              },
+              "8-15": {
+                "groups": 1106,
+                "routes": 11932,
+                "entry_uses": 42821
+              },
+              "16-31": {
+                "groups": 743,
+                "routes": 16332,
+                "entry_uses": 49851
+              },
+              "32-63": {
+                "groups": 425,
+                "routes": 18610,
+                "entry_uses": 42527
+              },
+              "64-127": {
+                "groups": 243,
+                "routes": 22001,
+                "entry_uses": 43301
+              },
+              "128-255": {
+                "groups": 173,
+                "routes": 31749,
+                "entry_uses": 74339
+              },
+              "256-511": {
+                "groups": 52,
+                "routes": 17398,
+                "entry_uses": 31329
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 8245,
+            "route_weighted_group_size_sum": 13894270,
+            "shared_region_query_pairs": 6881599,
+            "opened_entry_uses": 422581,
+            "unique_region_entries": 37753,
+            "shared_routes": 128929,
+            "shared_entry_uses": 410822,
+            "shared_head_regions": 6102,
+            "bins": {
+              "1-1": {
+                "groups": 2143,
+                "routes": 2143,
+                "entry_uses": 11759
+              },
+              "2-3": {
+                "groups": 1815,
+                "routes": 4348,
+                "entry_uses": 22634
+              },
+              "4-7": {
+                "groups": 1458,
+                "routes": 7580,
+                "entry_uses": 35415
+              },
+              "8-15": {
+                "groups": 1052,
+                "routes": 11427,
+                "entry_uses": 41394
+              },
+              "16-31": {
+                "groups": 766,
+                "routes": 16939,
+                "entry_uses": 61027
+              },
+              "32-63": {
+                "groups": 545,
+                "routes": 24010,
+                "entry_uses": 73019
+              },
+              "64-127": {
+                "groups": 288,
+                "routes": 25421,
+                "entry_uses": 84381
+              },
+              "128-255": {
+                "groups": 127,
+                "routes": 22263,
+                "entry_uses": 56350
+              },
+              "256-511": {
+                "groups": 51,
+                "routes": 16941,
+                "entry_uses": 36602
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 7216,
+            "route_weighted_group_size_sum": 18649148,
+            "shared_region_query_pairs": 9259038,
+            "opened_entry_uses": 461559,
+            "unique_region_entries": 33439,
+            "shared_routes": 129139,
+            "shared_entry_uses": 451885,
+            "shared_head_regions": 5283,
+            "bins": {
+              "1-1": {
+                "groups": 1933,
+                "routes": 1933,
+                "entry_uses": 9674
+              },
+              "2-3": {
+                "groups": 1545,
+                "routes": 3718,
+                "entry_uses": 17829
+              },
+              "4-7": {
+                "groups": 1232,
+                "routes": 6472,
+                "entry_uses": 30730
+              },
+              "8-15": {
+                "groups": 959,
+                "routes": 10480,
+                "entry_uses": 47504
+              },
+              "16-31": {
+                "groups": 663,
+                "routes": 14581,
+                "entry_uses": 58687
+              },
+              "32-63": {
+                "groups": 413,
+                "routes": 18776,
+                "entry_uses": 88545
+              },
+              "64-127": {
+                "groups": 265,
+                "routes": 23606,
+                "entry_uses": 92286
+              },
+              "128-255": {
+                "groups": 118,
+                "routes": 20356,
+                "entry_uses": 58821
+              },
+              "256-511": {
+                "groups": 86,
+                "routes": 30126,
+                "entry_uses": 56459
+              },
+              "512-1023": {
+                "groups": 2,
+                "routes": 1024,
+                "entry_uses": 1024
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131067,
+            "active_head_regions": 7565,
+            "route_weighted_group_size_sum": 16782637,
+            "shared_region_query_pairs": 8325785,
+            "opened_entry_uses": 514643,
+            "unique_region_entries": 38078,
+            "shared_routes": 129039,
+            "shared_entry_uses": 503406,
+            "shared_head_regions": 5537,
+            "bins": {
+              "1-1": {
+                "groups": 2028,
+                "routes": 2028,
+                "entry_uses": 11237
+              },
+              "2-3": {
+                "groups": 1622,
+                "routes": 3846,
+                "entry_uses": 19563
+              },
+              "4-7": {
+                "groups": 1252,
+                "routes": 6479,
+                "entry_uses": 32979
+              },
+              "8-15": {
+                "groups": 1022,
+                "routes": 11067,
+                "entry_uses": 58438
+              },
+              "16-31": {
+                "groups": 726,
+                "routes": 16218,
+                "entry_uses": 81723
+              },
+              "32-63": {
+                "groups": 448,
+                "routes": 19813,
+                "entry_uses": 72179
+              },
+              "64-127": {
+                "groups": 259,
+                "routes": 23284,
+                "entry_uses": 77773
+              },
+              "128-255": {
+                "groups": 143,
+                "routes": 25456,
+                "entry_uses": 71401
+              },
+              "256-511": {
+                "groups": 65,
+                "routes": 22876,
+                "entry_uses": 89350
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 9988,
+            "route_weighted_group_size_sum": 11137224,
+            "shared_region_query_pairs": 5503076,
+            "opened_entry_uses": 506319,
+            "unique_region_entries": 44656,
+            "shared_routes": 128384,
+            "shared_entry_uses": 493721,
+            "shared_head_regions": 7300,
+            "bins": {
+              "1-1": {
+                "groups": 2688,
+                "routes": 2688,
+                "entry_uses": 12598
+              },
+              "2-3": {
+                "groups": 2148,
+                "routes": 5185,
+                "entry_uses": 23304
+              },
+              "4-7": {
+                "groups": 1791,
+                "routes": 9318,
+                "entry_uses": 41456
+              },
+              "8-15": {
+                "groups": 1426,
+                "routes": 15549,
+                "entry_uses": 71306
+              },
+              "16-31": {
+                "groups": 951,
+                "routes": 21057,
+                "entry_uses": 97429
+              },
+              "32-63": {
+                "groups": 590,
+                "routes": 26046,
+                "entry_uses": 109377
+              },
+              "64-127": {
+                "groups": 263,
+                "routes": 22407,
+                "entry_uses": 84640
+              },
+              "128-255": {
+                "groups": 87,
+                "routes": 14866,
+                "entry_uses": 37064
+              },
+              "256-511": {
+                "groups": 44,
+                "routes": 13956,
+                "entry_uses": 29145
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131072,
+            "active_head_regions": 6081,
+            "route_weighted_group_size_sum": 19928450,
+            "shared_region_query_pairs": 9898689,
+            "opened_entry_uses": 605783,
+            "unique_region_entries": 29917,
+            "shared_routes": 129516,
+            "shared_entry_uses": 597757,
+            "shared_head_regions": 4525,
+            "bins": {
+              "1-1": {
+                "groups": 1556,
+                "routes": 1556,
+                "entry_uses": 8026
+              },
+              "2-3": {
+                "groups": 1255,
+                "routes": 2988,
+                "entry_uses": 14865
+              },
+              "4-7": {
+                "groups": 1009,
+                "routes": 5268,
+                "entry_uses": 26372
+              },
+              "8-15": {
+                "groups": 734,
+                "routes": 7946,
+                "entry_uses": 38717
+              },
+              "16-31": {
+                "groups": 617,
+                "routes": 13529,
+                "entry_uses": 65358
+              },
+              "32-63": {
+                "groups": 410,
+                "routes": 18295,
+                "entry_uses": 81968
+              },
+              "64-127": {
+                "groups": 265,
+                "routes": 23493,
+                "entry_uses": 93364
+              },
+              "128-255": {
+                "groups": 140,
+                "routes": 25603,
+                "entry_uses": 98995
+              },
+              "256-511": {
+                "groups": 95,
+                "routes": 32394,
+                "entry_uses": 178118
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131022,
+            "active_head_regions": 8500,
+            "route_weighted_group_size_sum": 15692312,
+            "shared_region_query_pairs": 7780645,
+            "opened_entry_uses": 450408,
+            "unique_region_entries": 42308,
+            "shared_routes": 128461,
+            "shared_entry_uses": 437044,
+            "shared_head_regions": 5939,
+            "bins": {
+              "1-1": {
+                "groups": 2561,
+                "routes": 2561,
+                "entry_uses": 13364
+              },
+              "2-3": {
+                "groups": 1876,
+                "routes": 4462,
+                "entry_uses": 22904
+              },
+              "4-7": {
+                "groups": 1354,
+                "routes": 7086,
+                "entry_uses": 37805
+              },
+              "8-15": {
+                "groups": 1073,
+                "routes": 11637,
+                "entry_uses": 56665
+              },
+              "16-31": {
+                "groups": 712,
+                "routes": 15720,
+                "entry_uses": 78267
+              },
+              "32-63": {
+                "groups": 456,
+                "routes": 20164,
+                "entry_uses": 81214
+              },
+              "64-127": {
+                "groups": 254,
+                "routes": 22491,
+                "entry_uses": 69503
+              },
+              "128-255": {
+                "groups": 162,
+                "routes": 28064,
+                "entry_uses": 63219
+              },
+              "256-511": {
+                "groups": 52,
+                "routes": 18837,
+                "entry_uses": 27467
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ],
+        [
+          {
+            "query_heads": 16384,
+            "query_head_pairs": 4186112,
+            "queries_per_group": 512,
+            "routes": 131016,
+            "active_head_regions": 10603,
+            "route_weighted_group_size_sum": 9187778,
+            "shared_region_query_pairs": 4528381,
+            "opened_entry_uses": 433005,
+            "unique_region_entries": 43127,
+            "shared_routes": 128202,
+            "shared_entry_uses": 419680,
+            "shared_head_regions": 7789,
+            "bins": {
+              "1-1": {
+                "groups": 2814,
+                "routes": 2814,
+                "entry_uses": 13325
+              },
+              "2-3": {
+                "groups": 2276,
+                "routes": 5448,
+                "entry_uses": 24821
+              },
+              "4-7": {
+                "groups": 1895,
+                "routes": 9850,
+                "entry_uses": 39003
+              },
+              "8-15": {
+                "groups": 1546,
+                "routes": 16829,
+                "entry_uses": 61161
+              },
+              "16-31": {
+                "groups": 1098,
+                "routes": 24261,
+                "entry_uses": 76732
+              },
+              "32-63": {
+                "groups": 586,
+                "routes": 25839,
+                "entry_uses": 72804
+              },
+              "64-127": {
+                "groups": 279,
+                "routes": 24169,
+                "entry_uses": 71693
+              },
+              "128-255": {
+                "groups": 90,
+                "routes": 15323,
+                "entry_uses": 53641
+              },
+              "256-511": {
+                "groups": 19,
+                "routes": 6483,
+                "entry_uses": 19825
+              },
+              "512-1023": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "1024-2047": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "2048-4095": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "4096-8191": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              },
+              "8192-16384": {
+                "groups": 0,
+                "routes": 0,
+                "entry_uses": 0
+              }
+            },
+            "state_len": 2048,
+            "label": "512_queries"
+          }
+        ]
+      ],
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.411040995270014,
+      "decode_ms_per_token": 8.411040995270014,
+      "decode_tokens_per_second": 118.89134776091977
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.411040995270014,
+  "median_decode_tokens_per_second": 118.89134776091977,
+  "median_decode_ms_per_token": 8.411040995270014,
+  "median_prefill_s": 3.0181685920106247
+}

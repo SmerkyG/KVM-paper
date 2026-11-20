@@ -1,0 +1,130 @@
+{
+  "measurements": [
+    {
+      "batch": 1,
+      "length": 8192,
+      "capacity": 66577,
+      "native": {
+        "prefill_seconds": 0.2106462819999706,
+        "decode_ms": 6.88006839941413,
+        "elapsed_seconds": 7.25691277299984
+      },
+      "bf16": {
+        "prefill_seconds": 0.2588573369998812,
+        "decode_ms": 7.857691974609615,
+        "elapsed_seconds": 8.308738927999912
+      },
+      "int4": {
+        "prefill_seconds": 0.362137556000107,
+        "decode_ms": 7.870470859375089,
+        "elapsed_seconds": 8.423095405999902
+      }
+    },
+    {
+      "batch": 1,
+      "length": 32768,
+      "capacity": 66577,
+      "native": {
+        "prefill_seconds": 1.2113699970000198,
+        "decode_ms": 7.979278446289095,
+        "elapsed_seconds": 9.384335377999832
+      },
+      "bf16": {
+        "prefill_seconds": 1.4968006450003486,
+        "decode_ms": 7.998782444336161,
+        "elapsed_seconds": 9.698969791999843
+      },
+      "int4": {
+        "prefill_seconds": 1.6876547840001876,
+        "decode_ms": 7.964085745117089,
+        "elapsed_seconds": 9.842754668999987
+      }
+    },
+    {
+      "batch": 1,
+      "length": 65536,
+      "capacity": 66577,
+      "native": {
+        "prefill_seconds": 3.551557917000082,
+        "decode_ms": 9.395423587890583,
+        "elapsed_seconds": 13.17778317300008
+      },
+      "bf16": {
+        "prefill_seconds": 4.003371601999788,
+        "decode_ms": 8.26769075292999,
+        "elapsed_seconds": 12.467421768999884
+      },
+      "int4": {
+        "prefill_seconds": 4.334194181999919,
+        "decode_ms": 8.15901900292948,
+        "elapsed_seconds": 12.692687901999761
+      }
+    },
+    {
+      "batch": 1,
+      "length": 128000,
+      "capacity": 131072,
+      "native": {
+        "prefill_seconds": 11.01147230100014,
+        "decode_ms": 12.121198779296627,
+        "elapsed_seconds": 23.43138102100056
+      },
+      "bf16": {
+        "prefill_seconds": 9.596090838999771,
+        "decode_ms": 8.721908823241975,
+        "elapsed_seconds": 18.516980024000077
+      },
+      "int4": {
+        "prefill_seconds": 10.303192146000583,
+        "decode_ms": 8.488550636718273,
+        "elapsed_seconds": 18.99504093499945
+      }
+    },
+    {
+      "batch": 8,
+      "length": 32768,
+      "capacity": 33809,
+      "native": {
+        "prefill_seconds": 10.363467560000117,
+        "decode_ms": 17.80458309277355,
+        "elapsed_seconds": 28.605994702000316
+      },
+      "bf16": {
+        "prefill_seconds": 13.37250855900038,
+        "decode_ms": 12.274656946289042,
+        "elapsed_seconds": 25.944328846999724
+      },
+      "int4": {
+        "prefill_seconds": 14.161209751000115,
+        "decode_ms": 12.258370163086063,
+        "elapsed_seconds": 26.71926441200003
+      }
+    }
+  ],
+  "quality": [
+    {
+      "mode": "three-tier-bf16",
+      "batch": 1,
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "mode": "three-tier-bf16",
+      "batch": 8,
+      "correct": 8,
+      "total": 8
+    },
+    {
+      "mode": "three-tier-int4",
+      "batch": 1,
+      "correct": 9,
+      "total": 9
+    },
+    {
+      "mode": "three-tier-int4",
+      "batch": 8,
+      "correct": 8,
+      "total": 8
+    }
+  ]
+}

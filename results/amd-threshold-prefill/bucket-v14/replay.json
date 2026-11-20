@@ -1,0 +1,61 @@
+{
+  "stage": "complete",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "2cfcd6b2c963fc84a43a4fab5ecffa617cb386d478e382378f3bf1647b5cfc07",
+      "source_file_count": 244
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "gpu": "AMD Instinct MI325X",
+  "records": [
+    {
+      "layer": 0,
+      "variant": "top8",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 7.8669233322143555,
+      "mean_open_entries": 566.4828491210938,
+      "route_coarse_ms": 9.011191272735596,
+      "leaves_ms": 4.000806766086154,
+      "remote_attention_ms": 13.90652574811663,
+      "validation": {}
+    },
+    {
+      "layer": 0,
+      "variant": "blas",
+      "queries": 16384,
+      "regions": 3547,
+      "head_dim": 256,
+      "mean_open_regions": 22.408254623413086,
+      "mean_open_entries": 1660.845703125,
+      "route_coarse_ms": 16.127869669596354,
+      "leaves_ms": 16.655496893988715,
+      "remote_attention_ms": 33.92796936035156,
+      "validation": {
+        "sampled_query_heads": 384,
+        "selection_differences": 0,
+        "outside_2e5_tolerance": 0,
+        "max_abs_coarse_error": 0.0049849748611450195
+      }
+    }
+  ],
+  "scope": "Replay real Qwen prefill snapshots without reloading the full model.\n\nThis is a fixed-query attention diagnostic; serving and cache-update costs are\nmeasured separately in the full-model sequence.\n",
+  "snapshots": [
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-00.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-08.pt",
+    "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/capture-v13/snapshots/layer-15.pt"
+  ]
+}

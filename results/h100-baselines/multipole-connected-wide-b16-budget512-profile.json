@@ -1,0 +1,98 @@
+{
+  "measurement_scope": "synthetic single attention layer, not full-model inference",
+  "implementation": "author generation kernels via RetroInfer batch adapter",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "quality_matched": false,
+  "batch": 16,
+  "prefix_tokens": 131072,
+  "budget": 512,
+  "synthetic_cluster_assignments": true,
+  "update_interval": 128,
+  "same_cache_graph_eager_before": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "selected_tokens_min": 492,
+    "selected_tokens_max": 512
+  },
+  "same_cache_graph_eager_after": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "selected_tokens_min": 3,
+    "selected_tokens_max": 512
+  },
+  "warmup": {
+    "steps": 512,
+    "wall_ms_per_batch_step": 8.013522015624996,
+    "gpu_timeline_ms_per_batch_step": 8.013466835021973,
+    "cluster_updates": 4,
+    "context_start": 131072,
+    "context_end": 131584,
+    "profiled_cluster_update_ms": [
+      1830.9117559999777,
+      1440.0115089999872,
+      160.56759000002785,
+      156.23032400003467
+    ]
+  },
+  "records": [
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.2579109824221177,
+      "gpu_timeline_ms_per_batch_step": 2.257873296737671,
+      "cluster_updates": 4,
+      "context_start": 131584,
+      "context_end": 132096,
+      "profiled_cluster_update_ms": [
+        156.71855499999765,
+        161.00257800007967,
+        162.9866140001468,
+        160.51956400019662
+      ]
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.3677613847659096,
+      "gpu_timeline_ms_per_batch_step": 2.367722988128662,
+      "cluster_updates": 4,
+      "context_start": 132096,
+      "context_end": 132608,
+      "profiled_cluster_update_ms": [
+        170.92852399991898,
+        183.54533000001538,
+        169.738192000068,
+        174.10080900003777
+      ]
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.355503279297011,
+      "gpu_timeline_ms_per_batch_step": 2.355461835861206,
+      "cluster_updates": 4,
+      "context_start": 132608,
+      "context_end": 133120,
+      "profiled_cluster_update_ms": [
+        167.434786000058,
+        169.90213400003995,
+        182.85700899991753,
+        171.2485379998725
+      ]
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.355109179687176,
+      "gpu_timeline_ms_per_batch_step": 2.3550705909729004,
+      "cluster_updates": 4,
+      "context_start": 133120,
+      "context_end": 133632,
+      "profiled_cluster_update_ms": [
+        168.31031799983975,
+        169.26321000005373,
+        175.34599999999045,
+        178.39941000011095
+      ]
+    }
+  ],
+  "median_wall_ms_per_batch_step": 2.3553062294920935,
+  "median_gpu_timeline_ms_per_batch_step": 2.3552662134170532
+}

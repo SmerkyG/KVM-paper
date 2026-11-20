@@ -1,0 +1,38 @@
+{
+  "measurement_scope": "isolated LoD region-state update, not complete cache maintenance",
+  "batch": 16,
+  "prefix_tokens": 8192,
+  "update_context": 8448,
+  "mode": "two-tier",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "update_tokens": 256,
+  "interval_tokens": 256,
+  "state_len": 1448,
+  "kv_dtype": "torch.bfloat16",
+  "quantiles_ms_20_50_80": [
+    1.1838079690933228,
+    1.2052319645881653,
+    1.2354112148284913
+  ],
+  "median_ms": 1.2052319645881653,
+  "amortized_ms": 0.004707937361672521,
+  "includes": [
+    "state input clones",
+    "key and value summary update",
+    "owner assignment"
+  ],
+  "excludes": [
+    "page archive update",
+    "local cache movement",
+    "per-token KV write",
+    "attention"
+  ],
+  "same_inputs_repeatable": true,
+  "repeat_max_abs_diffs": [
+    0.0,
+    0.0
+  ],
+  "count_conservation_checked": true,
+  "value_reference_max_abs": 0.03125
+}

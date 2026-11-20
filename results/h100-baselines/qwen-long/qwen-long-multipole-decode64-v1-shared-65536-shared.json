@@ -1,0 +1,130 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 65536,
+  "batch_size": 1,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 2.0,
+    "original_max_position_embeddings": 32768
+  },
+  "context_limit": 65536,
+  "methods": [
+    "lod",
+    "dense",
+    "multipole-512"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 63488,
+  "warmup_steps": 512,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 63488,
+      "prefill_token_id": 2681,
+      "input_token_sha256": "f4c8626ccfba39cf4ce164f82ae0c0fdcb6768d15e7110435d6ddff6d77baec0",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 4.087550729003851,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.095226214994909,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.096586204999767,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 7.998488701161932
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16,
+            "graph_argmax_by_request": [
+              16
+            ],
+            "eager_argmax_by_request": [
+              16
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 5.372381467001105,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.384215517005941,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.395547296000586,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 10.51604593165223
+        },
+        "multipole-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 11.006420464000257,
+              "steps": 512,
+              "cache_update_events": 4
+            },
+            {
+              "seconds": 11.062863541999832,
+              "steps": 512,
+              "cache_update_events": 4
+            },
+            {
+              "seconds": 11.162168747003307,
+              "steps": 512,
+              "cache_update_events": 4
+            }
+          ],
+          "median_decode_ms": 21.60715535546842,
+          "last_layer_selected_prefix_counts": [
+            511,
+            500,
+            491,
+            503,
+            491,
+            507,
+            512,
+            512
+          ],
+          "cache_setup_s": 6.939604320999933
+        }
+      },
+      "elapsed_s": 132.92061343899695
+    }
+  ]
+}

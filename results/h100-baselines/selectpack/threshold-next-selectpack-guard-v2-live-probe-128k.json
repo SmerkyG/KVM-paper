@@ -1,0 +1,220 @@
+{
+  "stage": "complete",
+  "scope": "Benchmark unchanged threshold packing on live model-produced prefill scores.\n\nRuns through cluster-run. Stops the model intentionally after collecting the\ndiagnostic; it is not a model latency or quality result. No Q/K/V snapshot is\nsaved. Every candidate sees the same query, scores, lengths and normalizer.\n",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "scores_shape": [
+      32,
+      4096,
+      5016
+    ],
+    "multiplier": 16.0,
+    "mean_regions": 42.166717529296875,
+    "maximum_regions": 103,
+    "mean_entries": 3978.40185546875,
+    "reference_bits_sha256": "3199a89a5dc0aef0c7488fe46acbe21adfba6eab745117a6607b8341495349e7"
+  },
+  "records": [
+    {
+      "backend": "full-row",
+      "median_ms": 5.239139175415039,
+      "samples_ms": [
+        5.211580657958985,
+        5.239139175415039,
+        5.247443389892578
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 8,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 3.575465774536133,
+      "samples_ms": [
+        3.569619369506836,
+        3.576646423339844,
+        3.575465774536133
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 16,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.9282047271728517,
+      "samples_ms": [
+        2.9256832122802736,
+        2.932179260253906,
+        2.9282047271728517
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 3.1916032791137696,
+      "samples_ms": [
+        3.186726379394531,
+        3.1916032791137696,
+        3.1965728759765626
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 3.086511993408203,
+      "samples_ms": [
+        3.082080078125,
+        3.086604881286621,
+        3.086511993408203
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 16,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 2.990585517883301,
+      "samples_ms": [
+        2.986796760559082,
+        2.9914623260498048,
+        2.990585517883301
+      ]
+    },
+    {
+      "backend": "scan",
+      "m": 32,
+      "n": 256,
+      "warps": 4,
+      "median_ms": 2.6988832473754885,
+      "samples_ms": [
+        2.694489669799805,
+        2.7010847091674806,
+        2.6988832473754885
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 16,
+      "n": 128,
+      "warps": 4,
+      "median_ms": 2.7891807556152344,
+      "samples_ms": [
+        2.7889408111572265,
+        2.790902328491211,
+        2.7891807556152344
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 16,
+      "n": 64,
+      "warps": 4,
+      "median_ms": 4.273612976074219,
+      "samples_ms": [
+        4.267657470703125,
+        4.273612976074219,
+        4.275260925292969
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 16,
+      "n": 128,
+      "warps": 8,
+      "median_ms": 4.792588806152343,
+      "samples_ms": [
+        4.787980651855468,
+        4.793564987182617,
+        4.792588806152343
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 32,
+      "n": 128,
+      "warps": 8,
+      "median_ms": 3.7541152954101564,
+      "samples_ms": [
+        3.748038482666016,
+        3.7541152954101564,
+        3.755177688598633
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 32,
+      "n": 256,
+      "warps": 8,
+      "median_ms": 3.300012969970703,
+      "samples_ms": [
+        3.294627380371094,
+        3.3044513702392577,
+        3.300012969970703
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 64,
+      "n": 128,
+      "warps": 8,
+      "median_ms": 3.9599937438964843,
+      "samples_ms": [
+        3.956083297729492,
+        3.9599937438964843,
+        3.960054397583008
+      ]
+    },
+    {
+      "backend": "hybrid",
+      "m": 32,
+      "n": 256,
+      "warps": 16,
+      "median_ms": 4.669776153564453,
+      "samples_ms": [
+        4.663865661621093,
+        4.6704864501953125,
+        4.669776153564453
+      ]
+    },
+    {
+      "backend": "bias",
+      "warps": 4,
+      "median_ms": 4.831046295166016,
+      "samples_ms": [
+        4.826047897338867,
+        4.831046295166016,
+        4.832054519653321
+      ]
+    },
+    {
+      "backend": "bias",
+      "warps": 8,
+      "median_ms": 4.861840057373047,
+      "samples_ms": [
+        4.855670547485351,
+        4.862697601318359,
+        4.861840057373047
+      ]
+    },
+    {
+      "backend": "bias",
+      "warps": 16,
+      "median_ms": 4.812284851074219,
+      "samples_ms": [
+        4.804579162597657,
+        4.813455963134766,
+        4.812284851074219
+      ]
+    }
+  ],
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+}

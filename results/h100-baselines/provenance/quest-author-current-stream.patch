@@ -1,0 +1,92 @@
+--- a/quest/ops/csrc/pytorch_extension_utils.h
++++ b/quest/ops/csrc/pytorch_extension_utils.h
+@@ -21,6 +21,7 @@
+ 
+ #pragma once
+ #include <torch/extension.h>
++#include <ATen/cuda/CUDAContext.h>
+ 
+ #define DISPATCH_PYTORCH_DTYPE_TO_CTYPE(pytorch_dtype, c_type, ...) \
+ 	[&]() -> bool {                                                 \
+--- a/quest/ops/csrc/page.cu
++++ b/quest/ops/csrc/page.cu
+@@ -86,7 +86,7 @@
+ 					paged_metadata,
+ 					static_cast<c_type*>(k.data_ptr()),
+ 					static_cast<c_type*>(v.data_ptr()),
+-					nullptr);
++					at::cuda::getCurrentCUDAStream().stream());
+ 
+ 			TORCH_CHECK(status == cudaSuccess,
+ 						"Append_kv_cache_decode failed with error code ",
+@@ -197,7 +197,7 @@
+ 					static_cast<c_type*>(k.data_ptr()),
+ 					static_cast<c_type*>(v.data_ptr()),
+ 					static_cast<int32_t*>(append_indptr.data_ptr()),
+-					nullptr);
++					at::cuda::getCurrentCUDAStream().stream());
+ 
+ 			TORCH_CHECK(status == cudaSuccess,
+ 						"Append_kv_cache_prefill failed with error code ",
+@@ -241,7 +241,7 @@
+ 														  head_dim,
+ 														  rope_scale,
+ 														  rope_theta,
+-														  nullptr);
++														  at::cuda::getCurrentCUDAStream().stream());
+ 
+ 		TORCH_CHECK(status == cudaSuccess,
+ 					"apply_rope_in_place failed with error code ",
+--- a/quest/ops/csrc/estimate.cu
++++ b/quest/ops/csrc/estimate.cu
+@@ -73,7 +73,7 @@
+ 														   paged_kv,
+ 														   static_cast<c_type*>(o.data_ptr()),
+ 														   num_heads,
+-														   /*rotary_mode*/ RotaryMode::kNone);
++														   /*rotary_mode*/ RotaryMode::kNone, at::cuda::getCurrentCUDAStream().stream());
+ 			TORCH_CHECK(status == cudaSuccess,
+ 						"Estimate_attn_score failed with error code ",
+ 						cudaGetErrorString(status));
+--- a/quest/ops/csrc/approx_attn.cu
++++ b/quest/ops/csrc/approx_attn.cu
+@@ -138,7 +138,7 @@
+ 															RotaryMode::kNone,
+ 															rope_scale,
+ 															rope_theta,
+-															/*stream=*/nullptr);
++															/*stream=*/at::cuda::getCurrentCUDAStream().stream());
+ 			TORCH_CHECK(status == cudaSuccess,
+ 						"BatchDecodeWithPagedKVCache failed with error ",
+ 						cudaGetErrorString(status));
+--- a/kernels/include/topk/decode_select_k.cuh
++++ b/kernels/include/topk/decode_select_k.cuh
+@@ -31,7 +31,7 @@
+ 					 T* out,
+ 					 IdxT* out_idx,
+ 					 bool greater = true,
+-					 raft::matrix::SelectAlgo _algo = raft::matrix::SelectAlgo::kRadix8bits) {
++					 raft::matrix::SelectAlgo _algo = raft::matrix::SelectAlgo::kRadix8bits, cudaStream_t stream = nullptr) {
+    // Parameters from kRadix8Bits
+    constexpr int BitsPerPass = 8;
+    constexpr int BlockSize = 512;
+@@ -50,7 +50,7 @@
+ 
+    for (size_t offset = 0; offset < static_cast<size_t>(batch_size); offset += max_chunk_size) {
+       int chunk_size = std::min(max_chunk_size, batch_size - offset);
+-      kernel<<<chunk_size, BlockSize, 0, nullptr>>>(in + offset * len,
++      kernel<<<chunk_size, BlockSize, 0, stream>>>(in + offset * len,
+                                                    in_idx ? (in_idx + offset * len) : nullptr,
+                                                    len,
+                                                    k,
+--- a/quest/ops/csrc/topk.cu
++++ b/quest/ops/csrc/topk.cu
+@@ -39,7 +39,7 @@
+ 			page_budget,
+ 			static_cast<c_type*>(d_out.data_ptr()),
+ 			static_cast<int32_t*>(indices_out.data_ptr()),
+-			true);
++			true, raft::matrix::SelectAlgo::kRadix8bits, at::cuda::getCurrentCUDAStream().stream());
+ 		return true;
+ 	});
+ 	TORCH_CHECK(success, "Top-k filtering failed to dispatch with dtype ", estimated_value.scalar_type());

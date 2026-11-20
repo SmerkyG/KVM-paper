@@ -1,0 +1,65 @@
+{
+  "source": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/check-v1/source",
+  "jobs": [
+    {
+      "id": "24679-amd-three-tier-frontier-v1",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--name",
+        "amd-three-tier-frontier-v1",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/check-v1/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/check-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "LOD_AMD_THRESHOLD_PRECISE=1",
+        "LOD_RUN_GPU_TESTS=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_three_tier_check",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/check-v1/frontier.json"
+      ],
+      "name": "frontier"
+    },
+    {
+      "id": "24680-amd-three-tier-native-pages-v1",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--name",
+        "amd-three-tier-native-pages-v1",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/check-v1/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-three-tier/check-v1/source/integrations/vllm_lod",
+        "HF_HUB_OFFLINE=1",
+        "HF_DATASETS_OFFLINE=1",
+        "LOD_AMD_THRESHOLD_PRECISE=1",
+        "LOD_RUN_GPU_TESTS=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_page_opening.py",
+        "-q"
+      ],
+      "name": "native-pages"
+    }
+  ]
+}

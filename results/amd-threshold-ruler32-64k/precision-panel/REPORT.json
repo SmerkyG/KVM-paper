@@ -1,0 +1,141 @@
+{
+  "stage": "complete",
+  "model": "qwen",
+  "examples_per_task": 32,
+  "tasks": [
+    {
+      "task": "niah_single_1",
+      "old": 100.0,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "niah_single_2",
+      "old": 100.0,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "niah_single_3",
+      "old": 100.0,
+      "optimized": 96.875,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "niah_multikey_1",
+      "old": 100.0,
+      "optimized": 96.875,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "niah_multikey_2",
+      "old": 96.875,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 3.125,
+      "improved": 1,
+      "declined": 0
+    },
+    {
+      "task": "niah_multikey_3",
+      "old": 100.0,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "niah_multiquery",
+      "old": 100.0,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "niah_multivalue",
+      "old": 100.0,
+      "optimized": 99.21875,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "ruler_cwe",
+      "old": 100.0,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "ruler_fwe",
+      "old": 97.91666666666666,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 2.0833333333333335,
+      "improved": 2,
+      "declined": 0
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "old": 65.625,
+      "optimized": 59.375,
+      "precise": 62.5,
+      "difference_points": -3.125,
+      "improved": 0,
+      "declined": 1
+    },
+    {
+      "task": "ruler_qa_squad",
+      "old": 74.47916666666666,
+      "optimized": 78.38541666666666,
+      "precise": 74.47916666666666,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    },
+    {
+      "task": "ruler_vt",
+      "old": 100.0,
+      "optimized": 100.0,
+      "precise": 100.0,
+      "difference_points": 0.0,
+      "improved": 0,
+      "declined": 0
+    }
+  ],
+  "mean": {
+    "old": 94.99198717948718,
+    "optimized": 94.67147435897436,
+    "precise": 95.15224358974359,
+    "difference_points": 0.16025641025641027
+  },
+  "improved": 3,
+  "declined": 1,
+  "paired_bootstrap_95_interval_points": [
+    -0.5608974358974358,
+    0.8814102564102564
+  ],
+  "kernel_microseconds": {
+    "legacy": 86.93593243757884,
+    "materialized": 41.02471719185511,
+    "native-top8": 39.2057312031587
+  }
+}

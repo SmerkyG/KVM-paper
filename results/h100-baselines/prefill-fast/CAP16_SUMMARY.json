@@ -1,0 +1,44 @@
+{
+  "timings": {
+    "top8": {
+      "32": 1.6604979690018808,
+      "64": 4.195066894011688
+    },
+    "cap8": {
+      "32": 1.7183912439941196,
+      "64": 4.411744559998624
+    },
+    "cap16": {
+      "32": 1.8522813780000433,
+      "64": 4.839396383991698
+    }
+  },
+  "audits": {
+    "cap8": {
+      "sampled_query_heads": 49152,
+      "selection_mismatches": 0,
+      "selection_outside_tolerance": 0,
+      "max_output_error": 0.0078125,
+      "full_tile_query_heads": 25165824,
+      "mean_opened_regions": 7.906651536623637,
+      "mean_opened_entries": 36.63011189301809,
+      "fraction_reaching_cap": 0.9784531195958456,
+      "max_opened_regions": 8,
+      "max_opened_entries": 1526,
+      "numerical_fallbacks": 12
+    },
+    "cap16": {
+      "sampled_query_heads": 49152,
+      "selection_mismatches": 0,
+      "selection_outside_tolerance": 0,
+      "max_output_error": 0.015625,
+      "full_tile_query_heads": 25165824,
+      "mean_opened_regions": 15.635221521059671,
+      "mean_opened_entries": 72.5567962328593,
+      "fraction_reaching_cap": 0.9562884569168091,
+      "max_opened_regions": 16,
+      "max_opened_entries": 1608,
+      "numerical_fallbacks": 26
+    }
+  }
+}

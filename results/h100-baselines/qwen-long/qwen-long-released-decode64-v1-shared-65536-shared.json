@@ -1,0 +1,226 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 65536,
+  "batch_size": 1,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 2.0,
+    "original_max_position_embeddings": 32768
+  },
+  "context_limit": 65536,
+  "methods": [
+    "lod",
+    "dense",
+    "squeezed-p90",
+    "squeezed-p80"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 63992,
+  "warmup_steps": 8,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 63992,
+      "prefill_token_id": 43118,
+      "input_token_sha256": "de0f8ade7d5711046951e44d8cd474bf31c472cb817de36217262c6337d553cc",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 59834,
+            "eager_argmax": 59834
+          },
+          "windows": [
+            {
+              "seconds": 4.2872788999957265,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.178483650990529,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.191797243009205,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 8.187103990252353
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 59834,
+            "eager_argmax": 59834,
+            "graph_argmax_by_request": [
+              59834
+            ],
+            "eager_argmax_by_request": [
+              59834
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 5.525890259988955,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.535732147996896,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.5469815130054485,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 10.811976851556437
+        },
+        "squeezed-p90": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 59834,
+            "eager_argmax": 59834
+          },
+          "windows": [
+            {
+              "seconds": 6.218025199996191,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.220977011995274,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.227973236993421,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 12.150345726553269,
+          "last_layer_selected_prefix_counts": [
+            1952,
+            249,
+            5232,
+            748,
+            706,
+            7647,
+            1862,
+            324,
+            5200,
+            3971,
+            3216,
+            12053,
+            13206,
+            9507,
+            13099,
+            12207,
+            1491,
+            160,
+            4536,
+            8202,
+            4008,
+            4134,
+            2918,
+            3239,
+            4619,
+            3932,
+            2619,
+            2911,
+            133,
+            8755,
+            283,
+            867
+          ]
+        },
+        "squeezed-p80": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 59834,
+            "eager_argmax": 59834
+          },
+          "windows": [
+            {
+              "seconds": 6.401975658998708,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.418398933004937,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 6.443845540998154,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 12.535935416025268,
+          "last_layer_selected_prefix_counts": [
+            6000,
+            790,
+            10919,
+            3337,
+            3401,
+            11485,
+            6062,
+            1170,
+            10344,
+            7339,
+            7756,
+            26323,
+            23493,
+            16408,
+            24357,
+            20874,
+            4188,
+            527,
+            9671,
+            13889,
+            10913,
+            9962,
+            6864,
+            7971,
+            8876,
+            6761,
+            5735,
+            7683,
+            713,
+            21857,
+            2154,
+            3313
+          ]
+        }
+      },
+      "squeezed_index": {
+        "seconds": 192.45435880401055,
+        "clusters": 3194,
+        "cluster_percent": 5,
+        "threshold": {
+          "0.5": 1.338057842303897e-07,
+          "0.7": 7.621152917636209e-07,
+          "0.8": 1.941855998666142e-06,
+          "0.9": 6.791080068069277e-06
+        },
+        "observation_window": 100,
+        "reused": false
+      }
+    }
+  ]
+}

@@ -25,7 +25,7 @@ def configure_engine(
 ) -> None:
     """Apply the measured release profile to a projection-free engine.
 
-    The attention calculation is shared across both families: top-eight in
+    The attention calculation is shared across families: top-eight in
     prefill and decode, count-corrected coarse mass, and exact replacement of
     selected regions. Differences below are launch geometry and storage.
     """
@@ -36,7 +36,11 @@ def configure_engine(
         # The engine learns D from its first tensors. Model-family validation
         # already fixes the only supported shapes, so use their known widths.
         head_dim = 256 if family is ModelFamily.QWEN38 else 128
-    expected = (256, 6) if family is ModelFamily.QWEN38 else (128, 8)
+    expected = {
+        ModelFamily.QWEN38: (256, 6),
+        ModelFamily.K2: (128, 8),
+        ModelFamily.LLAMA31: (128, 4),
+    }[family]
     if (int(head_dim), int(gqa)) != expected:
         raise ValueError(
             f"{family.value} requires D/GQA={expected}, got {(head_dim, gqa)}"
@@ -55,7 +59,8 @@ def configure_engine(
     engine.prefill_exact_first_chunk = True
     engine.exact_decode_limit = EXACT_DECODE_LIMIT
     engine.split_prefill_local_attention = True
-    engine.prefill_local_attention_backend = "aiter"
+    cuda_llama = family is ModelFamily.LLAMA31
+    engine.prefill_local_attention_backend = "flash_attn" if cuda_llama else "aiter"
     engine.fused_prefill_route_coarse = True
     engine.fused_prefill_stable_recompute = True
     engine.fused_prefill_external_recompute = True
@@ -63,7 +68,8 @@ def configure_engine(
     engine.prefill_overlap_coarse_leaf = True
     engine.fused_state_update = True
     engine.fused_state_maxsim = True
-    engine.prefill_aiter_route_coarse = True
+    engine.prefill_aiter_route_coarse = not cuda_llama
+    engine.prefill_cuda_route_coarse = cuda_llama
 
     engine.state_clustering_normalization = "none" if has_key_norm else "cosine"
     engine.state_clustering_centroid_rescale = "coherence" if has_key_norm else "none"
@@ -82,7 +88,7 @@ def configure_engine(
         engine.prefill_coarse_max_grouped_rows = 64
         engine.prefill_coarse_route_block_n = 16
         engine.prefill_coarse_route_num_warps = 8
-    else:
+    elif family is ModelFamily.K2:
         # Wider K2 query tiles amortize long selected centroids. BF16 uses
         # 128 rows and 32 leaf columns; INT4 uses 256 rows and retains its
         # page-sized 16-column dequantization path below.
@@ -96,6 +102,20 @@ def configure_engine(
         engine.decode_route_segment_tiles = 1
         engine.decode_route_num_warps = 1
         engine.decode_route_reduce_num_warps = 2
+    else:
+        # Llama-3.1-8B: SM90 tensor-core prefill and native GQA4, with no
+        # AMD page-size-one dispatch or architecture-specific occupancy flags.
+        engine.leaf_block_m = 64
+        engine.leaf_block_n = 32
+        engine.leaf_num_warps = 4
+        engine.prefill_coarse_direct_gqa = True
+        engine.prefill_coarse_max_grouped_rows = 64
+        # Merge state partitions together on CUDA. The serial loop charges
+        # short requests for every partition in a long-capacity pool too.
+        engine.decode_route_parallel_reduce = True
+        engine.decode_route_group_size = 64
+        engine.decode_route_num_warps = 2
+        engine.decode_route_reduce_num_warps = 4
 
     if mode.levels == 2:
         engine.virtual_page_storage = True
@@ -123,6 +143,8 @@ def configure_engine(
             engine.leaf_block_n = 16
             engine.leaf_num_warps = 4
             engine.decode_route_parallel_reduce = True
+        elif cuda_llama:
+            engine.leaf_block_n = 16
 
 
 __all__ = ["configure_engine"]

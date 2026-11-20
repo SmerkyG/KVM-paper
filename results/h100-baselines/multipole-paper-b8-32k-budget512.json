@@ -1,0 +1,55 @@
+{
+  "measurement_scope": "synthetic single attention layer; not full-model inference",
+  "scope_annotation_added_after_measurement": true,
+  "length": 32768,
+  "results": [
+    {
+      "batch": 8,
+      "split": 512,
+      "stages": {
+        "0.015625": {
+          "dense_ms": 0.4891040027141571,
+          "lookup_ms": 0.13651199638843536,
+          "replacement_ms": 0.04572800174355507,
+          "sparse_ms": 0.027583999559283257
+        },
+        "0.05": {
+          "dense_ms": 0.49081599712371826,
+          "lookup_ms": 0.13622400164604187,
+          "replacement_ms": 0.044895999133586884,
+          "sparse_ms": 0.052032001316547394
+        },
+        "0.1": {
+          "dense_ms": 0.49081599712371826,
+          "lookup_ms": 0.1385599970817566,
+          "replacement_ms": 0.04572800174355507,
+          "sparse_ms": 0.08009599894285202
+        }
+      }
+    },
+    {
+      "batch": 8,
+      "split": 2048,
+      "stages": {
+        "0.015625": {
+          "dense_ms": 0.41097599267959595,
+          "lookup_ms": 0.1388320028781891,
+          "replacement_ms": 0.09212800115346909,
+          "sparse_ms": 0.027264000847935677
+        },
+        "0.05": {
+          "dense_ms": 0.41123199462890625,
+          "lookup_ms": 0.14086399972438812,
+          "replacement_ms": 0.09222400188446045,
+          "sparse_ms": 0.058111999183893204
+        },
+        "0.1": {
+          "dense_ms": 0.41152000427246094,
+          "lookup_ms": 0.141184002161026,
+          "replacement_ms": 0.09212800115346909,
+          "sparse_ms": 0.07401599735021591
+        }
+      }
+    }
+  ]
+}

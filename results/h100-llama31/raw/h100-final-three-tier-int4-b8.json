@@ -1,0 +1,282 @@
+{
+  "batch_size": 8,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "4c9a8749a0f18bb5318a4e6ad19e831b68fd5ec9ec578219e1490e0c6b70c1f9"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 33809,
+    "max_num_batched_tokens": 16392,
+    "max_num_seqs": 8,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 33809,
+  "measurements": {
+    "32768": {
+      "decode_ms_per_batch_step": 12.258370163086063,
+      "prefill_seconds": 14.161209751000115,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "745893b9a405926f3aff351d3af7d43c12364b0a497af5ff7a11ea002d32f198",
+          "unique_16_token_block_ratio": 0.998046875
+        },
+        {
+          "request_index": 1,
+          "source_stream_indices": [
+            2
+          ],
+          "token_sha256": "7b2f05b9895995c07e3c3f1c45e6efb1115af964a62484b4c6113fc154d7eb15",
+          "unique_16_token_block_ratio": 0.99267578125
+        },
+        {
+          "request_index": 2,
+          "source_stream_indices": [
+            3
+          ],
+          "token_sha256": "ebcfc3574713513f44a76adfe4c6dc6fa3546fd5ed13d8f9617c7d815602eb22",
+          "unique_16_token_block_ratio": 0.99365234375
+        },
+        {
+          "request_index": 3,
+          "source_stream_indices": [
+            5
+          ],
+          "token_sha256": "bc32e0e41e07605322cb11e7b7b49b818bf06960c660038941ab5fdf57451d52",
+          "unique_16_token_block_ratio": 0.982421875
+        },
+        {
+          "request_index": 4,
+          "source_stream_indices": [
+            6
+          ],
+          "token_sha256": "395330f897bb1aee0811644d47351f462074b857c9d2f7efd148370a3206f514",
+          "unique_16_token_block_ratio": 0.9970703125
+        },
+        {
+          "request_index": 5,
+          "source_stream_indices": [
+            7
+          ],
+          "token_sha256": "01900de12d4e3f18c30746b2b22af3f3f6d2c170369d91fba59e076a16336fb9",
+          "unique_16_token_block_ratio": 0.96826171875
+        },
+        {
+          "request_index": 6,
+          "source_stream_indices": [
+            9
+          ],
+          "token_sha256": "d7f87bd1b2fafe946d1a2e45e03b9cdaa4b1fdddbca668a78c6ccda63ff592b1",
+          "unique_16_token_block_ratio": 0.9951171875
+        },
+        {
+          "request_index": 7,
+          "source_stream_indices": [
+            12
+          ],
+          "token_sha256": "a97656aafb14f34f0dbae2032d63900eed58a2297c7f39d977dd768c6c3368be",
+          "unique_16_token_block_ratio": 0.98193359375
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 12.53420948242212,
+          "decode_seconds": 12.835030510000252,
+          "elapsed_seconds": 36.88404899099987,
+          "output_token_sha256": [
+            "743a6097f3e9659108d02902ae53157cfbcc98998146fefe10ff2e6cbde5624a",
+            "b18cfc8d3c2d4f2d745227cf41f7ff701829481a250739250c08b1ff42e39e6c",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "f01669c8bc6edd16eed35b1ae8219d3d7ec564ea2ac45757d8380bc0d925fa02",
+            "98b1fa9fa17bc6c61179a9411749b3957c785c7b82207c60b63efa8128487c9e",
+            "8b4b0549426f775a75f70c7594d99bebfd630e3862ab9d4a7d1296026071bcf4",
+            "0773cb13e1fcf84798e43069bbb173aa50aee6f8f5d5ca3468ab09cb4107d011",
+            "cc48d62d0c2a015033e0b2127a49772a87c266b37a6d41d87327d734630c4746"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 24.037381794999874
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 12.241640901367035,
+          "decode_seconds": 12.535440282999843,
+          "elapsed_seconds": 26.658310263000203,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "0d6dcb6632d7a26ff2ad61d3fd1ac2cd4e01ce670bc9ca9d06bdb02a96ecb5ce",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "74f10cc304615ed22dc39dff5c6e22ff9ac1a27369b0766b3da8782fb748ebc3",
+            "57cd3c281bab19da61326abde47ca16f766f03cb8bef4ec1730f026b690cc2dc",
+            "5ebe4d884844c9749f710be5b7af71f81a10edf7f2e9faa490a0cedda1ea857a",
+            "226c698a69b942415e6d8ac21e3bdaf50dec18ceefdc4e8cbf97484f27d01ce0",
+            "5f7acb4e850025ecd6b95058c52d765d909f2174f2bab9d910974a3db30ecb4c"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 14.120359747999828
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 12.258370163086063,
+          "decode_seconds": 12.552571047000129,
+          "elapsed_seconds": 26.8019176480002,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "33a1364b5fb468d4901583c1428f02f9ea544a217f0ebb7b6557cf2f7fb02353",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "2697f315d5778bb04ff7bb87748c5933987fd040cfffc15017e30d5ced9954d2",
+            "6bde36849cd73b014b1828e8b0d7d134bb6bb6e611bbde7a14ebd293fd641eab",
+            "8b4b0549426f775a75f70c7594d99bebfd630e3862ab9d4a7d1296026071bcf4",
+            "00c1a478b09c9d180530eec2347e27104fb41fe66edcecf345fb23f26e289100",
+            "b57d879c8e2e9176e6a89e7585203986608a71807f9441eadec64d01224de09f"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 14.246832680999887
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 12.261238657226503,
+          "decode_seconds": 12.55550838499994,
+          "elapsed_seconds": 26.71926441200003,
+          "output_token_sha256": [
+            "729e33eb620c4120f3e8ca837c1944379550657acf30f19142f52123034e27b2",
+            "0d6dcb6632d7a26ff2ad61d3fd1ac2cd4e01ce670bc9ca9d06bdb02a96ecb5ce",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "f180add4fa88eb11e75332101efa925b964ab94ae4557b87851ce4213d4f578f",
+            "9abd69109e461d6ee0017c79e58a5da6912a7a47bb25907eb3fba2d1897d72df",
+            "5ebe4d884844c9749f710be5b7af71f81a10edf7f2e9faa490a0cedda1ea857a",
+            "f73c70632a789d9a9be9252421ff37a5418ab45d168e17b58dd086c4d828d834",
+            "1fd038cb7001bf196045f49dfa85df88ed98cfb34a25003941674754fcf1bdf6"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 14.161209751000115
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 12.224427253906267,
+          "decode_seconds": 12.517813508000017,
+          "elapsed_seconds": 26.668669039999713,
+          "output_token_sha256": [
+            "e831fd88cea774fd42d4f645a8316189a6d3337d64a37eafba1d045b456b5a84",
+            "0d6dcb6632d7a26ff2ad61d3fd1ac2cd4e01ce670bc9ca9d06bdb02a96ecb5ce",
+            "1013ad301441c12e41a55b0d3f2fda0f0290bfa43c031fb0860aa79c075d4d2b",
+            "ac4087d4ce5fb1a91c9e897a3731b6804ce8e49e48380cca1e7c77ba11178084",
+            "f4a8f57bbb224fc6ae8c21cdc31802a6e567b3b08b21b32d689f5bbc18bc49f3",
+            "5ebe4d884844c9749f710be5b7af71f81a10edf7f2e9faa490a0cedda1ea857a",
+            "614b016b08e082f712d942122abc7468ef811a7f9a48875771e22a8744c2f904",
+            "9393cf17d2f183e521c9848d2d1a0f2b45b84fb630386f1e22a7cbd862e55d19"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 14.148299747999772
+        }
+      ]
+    }
+  },
+  "mode": "three-tier-int4",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "d13f706d97a8f57e6b06f7044f6fab96b2262a2a587e527aa08ff495c28668d2",
+  "prompt_source": {
+    "batch_size": 8,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "repeats": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 52.65645798100013,
+  "warmups": 2,
+  "worker_state": [
+    [
+      {
+        "attribute": "_vllm_lod_runtime",
+        "layers": 32,
+        "pool_size": 8,
+        "pools": [
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 4,
+            "layer": "model.layers.0.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 3072
+          },
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 4,
+            "layer": "model.layers.1.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 3072
+          }
+        ],
+        "request_capacity": 33809
+      }
+    ]
+  ]
+}

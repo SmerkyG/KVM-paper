@@ -1,0 +1,103 @@
+--- a/squeezedattention/kernels.py
++++ b/squeezedattention/kernels.py
+@@ -61,7 +61,8 @@
+     Z, H, N_CTX_Q, N_CTX_KV, N_CENTROIDS,
+     BLOCK_M: tl.constexpr, # will load BLOCK_M queries
+     BLOCK_N: tl.constexpr, # will compute self attention by blocks of BLOCK_N keys
+-    BLOCK_DMODEL: tl.constexpr # dimensionality of heads: D
++    BLOCK_DMODEL: tl.constexpr,
++    GQA_GROUP: tl.constexpr = 1
+ ):
+     start_m = tl.program_id(0).to(tl.int64) # idx of sequence length chunk of size 128 (BLOCK_N)
+     head_id = tl.program_id(1).to(tl.int64) # idx of head
+@@ -73,10 +74,10 @@
+ 
+     # indices for QK
+     offs_q = head_id * sqh + offs_m[:, None] * sqm + offs_d[None, :] * sqd
+-    offs_k = head_id * skh + offs_n[None, :] * skn + offs_d[:, None] * skd
++    offs_k = (head_id // GQA_GROUP) * skh + offs_n[None, :] * skn + offs_d[:, None] * skd
+ 
+     # indices for num keys per centroid
+-    offs_nk = head_id * N_CENTROIDS + offs_n
++    offs_nk = (head_id // GQA_GROUP) * N_CENTROIDS + offs_n
+ 
+     # need to trim depending on N_CENTROIDS
+     tmp = 1
+@@ -137,7 +138,7 @@
+     offs_n = tl.arange(0, BLOCK_N).to(tl.int64)
+ 
+     # base k offset
+-    offs_k = head_id * skh + offs_n[None, :] * skn + offs_d[:, None] * skd
++    offs_k = (head_id // GQA_GROUP) * skh + offs_n[None, :] * skn + offs_d[:, None] * skd
+ 
+     # offset for max output score, shape = (Z,H,N_CTX_KV,num_query_blocks)
+     offs_s = head_id * ssh + offs_n * ssn + start_m * ssm
+@@ -194,22 +195,28 @@
+     BLOCK_M: tl.constexpr, # will load BLOCK_M queries
+     BLOCK_N: tl.constexpr, # will compute self attention by blocks of BLOCK_N keys
+     BLOCK_KV: tl.constexpr, # will compute this width of keys
+-    BLOCK_DMODEL: tl.constexpr
++    BLOCK_DMODEL: tl.constexpr,
++    GQA_GROUP: tl.constexpr = 1,
++    GQA_INDEX_GROUP: tl.constexpr = 1,
++    FIXED_BLOCKS_PER_HEAD: tl.constexpr = 0
+ ):
+     start_m = tl.program_id(0).to(tl.int64) # idx of sequence length chunk of size 128 (BLOCK_N)
+     kv_block_id = tl.program_id(1).to(tl.int64) # idx of KV block
+     kv_block_id2 = kv_block_id.to(tl.int64)
+ 
+     # compute kv_head_id on-the-fly
+-    head_id = -1
+-    for i in range(NUMHEADS):
+-        head_start = tl.load(head_start_block + i).to(tl.int32)
+-        is_in_head = kv_block_id2 >= head_start
+-        head_id += is_in_head.to(tl.int32)
++    if FIXED_BLOCKS_PER_HEAD:
++        head_id = kv_block_id2 // FIXED_BLOCKS_PER_HEAD
++    else:
++        head_id = -1
++        for i in range(NUMHEADS):
++            head_start = tl.load(head_start_block + i).to(tl.int32)
++            is_in_head = kv_block_id2 >= head_start
++            head_id += is_in_head.to(tl.int32)
+ 
+     # initialize KV block parameters
+     head_start = tl.load(head_start_block + head_id).to(tl.int64) # kv block that head starts at
+-    kv_len = tl.load(head_kv_len + head_id).to(tl.int64) # num valid kv for current head
++    kv_len = tl.load(head_kv_len + (head_id // GQA_INDEX_GROUP)).to(tl.int64) # num valid kv for current head
+ 
+     # offset into block (shift KV offsets by BLOCK_N * num_offsets)
+     block_offset = ((kv_block_id - head_start) * BLOCK_KV).to(tl.int64)
+@@ -223,11 +230,11 @@
+     offs_q = head_id * sqh + offs_m[:, None] * sqm + offs_d[None, :] * sqd
+ 
+     # key index indices
+-    offs_kidx = head_id * skih + offs_n * skin
++    offs_kidx = (head_id // GQA_INDEX_GROUP) * skih + offs_n * skin
+ 
+     # key / value indices
+-    offs_k_base = head_id * skh + offs_d[:, None] * skd
+-    offs_v_base = head_id * svh + offs_d[None, :] * svd
++    offs_k_base = (head_id // GQA_GROUP) * skh + offs_d[:, None] * skd
++    offs_v_base = (head_id // GQA_GROUP) * svh + offs_d[None, :] * svd
+ 
+     # pointers to m and l
+     m_prev = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
+@@ -333,14 +340,15 @@
+         BLOCK_M: tl.constexpr, # will load BLOCK_M queries
+         BLOCK_N: tl.constexpr, # will compute self attention by blocks of BLOCK_N keys
+         BLOCK_KV: tl.constexpr, # will compute this width of keys
+-        BLOCK_DMODEL: tl.constexpr
++        BLOCK_DMODEL: tl.constexpr,
++        GQA_INDEX_GROUP: tl.constexpr = 1
+     ):
+     start_m = tl.program_id(0).to(tl.int64) # idx of sequence length chunk of size 128 (BLOCK_N)
+     head_id = tl.program_id(1).to(tl.int64) # idx of head
+ 
+     # initialize KV block parameters
+     head_start = tl.load(head_start_block + head_id).to(tl.int64) # starting block for this head (used to compute KV indices)
+-    kv_len = tl.load(head_kv_len + head_id).to(tl.int64) # number of valid KV vectors for this head
++    kv_len = tl.load(head_kv_len + (head_id // GQA_INDEX_GROUP)).to(tl.int64) # number of valid KV vectors for this head
+ 
+     # number of output blocks to loop over
+     num_o_tmp_blocks = (kv_len + BLOCK_KV - 1) // BLOCK_KV # number of o_tmp blocks to reduce over

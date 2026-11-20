@@ -1,0 +1,179 @@
+{
+  "stage": "complete",
+  "scope": "Tune the threshold producer on real in-memory 64K prefill inputs.\n\nDiagnostic only: stops model execution after checking and timing equivalent\nproducer shapes. No Q/K/V snapshot is saved and no model speed is inferred.\n",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "scores_shape": [
+      32,
+      4096,
+      2896
+    ]
+  },
+  "records": [
+    {
+      "m": 64,
+      "n": 64,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 2.103334426879883,
+      "samples_ms": [
+        2.101955223083496,
+        2.103334426879883,
+        2.106889533996582
+      ]
+    },
+    {
+      "m": 32,
+      "n": 128,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 1.953811264038086,
+      "samples_ms": [
+        1.9470239639282227,
+        1.953811264038086,
+        1.954502487182617
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.6884767532348635,
+      "samples_ms": [
+        2.6884767532348635,
+        2.6909759521484373,
+        2.6699359893798826
+      ]
+    },
+    {
+      "m": 64,
+      "n": 128,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 3.189616012573242,
+      "samples_ms": [
+        3.221478271484375,
+        3.1888992309570314,
+        3.189616012573242
+      ]
+    },
+    {
+      "m": 128,
+      "n": 64,
+      "warps": 4,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 3.3075328826904298,
+      "samples_ms": [
+        3.3253246307373048,
+        3.3075328826904298,
+        3.3000511169433593
+      ]
+    },
+    {
+      "m": 128,
+      "n": 64,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 2.2609279632568358,
+      "samples_ms": [
+        2.2609279632568358,
+        2.2649215698242187,
+        2.2268991470336914
+      ]
+    },
+    {
+      "m": 128,
+      "n": 128,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        6.587803363800049e-05,
+        1.9073486328125e-06,
+        9.5367431640625e-07,
+        0.0
+      ],
+      "median_ms": 2.1522335052490233,
+      "samples_ms": [
+        2.150239944458008,
+        2.1522335052490233,
+        2.1534528732299805
+      ]
+    },
+    {
+      "m": 64,
+      "n": 256,
+      "warps": 8,
+      "valid": false,
+      "error": "out of resource: shared memory, Required: 344064, Hardware limit: 232448. Reducing block sizes or `num_stages` may help."
+    },
+    {
+      "m": 64,
+      "n": 64,
+      "warps": 8,
+      "valid": true,
+      "max_abs_differences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "median_ms": 3.650739288330078,
+      "samples_ms": [
+        3.650739288330078,
+        3.654265594482422,
+        3.5227073669433593
+      ]
+    }
+  ],
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252"
+}

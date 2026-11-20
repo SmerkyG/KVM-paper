@@ -1,0 +1,218 @@
+{
+  "benchmark": "h100-fused-prefill-tiles",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 56,
+      "source_sha256": "efa164cd348725a8edb9637330a8952930096de3009bf6965ca3b8a973ed0c05"
+    }
+  },
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "measurements": [
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "milliseconds": 26.58745283647017,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "milliseconds": 25.73822187943892,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 32,
+      "block_n": 256,
+      "milliseconds": 41.60078473772322,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "milliseconds": 6.635915929620916,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 9.580191650390624,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 13.176141634854403,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "milliseconds": 7.0676329113188245,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "milliseconds": 8.709876782966383,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "milliseconds": 7.711331658614309,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "milliseconds": 9.6197900390625,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "milliseconds": 6.548844536675347,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 128,
+      "block_n": 128,
+      "milliseconds": 7.307446746826172,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "milliseconds": 52.88240234375,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "milliseconds": 51.08138061523437,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 32,
+      "block_n": 256,
+      "milliseconds": 82.61134592692058,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "milliseconds": 13.357946499911222,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 18.782767537434896,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 26.19577581232244,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 32,
+      "milliseconds": 14.051925368536086,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "milliseconds": 17.206786570829504,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 128,
+      "block_n": 32,
+      "milliseconds": 15.794018893771701,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "milliseconds": 19.149481608072918,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 128,
+      "block_n": 64,
+      "milliseconds": 13.101724243164062,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 128,
+      "block_n": 128,
+      "milliseconds": 14.394161071777344,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 4096
+    }
+  ],
+  "node": "jl-vm-565590",
+  "stage": "complete"
+}

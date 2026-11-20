@@ -1,0 +1,263 @@
+{
+  "stage": "complete",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 131072,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 16384,
+  "methods": [
+    "lod",
+    "dense",
+    "multipole-512",
+    "multipole-p90"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 14336,
+  "warmup_steps": 512,
+  "dense_kv_source": "device",
+  "captures_host_kv": false,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 14336,
+      "prefill_token_id": 1620,
+      "input_token_sha256": "5cc220e2fdfc1cbcbe0f549bce095e4198b0ab4006c2343cd05c032d2db3cc55",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 12085,
+            "eager_argmax": 12085
+          },
+          "windows": [
+            {
+              "seconds": 3.7947629089994734,
+              "steps": 512,
+              "cache_update_events": 64,
+              "last_layer_centroid_slots_per_kv_head": [
+                1932,
+                1966
+              ]
+            },
+            {
+              "seconds": 3.802197069999238,
+              "steps": 512,
+              "cache_update_events": 64,
+              "last_layer_centroid_slots_per_kv_head": [
+                1966,
+                1999
+              ]
+            },
+            {
+              "seconds": 3.8294609040003706,
+              "steps": 512,
+              "cache_update_events": 64,
+              "last_layer_centroid_slots_per_kv_head": [
+                1999,
+                2031
+              ]
+            }
+          ],
+          "median_decode_ms": 7.426166152342262
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 12085,
+            "eager_argmax": 12085,
+            "graph_argmax_by_request": [
+              12085
+            ],
+            "eager_argmax_by_request": [
+              12085
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 4.072257837999132,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 4.076927606000027,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 4.0803959790009685,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 7.962749230468802
+        },
+        "multipole-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 12085,
+            "eager_argmax": 12085
+          },
+          "windows": [
+            {
+              "seconds": 9.411483196001427,
+              "steps": 512,
+              "cache_update_events": 4,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ]
+            },
+            {
+              "seconds": 9.445713794999392,
+              "steps": 512,
+              "cache_update_events": 4,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ]
+            },
+            {
+              "seconds": 9.455908345998978,
+              "steps": 512,
+              "cache_update_events": 4,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ]
+            }
+          ],
+          "median_decode_ms": 18.448659755858188,
+          "last_layer_selected_prefix_counts": [
+            510,
+            507,
+            504,
+            512,
+            510,
+            507,
+            510,
+            510
+          ],
+          "decode_and_graph_s": 38.775399689999176,
+          "cache_setup_s": 4.388911771999119,
+          "centroids_per_kv_head": 2900,
+          "index_updates": 16,
+          "worker_pid": 92491
+        },
+        "multipole-p90": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 12085,
+            "eager_argmax": 12085
+          },
+          "windows": [
+            {
+              "seconds": 5.882524773000114,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 1296.0341796875,
+                "min": 257,
+                "max": 3319
+              }
+            },
+            {
+              "seconds": 5.892682147001324,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 1527.0498046875,
+                "min": 257,
+                "max": 3800
+              }
+            },
+            {
+              "seconds": 5.914175265001177,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 1629.46875,
+                "min": 257,
+                "max": 3717
+              }
+            }
+          ],
+          "median_decode_ms": 11.50914481836196,
+          "last_layer_selected_prefix_counts": [
+            1478,
+            1579,
+            1673,
+            1426,
+            1480,
+            1673,
+            1477,
+            1802,
+            1582,
+            1651,
+            1690,
+            1675,
+            1822,
+            1803,
+            1898,
+            1869,
+            1841,
+            1991,
+            1920,
+            1807,
+            1382,
+            1438,
+            1870,
+            1499,
+            2030,
+            2220,
+            1883,
+            2096,
+            1888,
+            1942,
+            1840,
+            1878
+          ],
+          "decode_and_graph_s": 24.106811228999504,
+          "cache_setup_s": 0.024744132000705577,
+          "reused_initial_clusters": true,
+          "squeezed_index": {
+            "clusters": 2900,
+            "threshold": {
+              "0.9": 0.00015052630624268204
+            },
+            "seconds": 0.3114595360002568,
+            "calibration_tokens": 100,
+            "observation_window": 246,
+            "exact_sink_tokens": 10,
+            "routing_position": 2048
+          },
+          "worker_pid": 92491
+        }
+      },
+      "prefill_s": 1.9282104620015161,
+      "elapsed_s": 106.77515691200097
+    }
+  ],
+  "multipole_handoff": "cuda-ipc",
+  "multipole_weights": "cuda-ipc",
+  "multipole_fixed_centroids_per_kv_head": 2900
+}

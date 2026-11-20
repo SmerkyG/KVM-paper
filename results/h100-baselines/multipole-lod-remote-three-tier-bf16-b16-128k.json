@@ -1,0 +1,74 @@
+{
+  "measurement_scope": "synthetic single-layer attention-only graph, not full-model inference",
+  "batch": 16,
+  "prefix_tokens": 131072,
+  "mode": "three-tier-bf16",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "quality_matched": false,
+  "kv_writes_included": false,
+  "cache_updates_included": false,
+  "local_attention_included": false,
+  "sink_attention_included": false,
+  "new_kv_attention_included": false,
+  "excluded_kv_perturbation_max_abs": 0.0,
+  "local_lengths": [
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256,
+    256
+  ],
+  "same_cache_graph_eager_max_abs": 0.0,
+  "records": [
+    {
+      "wall_ms_per_batch_step": 0.3966623222657617,
+      "gpu_timeline_ms_per_batch_step": 0.39659979939460754
+    },
+    {
+      "wall_ms_per_batch_step": 0.3888999062500176,
+      "gpu_timeline_ms_per_batch_step": 0.38885805010795593
+    }
+  ],
+  "median_wall_ms_per_batch_step": 0.39278111425788964,
+  "separate_update": {
+    "interval_tokens": 256,
+    "warmup_tokens": 512,
+    "samples": [
+      {
+        "wall_ms": 25.373832000241237,
+        "gpu_timeline_ms": 25.324256896972656,
+        "context": 131584
+      },
+      {
+        "wall_ms": 26.287132000106794,
+        "gpu_timeline_ms": 26.23401641845703,
+        "context": 131840
+      },
+      {
+        "wall_ms": 24.74626499997612,
+        "gpu_timeline_ms": 24.695680618286133,
+        "context": 132096
+      },
+      {
+        "wall_ms": 24.52549600002385,
+        "gpu_timeline_ms": 24.476768493652344,
+        "context": 132352
+      }
+    ],
+    "median_wall_ms": 25.060048500108678,
+    "amortized_wall_ms_per_token": 0.09789081445354952,
+    "scope": "production catch-up including host bookkeeping and cache maintenance"
+  }
+}

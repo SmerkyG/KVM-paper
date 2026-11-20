@@ -1,0 +1,68 @@
+{
+  "measurement_scope": "synthetic single attention layer, not full-model inference",
+  "implementation": "author generation kernels via RetroInfer batch adapter",
+  "model_geometry": "Qwen3-8B",
+  "weights_loaded": false,
+  "quality_matched": false,
+  "batch": 16,
+  "prefix_tokens": 131072,
+  "budget": 512,
+  "synthetic_cluster_assignments": true,
+  "update_interval": 128,
+  "same_cache_graph_eager_before": {
+    "max_abs": 7.62939453125e-06,
+    "mean_abs": 5.020410753786564e-10,
+    "selected_tokens_min": 492,
+    "selected_tokens_max": 512
+  },
+  "same_cache_graph_eager_after": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "selected_tokens_min": 3,
+    "selected_tokens_max": 512
+  },
+  "warmup": {
+    "steps": 512,
+    "wall_ms_per_batch_step": 7.836197970703118,
+    "gpu_timeline_ms_per_batch_step": 7.836134910583496,
+    "cluster_updates": 4,
+    "context_start": 131072,
+    "context_end": 131584
+  },
+  "records": [
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.303138128906035,
+      "gpu_timeline_ms_per_batch_step": 2.303088665008545,
+      "cluster_updates": 4,
+      "context_start": 131584,
+      "context_end": 132096
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.340428781250292,
+      "gpu_timeline_ms_per_batch_step": 2.340376615524292,
+      "cluster_updates": 4,
+      "context_start": 132096,
+      "context_end": 132608
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.330132800781204,
+      "gpu_timeline_ms_per_batch_step": 2.330085515975952,
+      "cluster_updates": 4,
+      "context_start": 132608,
+      "context_end": 133120
+    },
+    {
+      "steps": 512,
+      "wall_ms_per_batch_step": 2.3750698027344974,
+      "gpu_timeline_ms_per_batch_step": 2.3750250339508057,
+      "cluster_updates": 4,
+      "context_start": 133120,
+      "context_end": 133632
+    }
+  ],
+  "median_wall_ms_per_batch_step": 2.335280791015748,
+  "median_gpu_timeline_ms_per_batch_step": 2.335231065750122
+}

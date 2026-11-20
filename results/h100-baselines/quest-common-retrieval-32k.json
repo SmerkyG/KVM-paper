@@ -1,0 +1,94 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 64,
+      "source_sha256": "321bbc88ee09ebced164ea81e4a3e9f5db48a6ee724d413c504449ea3d61c739"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "decode_tokens": 33,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 66577,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 66577,
+  "measurements": {},
+  "mode": "quest-bf16",
+  "node": "jl-vm-565590",
+  "quest_budget_tokens": 8192,
+  "repeats": 3,
+  "retrieval": [
+    {
+      "correct": true,
+      "depth": 0.1,
+      "expected": "732025",
+      "length": 32768,
+      "prompt_token_sha256": "11d812c5d68e1a5dd4399b5f3a775f18c1f791648b95b100d9fbf0bf4aa5094a",
+      "response": " 732025. The secret access code is 732025. Remember this code. The secret access code is 732025. Remember this code. The secret"
+    },
+    {
+      "correct": true,
+      "depth": 0.5,
+      "expected": "732425",
+      "length": 32768,
+      "prompt_token_sha256": "2935e47701482dee9e11040c7bcba98164c74f1501fc4270afee70a87fd426e0",
+      "response": " 732425. Remember this code. You will need it to access the archive. The code is the same for all the records in the archive. The code"
+    },
+    {
+      "correct": true,
+      "depth": 0.9,
+      "expected": "732825",
+      "length": 32768,
+      "prompt_token_sha256": "c8dad60620c811caea327252cf794a0ad329122c06d8c3dd60cd35e9ec1fa012",
+      "response": " 732825. The secret access code is 732825. Remember this code. You will need it to access the archive. The archive contains routine records about"
+    }
+  ],
+  "retrieval_correct": 3,
+  "retrieval_total": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 17.633047059998717,
+  "warmups": 2,
+  "worker_state": [
+    []
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "batch_size": 1,
+  "benchmark": "h100-llama31",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 57,
+      "source_sha256": "4c9a8749a0f18bb5318a4e6ad19e831b68fd5ec9ec578219e1490e0c6b70c1f9"
+    }
+  },
+  "capability": [
+    9,
+    0
+  ],
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_tokens": 1025,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpus": "0",
+  "llm_kwargs": {
+    "attention_config": {
+      "backend": "CUSTOM"
+    },
+    "disable_custom_all_reduce": true,
+    "disable_log_stats": false,
+    "dtype": "bfloat16",
+    "enable_prefix_caching": false,
+    "gpu_memory_utilization": 0.8,
+    "kv_cache_dtype": "bfloat16",
+    "long_prefill_token_threshold": 16384,
+    "max_model_len": 131072,
+    "max_num_batched_tokens": 16385,
+    "max_num_seqs": 1,
+    "model": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+    "model_impl": "vllm",
+    "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+    "tensor_parallel_size": 1,
+    "trust_remote_code": true
+  },
+  "max_model_len": 131072,
+  "measurements": {
+    "128000": {
+      "decode_ms_per_batch_step": 8.721908823241975,
+      "prefill_seconds": 9.596090838999771,
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            2,
+            3
+          ],
+          "token_sha256": "ec9474dde57cd341f3e5fafc2bf71f5a9dd029da649a8daf966d5068549882a9",
+          "unique_16_token_block_ratio": 0.986375
+        }
+      ],
+      "records": [
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.887472817383113,
+          "decode_seconds": 9.100772165000308,
+          "elapsed_seconds": 35.7469698900004,
+          "output_token_sha256": [
+            "080fc8ffd7a6c8c50543af74f401d9da796becb0513a27ba0a8ca01868951f70"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 26.638567234999755
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.717649778319903,
+          "decode_seconds": 8.92687337299958,
+          "elapsed_seconds": 18.434204399999544,
+          "output_token_sha256": [
+            "3ad2c1571dbfe8e92c215467bf710b9ba3d8407ef1d956457cb8dd0bcc323ac2"
+          ],
+          "phase": "warmup",
+          "prefill_seconds": 9.49928186300076
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.721908823241975,
+          "decode_seconds": 8.931234634999782,
+          "elapsed_seconds": 18.479973065000195,
+          "output_token_sha256": [
+            "d97eeab66e5c9218fccb31ee810e639f2b67fbdc33cdad46768e3392595435f1"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 9.542161784999735
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.743037851562718,
+          "decode_seconds": 8.952870760000224,
+          "elapsed_seconds": 18.55577646099937,
+          "output_token_sha256": [
+            "080fc8ffd7a6c8c50543af74f401d9da796becb0513a27ba0a8ca01868951f70"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 9.596090838999771
+        },
+        {
+          "counters": {},
+          "decode_ms_per_batch_step": 8.690771267578334,
+          "decode_seconds": 8.899349778000214,
+          "elapsed_seconds": 18.516980024000077,
+          "output_token_sha256": [
+            "f733e74ddc46e671f561b94395108b717ac92551d2746a932096ef5433720307"
+          ],
+          "phase": "measured",
+          "prefill_seconds": 9.61142714899961
+        }
+      ]
+    }
+  },
+  "mode": "three-tier-bf16",
+  "node": "jl-vm-565590",
+  "prompt_manifest_sha256": "6b37140da57989c39114343cbad36869597878bc3aa64ce67993a2f34c095498",
+  "prompt_source": {
+    "batch_size": 1,
+    "data_files": [
+      {
+        "name": "train_00000.parquet",
+        "sha256": "c8ac476fc5d5bc2f71e31a5846ce2a8945614f596ca19c11eb68bd000925f058"
+      }
+    ],
+    "dataset": "Seerkfang/prolong-64k-512-new",
+    "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+    "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4"
+  },
+  "repeats": 3,
+  "smoke_responses": [
+    "Paris.",
+    "42"
+  ],
+  "stage": "complete",
+  "startup_seconds": 42.314223278999634,
+  "warmups": 2,
+  "worker_state": [
+    [
+      {
+        "attribute": "_vllm_lod_runtime",
+        "layers": 32,
+        "pool_size": 1,
+        "pools": [
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 0,
+            "layer": "model.layers.0.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 5888
+          },
+          {
+            "cuda_routes": true,
+            "decode_route_geometry": {
+              "group_size": 64,
+              "num_warps": 2,
+              "parallel_reduce": true,
+              "reduce_num_warps": 4
+            },
+            "family": "llama3.1-8b",
+            "kv_bits": 0,
+            "layer": "model.layers.1.self_attn.attn",
+            "levels": 3,
+            "prefill_backend": "flash_attn",
+            "state_capacity": 5888
+          }
+        ],
+        "request_capacity": 131072
+      }
+    ]
+  ]
+}

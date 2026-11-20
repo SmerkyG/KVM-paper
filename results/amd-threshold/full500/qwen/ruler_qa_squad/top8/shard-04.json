@@ -1,0 +1,982 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_squad"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 200,
+      "prompt_hash": "4febbb67160b00ef811dab0e53ce8fd15f8112a0c774e4a4922a2d585f074e04",
+      "doc_hash": "b93c4f1a9de147a0aac34946c392cc26e1f6c8ab12992c0257743806f8bf410c",
+      "target_hash": "2100d3cae239934472eb210175ad071a674d0d4ffcdc0a8ba8ac14197ffc0f76",
+      "input_tokens": 62877,
+      "input_token_sha256": "4b9b8f48efb865499ea3a31668b1ab42e2b8dfc6aefc4a1c6833840e83c1a102",
+      "targets": [
+        "bounding",
+        "bounding",
+        "bounding"
+      ],
+      "prediction": " a function of the size of the instance",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.098
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 201,
+      "prompt_hash": "6416bbb8505537de88980c88874acb814db73b8fe09f4fc34b0fbcea2e711377",
+      "doc_hash": "75a9d8a8b43fce0fe28a4f1031931e6f629231324cda66dba0472b8ead0ac502",
+      "target_hash": "aa1a78f130a359fbbab72ce45e4c64602fb5599979c6a943e98fcc404770bbe4",
+      "input_tokens": 63361,
+      "input_token_sha256": "2f09119be56ade0c3acdf852fe1593bf567aafd9a24d56e7a1cab50582a8cb5e",
+      "targets": [
+        "complexity classes",
+        "complexity classes",
+        "complexity classes"
+      ],
+      "prediction": " complexity classes",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.857
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 202,
+      "prompt_hash": "7c679935de17258aebeaac29b3da1298fd0a44c8a75a83609ae29026873c7cef",
+      "doc_hash": "b75afd011adfce2cf4340ca9a430a3766f7f58ea838795b3a1c61a4cf49457dd",
+      "target_hash": "15f92f7e03ec94059ed0155f98cc7bad8b5c64ded6990041b10ee2eb8ae38d3a",
+      "input_tokens": 63254,
+      "input_token_sha256": "e9141ed449e4cd56f0427ca4939707e1c7a801dfaa75bdb55809ccf0464007c8",
+      "targets": [
+        "BPP, ZPP and RP",
+        "BPP, ZPP and RP",
+        "BPP, ZPP and RP"
+      ],
+      "prediction": " BPP, ZPP, and RP",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.021
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 203,
+      "prompt_hash": "9ab1ca1898f5aba32bcf4c19d00788c8af8b64992e5c03213a3d6c64616a5774",
+      "doc_hash": "96e9d6d3a87f6c4fccfeaa843996a9ed21b7a731187a6bd56e3fea20bb4ca5b3",
+      "target_hash": "7cbf0c6b13f2d3d8e49764e1d720d8d6b4d21381eed9b308e4cad7f9611f0dbe",
+      "input_tokens": 63294,
+      "input_token_sha256": "5c9bfb9331b8970bd6024ea5ae2b62b7e174ed6ac5f347d5a9ad8e766914143b",
+      "targets": [
+        "Boolean",
+        "Boolean",
+        "Boolean circuits;"
+      ],
+      "prediction": " Boolean circuits",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.86
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 204,
+      "prompt_hash": "ac2a96cc4523055ac28a89172a75f289033f0f8f3e397fd119f60668c8ce10ad",
+      "doc_hash": "d014550f66a47b390af4b9bf8a7c12c8b93807b2434e0f24c5fffe9016ff09ef",
+      "target_hash": "7eed47af4c15f7f0ddb5abf72b381637f9375331fe68ff7a96d21f16d9394a96",
+      "input_tokens": 63341,
+      "input_token_sha256": "2127fd5d042ae840c07364fef4037ba086715f6830fd73776fa2bc9c0eeb33de",
+      "targets": [
+        "quantum",
+        "quantum",
+        "quantum"
+      ],
+      "prediction": " quantum Turing machines",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.912
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 205,
+      "prompt_hash": "5d58e649efad16042a19e5dd9a2510939fd9bcb8396431d8e526f2213219471c",
+      "doc_hash": "ef3e6aa234722074346292d2e931ee1c24c900ef3ebc677af4b6e4448976b6a0",
+      "target_hash": "adc54ae16460a1f73ba7cc01a4be721f3e510ecf42742c0de1cc6d6771079d00",
+      "input_tokens": 63372,
+      "input_token_sha256": "c3364d6f5ed9b1b96f590df6a27154a0e3ad4422af48738cde129f03f8a64ae6",
+      "targets": [
+        "#P",
+        "#P",
+        "#P"
+      ],
+      "prediction": " #P",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.848
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 206,
+      "prompt_hash": "92f52097b3e81b01448e1254bcdd97fe3f0db0bcdf3445f24c3a4b55c3031da5",
+      "doc_hash": "ac2792b05c09e39a36ddd324971c50a6296a2a98a56ced2a4726616b4e5499ba",
+      "target_hash": "1945c10eb6b536ab1b829cc11b36d3a1b605e40d25bb43157b340dee686d0448",
+      "input_tokens": 63779,
+      "input_token_sha256": "bc6ed326339aff7fe50e35ac1c33b5531842b5640776e87e39bd0b9c6c479e98",
+      "targets": [
+        "Interactive",
+        "Interactive",
+        "Interactive"
+      ],
+      "prediction": " Interactive proof systems",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.943
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 207,
+      "prompt_hash": "9b8e4d8c1698a354995aa9303874b016879bef58c568b67a906548ba562c8da0",
+      "doc_hash": "f0f314e3b79ea00a70327cbb1ab3e5ab6b0221578ad266440516875114367192",
+      "target_hash": "b04eac1666fbd2afea5ac0d181b761139f0121328dc7065fc6575466e0d8b6f3",
+      "input_tokens": 64234,
+      "input_token_sha256": "f76d3242e487cd84b39cedd5c62b522e937eebc58bc5b2fb0de25a82ac54a207",
+      "targets": [
+        "computation time",
+        "computation time",
+        "computation time"
+      ],
+      "prediction": " computation time",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.952
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 208,
+      "prompt_hash": "aee8d35eea6b1ea825fd22f67ef2ee44bb1c95276729c5fe7840a69f10bec4d1",
+      "doc_hash": "15b8faeca0fba89eec495f53be6228abdbe522cd7566485c524c29aeedb8f542",
+      "target_hash": "8740e5b8ab72cad9192f36d677ab369fd8d19d16e300f4ab71cb75b85212b292",
+      "input_tokens": 61881,
+      "input_token_sha256": "be000d26e77229cff7def56a24f98241affa97972d99591446d75160467d04cc",
+      "targets": [
+        "DTIME(n2)",
+        "DTIME(n2)",
+        "DTIME(n2)"
+      ],
+      "prediction": " DTIME(n^2)",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.759
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 209,
+      "prompt_hash": "3dd1d72a5a63e407081d164b97ea6066ebc6ace2babe246022d2c218a76ffd57",
+      "doc_hash": "32de2674eab717ada8b131f38f2781e1b59b4b3cda913da3a3b358f5ec695441",
+      "target_hash": "95abab89876ded848d5a8584ecda9d13392d4106fbc1744a97e72281febbe641",
+      "input_tokens": 62908,
+      "input_token_sha256": "15faaf9cb4176372c5bc8087a068ea36fad202a224e8877bfcd5259d1337728b",
+      "targets": [
+        "time and space hierarchy theorems",
+        "time and space hierarchy theorems",
+        "time and space hierarchy theorems"
+      ],
+      "prediction": " the time and space hierarchy theorems",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.957
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 210,
+      "prompt_hash": "de0e153d72c8c1e87e636c9faea9cd5480406721e0eaa31e7325a199af687ee6",
+      "doc_hash": "19e5e81edd7c3bafacacdc44602167d4b6ee96968140633745e0fc51eac6fb97",
+      "target_hash": "d0ace25cf1570ab975f0924ee0430bf1f242f8dde37ce6ebb33d34a93a83d746",
+      "input_tokens": 64529,
+      "input_token_sha256": "031f6fe7eaea8bd77fe6fe100ce89e504990aa1792dc3d3c9affc2ed5752287b",
+      "targets": [
+        "a proper hierarchy on the classes defined",
+        "a proper hierarchy on the classes",
+        "a proper hierarchy"
+      ],
+      "prediction": " a proper hierarchy on the classes defined by constraining the respective resources",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.295
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 211,
+      "prompt_hash": "0c6c094c119c34589546c0ce08f000ff5ffc2eb0e37ceb289c41de18b65935ea",
+      "doc_hash": "cbeb1d8c6fb090e8bee9eb8a9bb093b439b1870b6f0684d81939e2a4f873817b",
+      "target_hash": "dc57ef56dcdc448709a1a74a019378968d77af478887ed07f38db049b0126a4c",
+      "input_tokens": 64005,
+      "input_token_sha256": "df3b70be5e8bb65a48bcfbd3d8ae4e88c2cf5a07d4f87dd3c978d3056da5c1cc",
+      "targets": [
+        "quantitative statements",
+        "quantitative",
+        "quantitative"
+      ],
+      "prediction": " quantitative statements",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.946
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 212,
+      "prompt_hash": "ec16e38cdb788717facf1e8bca20836e6352771432f86728490a6d4f5fbc4496",
+      "doc_hash": "46511f2db1dce6cd51a7f96d9fd7694c95ceccec326a1827067d8e9d56dd582b",
+      "target_hash": "01c253886570d332aea724cd78d085c07e401a91801f00a5d7b46b5a1b0a04fb",
+      "input_tokens": 63066,
+      "input_token_sha256": "e77c02bbb9dce2c94b96aa59ba5a82bc03b049325bdbb23d792aac0549006f63",
+      "targets": [
+        "time and space hierarchy theorems",
+        "The time and space hierarchy theorems",
+        "time and space hierarchy theorems"
+      ],
+      "prediction": " The time and space hierarchy theorems",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.975
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 213,
+      "prompt_hash": "fd644cb69f3cb7fcb84315a0ebd38a612e67fc4dae5a12e053fa15d0188a88b1",
+      "doc_hash": "0e20f331f7823863921e53a3b5471ef05d1064bf15eda9a987b7d23f28d38d39",
+      "target_hash": "2129792d9f30fbb3d0bb2f3214fb310424ba87e1aba2108b9d1fd4ef674d5b9c",
+      "input_tokens": 60484,
+      "input_token_sha256": "f961f50d543260451beed1d8f0e81698180717ec0aded3358536cc4ab1a2928e",
+      "targets": [
+        "EXPTIME",
+        "EXPTIME",
+        "EXPTIME"
+      ],
+      "prediction": " time",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.446
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 214,
+      "prompt_hash": "b83c25c3d4cd0c44f9219883f74497e4223d2566525dece5af032fca3e4f7c36",
+      "doc_hash": "758413b9db25f7ccad6e9dfeb058aa2b06f710d41fd6f18d5843e5154dfbc695",
+      "target_hash": "1e069976f5e5be4723ef31b07520cb4aafcbee01ca5a422756b77ddecfbe18c3",
+      "input_tokens": 61396,
+      "input_token_sha256": "5ed33a2643dc6180333799c553d8a97bc2e72dec299dc40bd6b8d769e96670f1",
+      "targets": [
+        "PSPACE",
+        "PSPACE",
+        "PSPACE"
+      ],
+      "prediction": " P",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.558
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 215,
+      "prompt_hash": "a22b7addb5ac11f0788366a268ca1bc6162773bbc089494e73184fd3d80e6eff",
+      "doc_hash": "beb72504d1cebd6b68863bf687f44618d946bbd9b9b6b079b123f18335f9470b",
+      "target_hash": "c0ed03682f8f1d0faa2e4de01406abb6d4bfa06eebe1e2ca2e7e9e0faa50ed23",
+      "input_tokens": 60457,
+      "input_token_sha256": "b826c2e06f314cb908188b79d1ece6ba7990bc4eb5dd4ffaa46a704f6fab5eab",
+      "targets": [
+        "reduction",
+        "a reduction",
+        "reduction"
+      ],
+      "prediction": " A reduction",
+      "score": 1.0,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 7.498
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 216,
+      "prompt_hash": "1cd0a8a9a7b0730a4ef65bf3b5fe3089e11d3e9b5180401ebdda5a2ffc844443",
+      "doc_hash": "7f2a56e97a034ad9023b720455c9d5533183ab0e108b79686924bab4cb5372f6",
+      "target_hash": "f6a3156f2b9b8e415734503f724188d0548cb4c7776503f0c385a855d7db185b",
+      "input_tokens": 61112,
+      "input_token_sha256": "b533fc383de39ba08582261a3fa6e36bbc0fedadf4c537abda25c34e2c4209f1",
+      "targets": [
+        "another problem",
+        "another problem",
+        "another problem"
+      ],
+      "prediction": " another problem",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.585
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 217,
+      "prompt_hash": "01ff769a88e068afc5ad6100ab4e026ed4212425e7becfec4fb81c1eab602c0b",
+      "doc_hash": "38a5a067481aafb751ec45ad6b1a307365adad691cd0717d06a795ea5e074407",
+      "target_hash": "3b29b7d168f9a68f7a2ad313d1a01527be45d56150d3fd174407b8e200c43a4f",
+      "input_tokens": 63643,
+      "input_token_sha256": "807c4b48f284f4c6041274a16469835742ae7f3f1314cdcf23f19f2fdbfec1c9",
+      "targets": [
+        "reduces",
+        "reduces",
+        "X reduces to Y"
+      ],
+      "prediction": " X reduces to Y",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.935
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 218,
+      "prompt_hash": "4f8a5ffa8527ebc4e4f5e092d87172e4daf33a1326dc11304d065817b7434a3d",
+      "doc_hash": "f780b43302890d9ead64e4f046331f81c8b822cc12efecc8d92ac64f0abd7758",
+      "target_hash": "475dabf5565976f01203d42526641c587fa374e904e54eecc182516c8defa83b",
+      "input_tokens": 64358,
+      "input_token_sha256": "85244ec3f1b1d06d5f2f91ced4b6e020dca889399fd22bda37cbfe6d945a35b1",
+      "targets": [
+        "Karp reductions and Levin reductions",
+        "Cook reductions, Karp reductions"
+      ],
+      "prediction": " Cook reductions and Karp reductions",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.088
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 219,
+      "prompt_hash": "84816c07b211a2d8d71280bc2c83ac0278aab64358ac59757226efcab1726ce9",
+      "doc_hash": "da12b2d846ebf1f1ddf5a1630f4e21d651abb916c8949014c09454eb72856f35",
+      "target_hash": "62d488c127677ec4c5956611baca3833708dc220a01db5792be959d5bddacdc9",
+      "input_tokens": 62884,
+      "input_token_sha256": "cde72f5fc4507f19a89354b101939f13e1844d1b8b106ed89de7fe4aa7cca83b",
+      "targets": [
+        "the bound on the complexity of reductions",
+        "types of reductions",
+        "the bound on the complexity of reductions"
+      ],
+      "prediction": " reductions",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.9
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 220,
+      "prompt_hash": "ae02dbb790d2d8486268959ba21d96472676459745e525058dcf543ecb64db8f",
+      "doc_hash": "38af6e260b789d7d7adf5a17d44b835a3ab45f925fc98901f791c138bfa5cb5b",
+      "target_hash": "b2baa5ac9fd79049d418f1f2657b90f3c1ba961340b01c980edb5d5001941f49",
+      "input_tokens": 63891,
+      "input_token_sha256": "e2c5519010a11da77be482ecc703376b71ce38ae1fdd94a22a6586e260217820",
+      "targets": [
+        "polynomial-time reduction",
+        "polynomial-time",
+        "polynomial-time reduction"
+      ],
+      "prediction": " polynomial-time reduction",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.153
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 221,
+      "prompt_hash": "1e75bd66c3fb12bdc9ec118a31991133eb1592e1d51a13234407225ff8420bd1",
+      "doc_hash": "3e7ff020da21d460770ec749123d2b39e32446b870a957b7881ed63a8270b743",
+      "target_hash": "5c8362608e70589247b799ed9aed95afedce8f2861e226a4d0e1bc25c0e826be",
+      "input_tokens": 63510,
+      "input_token_sha256": "8f4fa7ac5077b6e6069caf9e919485bc8f683fc0c7d0a1f26a0f3eab29ab2468",
+      "targets": [
+        "multiplying two integers",
+        "multiplying two integers",
+        "multiplying two integers"
+      ],
+      "prediction": " The problem of multiplying two integers",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.128
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 222,
+      "prompt_hash": "e12a724ad6a5ba90dcc65f7488225c8c38fec1e385a65ad2d7398003acadd3ac",
+      "doc_hash": "1ad6fdbb4c0ab27614bea37b1aeb976bdec3d0f9a66cdb2a2a3e4291432dacca",
+      "target_hash": "5295c6da8b635161e19277cf78cb0a04fd9b21f7cff4a13fcf2982964466246e",
+      "input_tokens": 63341,
+      "input_token_sha256": "3e2d669365ddacdeecd24a5f4037a89fe0a17188c153e5ee165c46ad7b1d6915",
+      "targets": [
+        "polynomial time",
+        "polynomial",
+        "polynomial time"
+      ],
+      "prediction": " polynomial time",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.845
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 223,
+      "prompt_hash": "dd0eb91807b7ce853c515906e35c658c2591ff845541f0994e91292794d317f5",
+      "doc_hash": "2c62b8710d0ae18c1709ce4f61cdb24dbc32044b413f44b915e70269e09286ee",
+      "target_hash": "401d5b5717610e1e5ad24d4fd4b157b82f9500804c954855e163e48efc83cbc2",
+      "input_tokens": 64169,
+      "input_token_sha256": "8cd292a8b18d0decd3c1a5b6881f2c83f3cdf4be58c38286196aa14bbd56e972",
+      "targets": [
+        "input",
+        "input",
+        "input"
+      ],
+      "prediction": " The input",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.965
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 224,
+      "prompt_hash": "0123b3730b7e66f4919c56ba3c9c3c6cadb36c04e5bfe81688a4e13ba5b064b1",
+      "doc_hash": "3bd8642e9fff7bc7fed1400ac71ded1e3bffd2539abb4d18d6d4179c3117bc1f",
+      "target_hash": "d625e5d1008595015417edbe943a6414bf4ea9290b50650378b398ebb316f212",
+      "input_tokens": 64764,
+      "input_token_sha256": "427301f0712ab3cdc07a0c60aa4576ffc2272cb98f61943b3e6d57e19850ed4f",
+      "targets": [
+        "multiplication",
+        "multiplication",
+        "multiplication"
+      ],
+      "prediction": " multiplying two integers",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.105
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 225,
+      "prompt_hash": "df748843de1a1c6d670d239cab97ddbbc0027f54d8cec0b37e1bb9ea63849d78",
+      "doc_hash": "2dc0bf53b059e1b1bbae4c21bdf1017841407f272fcb1377b8cfd122b516217e",
+      "target_hash": "a33764625295e7a2de6170003102c33ae443813c8b93b2acc6d953fd0df69143",
+      "input_tokens": 63714,
+      "input_token_sha256": "952f7e8505a6a8743554bf5ee53b3ce936c2e62814ba7a65c3e1920addcbe6cb",
+      "targets": [
+        "the type of reduction being used",
+        "the type of reduction being used"
+      ],
+      "prediction": " the size of the instance",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.166
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 226,
+      "prompt_hash": "1031d8b1af4189869a192299d15906b1d5629bd1288b21deff4c6a79bff7de9e",
+      "doc_hash": "612d5a22e534fb892d135a88a24b06e379e2d635ac65cfcf1fdce7d09875c30d",
+      "target_hash": "092e4238026b76dc148df8fe038a993a64397496f133f2be3ad28a6f73605809",
+      "input_tokens": 64631,
+      "input_token_sha256": "baaa684520c9f3c86a0665eb4bbfb7ca2da122ec255727231ed2d084f956577d",
+      "targets": [
+        "if every problem in C can be reduced to X",
+        "problem in C is harder than X"
+      ],
+      "prediction": " If problem X is hard for class C, every problem in C can be reduced to X, meaning no problem in C is harder than X.",
+      "score": 0.5,
+      "historical_two_tier_score": 0.5,
+      "finish_reason": "stop",
+      "elapsed_s": 8.974
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 227,
+      "prompt_hash": "e974119a5aea04a8a2e06a6985665a24a77ff367b6d73d86d749765794015494",
+      "doc_hash": "a85c378f97b72ace657c5593e51f6eaa974d6048b0c2fa19e68e54e8b101640f",
+      "target_hash": "42d5c000652c1e79c10920897ce533dbb746b34151fc6e45ac847265ac7f76cc",
+      "input_tokens": 62595,
+      "input_token_sha256": "0f59338d457ccf61dea01e34eb4132c2a3705f1ff03bccee07b860ca89420140",
+      "targets": [
+        "solve any problem in C",
+        "solve any problem in C",
+        "solve any problem in C"
+      ],
+      "prediction": " solve any problem in C",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.84
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 228,
+      "prompt_hash": "e6d61a481e057eb6f3dbeb1e1e8aa4bfff2a1070bf38802a652ef5fa30913e1f",
+      "doc_hash": "39c0517b4e205ba98756898e2f48170f1ccffd1e9b4e2377e233ac1fffe92af7",
+      "target_hash": "e7cefda789602ba35fc7061e6db8c21787c5ed17011b4a13479340755ec783c2",
+      "input_tokens": 63156,
+      "input_token_sha256": "64811de9dc8d701f43f42b6ed99fa8ed0ab799c6500778e1a2c3a5c792e86b94",
+      "targets": [
+        "NP-hard",
+        "NP-hard",
+        "NP-hard problems"
+      ],
+      "prediction": " NP-hard",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.835
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 229,
+      "prompt_hash": "c8545ea9f3e966866f312835b34117a249500cb1840da6e8517adfed679f00cc",
+      "doc_hash": "55cf96e3d3ce4e6a9289c801b17dec706b8ac4b66c09e7d52e9a1a907a9255f5",
+      "target_hash": "001d2cd1f6744d75d97a37e95fad03201ba4d48e344ac79d6752e500f40cc24b",
+      "input_tokens": 64216,
+      "input_token_sha256": "dba7aefd2719abff11f6a5895f28aa83607954b1dce2239174a492c9414a3957",
+      "targets": [
+        "NP-complete",
+        "NP-complete",
+        "NP-complete"
+      ],
+      "prediction": " NP-complete problems",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.987
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 230,
+      "prompt_hash": "5952bf717dd8b46472c31531c38666e2f9fee7029c6dc09f6cfad4a109665004",
+      "doc_hash": "75032d24c406fa9202c5649059b51ad02efb49e35d3f1314895a3858763100f2",
+      "target_hash": "c202004b3ebe481f1e6c342979019191fa61b7d955207957301ba1380ab7e8fc",
+      "input_tokens": 65318,
+      "input_token_sha256": "489155d0cb5439364148ce0c32523f12a1055e87427591fd17072e404fd376b0",
+      "targets": [
+        "NP",
+        "P",
+        "P"
+      ],
+      "prediction": " P",
+      "score": 0.6666666666666666,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.126
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 231,
+      "prompt_hash": "c176491ae8c0ea9a88e1cc558373f38eb4a159ef21c077b41f5592f26e879142",
+      "doc_hash": "290d63f13fb10943f5e2133ef248823da558877dc98476bafa0e0f7a6e7a1da6",
+      "target_hash": "da7ee209a3fc87c8486fe1266d17e2aa656777a216c6afefb26b2530025d8fd9",
+      "input_tokens": 63855,
+      "input_token_sha256": "63aefc9e67c9dd3d89f76745ccf7f95e8c1bb81b8d0547d133fe3f8b95a480de",
+      "targets": [
+        "there is no known polynomial-time solution",
+        "no known polynomial-time solution",
+        "there is no known polynomial-time solution"
+      ],
+      "prediction": " there is no known polynomial-time solution for \u03a01",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.173
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 232,
+      "prompt_hash": "60a1656b1a347b04404a7a2d887599758d1c1a59e728fb70c0552b0a7bebbd14",
+      "doc_hash": "28ea0eed3517d26e649fe96c3fc788ec68a057afcf7817f63c3dda01b10a7224",
+      "target_hash": "80ad84c864d3e2b76017ebae9fed747a5f822809642339c502d4dc7ecd394c88",
+      "input_tokens": 61876,
+      "input_token_sha256": "6de047d33b71fcff62c56b4c9721e2d1c082e8a8255644c1969bb2b3c4009c9d",
+      "targets": [
+        "NP",
+        "NP",
+        "NP"
+      ],
+      "prediction": " NP",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.642
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 233,
+      "prompt_hash": "e82e1d4ebfc896577727c09e001db707ce05c99615e5a41c8180ea2a7571d6fa",
+      "doc_hash": "07d462c37707ce5c96eda707257ad5594d830360f7b48bda8098a06af74ca11a",
+      "target_hash": "31b34186213ddb6009d8f31080f7c153a6fbb2236df389d9302ef047d8927de0",
+      "input_tokens": 62600,
+      "input_token_sha256": "f9cefe29764e0523586c1ab76263bf529b7d06b85614c665b1b1704bb30f65ea",
+      "targets": [
+        "P",
+        "P",
+        "P"
+      ],
+      "prediction": " P",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.75
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 234,
+      "prompt_hash": "5a22914c7d2301bdacad7d1be94c04c64573323e77d58f22fe056e8a476707de",
+      "doc_hash": "a81486b2d28ce6fd1aaac697c4bb0a3c8dd31611cbb9dbe9026400321e200d2d",
+      "target_hash": "3c51cd58444bc3a7a636164aa8d8c87746b71a113a91b0d06edd5ceffffb46a6",
+      "input_tokens": 61301,
+      "input_token_sha256": "2b3c8891a3a1ddc44000abdb3ea4c60a2e7f331304c3164fd502626cf21e8745",
+      "targets": [
+        "Cobham\u2013Edmonds thesis",
+        "Cobham\u2013Edmonds thesis",
+        "Cobham\u2013Edmonds thesis"
+      ],
+      "prediction": " Cobham\u2013Edmonds thesis",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.71
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 235,
+      "prompt_hash": "9f0ceff4584ed87dcf99574c5b2bac62e41e83440ae4dca0b92ef0bb4590b7e3",
+      "doc_hash": "77a682ef4deebe3ca3401723d2837738c3b679cfb186924a999eaa2d95bf8515",
+      "target_hash": "80ad84c864d3e2b76017ebae9fed747a5f822809642339c502d4dc7ecd394c88",
+      "input_tokens": 61751,
+      "input_token_sha256": "3da67eb9fba3daa3d6a9cd9b57225bf9eb754d4f183fea6aa8ad603f3305a387",
+      "targets": [
+        "NP",
+        "NP",
+        "NP"
+      ],
+      "prediction": " NP",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.622
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 236,
+      "prompt_hash": "3ab90912a511015a80e6f877f00a3b64ccc7843e28f1138e9384379975ed8909",
+      "doc_hash": "412f8265b897c200bc0d0157a08100e93a351a49083a6498d0af0190aa6bac08",
+      "target_hash": "8ead77cc41034b0d3290fc1a3750173eec0a75bb58a753246cd437f434ba1965",
+      "input_tokens": 61664,
+      "input_token_sha256": "729ed0e1bc0dd0ade0682f5a696ce348fd10f7e02a1a90d9750da20999d447bf",
+      "targets": [
+        "Boolean satisfiability problem",
+        "Boolean satisfiability problem"
+      ],
+      "prediction": " The Boolean satisfiability problem",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.715
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 237,
+      "prompt_hash": "a0b7c2cd429e8c0502b40ad670d3cc1bc323b3ac0d78728895fe6f89096a70fa",
+      "doc_hash": "8b34df769cd3240080da33edff531bf4135239d4403f7d2a2b5ef6ec5644df07",
+      "target_hash": "c32af857a37ecf9dc28f1ff4b322d583652d97c551de057ac9335c6ff57a64d8",
+      "input_tokens": 65026,
+      "input_token_sha256": "0d13188a1fbdceaa736c27723f6d3f40f26d1e5b027e2f6ff6d212b4803f79a5",
+      "targets": [
+        "Turing machines",
+        "deterministic Turing machines",
+        "deterministic Turing machines"
+      ],
+      "prediction": " deterministic Turing machine",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.139
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 238,
+      "prompt_hash": "78be36493b06bb1724973d008ab4825a0905c196569338623c4776cad646aea9",
+      "doc_hash": "b36431c4d9e3542ff338cc93d5f82f9bde164644dcc7f36c309c2fe770cfbcff",
+      "target_hash": "b2f24bfa6ee9a0e91c6431bdbd73618fbdaf121b85366e8a5a84ce67f20d1d8a",
+      "input_tokens": 63410,
+      "input_token_sha256": "d1106c91d4391fed3ac1b96092880e11c44498a3dd5fbebbba7528446383d558",
+      "targets": [
+        "more efficient solutions",
+        "shown to have more efficient solutions",
+        "many important problems can be shown to have more efficient solutions"
+      ],
+      "prediction": " Many important problems can be shown to have more efficient solutions.",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.164
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 239,
+      "prompt_hash": "14814c06d41913d3a94e028494a2b5a01f44f45ea9fb20425c747c661aaf9d93",
+      "doc_hash": "e03e4ad78aa09c7ec3d2093dd7ddd77eb7c3263784757601352766476ad09444",
+      "target_hash": "e6295b48679813b6d91a082081fb746b15881253042aef04ca13c8a250dcb422",
+      "input_tokens": 63348,
+      "input_token_sha256": "92b0bf0f2a46e57a952594793d2c77e1fe1ef2a5de48b90feea35f57da9c0315",
+      "targets": [
+        "protein structure prediction",
+        "protein structure prediction",
+        "protein structure prediction"
+      ],
+      "prediction": " protein structure prediction",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.881
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 240,
+      "prompt_hash": "24b6e762d2422d11053e0d793886ec99b77dbe3f20e8b625c637ccbf1d4fa380",
+      "doc_hash": "f3de4a6fa926c471b4ca5a138d0820c270fc847c38f2348dd5d8ce8b50025aef",
+      "target_hash": "edb439a554d8de9b92bacefc1352b39157fd56e42d65822758d5cb3a4cc15cb3",
+      "input_tokens": 62073,
+      "input_token_sha256": "cb4d85eecb42cfe299517b61c1a5917b7435753bb52b40e9a17bcd2d22e6884d",
+      "targets": [
+        "$1,000,000",
+        "US$1,000,000",
+        "US$1,000,000"
+      ],
+      "prediction": " US$1,000,000",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.943
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 241,
+      "prompt_hash": "63c84186c411cb58ee60cef0b1e39627860f52a2d4313a708ed6e1dbdc09ff93",
+      "doc_hash": "0802710a163d490ad36cbaa4e4d99cd1d335f25834bbe9e740e946bb6bdf15d5",
+      "target_hash": "1a9ec5174ff94275a3377c16901093f5c106ef774333ae13b69f9ccb548928d1",
+      "input_tokens": 62120,
+      "input_token_sha256": "52148ebf8716d04a493532c59e9e4ddc065eb5e6cd7b69a60559f4285998fddd",
+      "targets": [
+        "Ladner",
+        "Ladner",
+        "Ladner"
+      ],
+      "prediction": " Ladner",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.724
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 242,
+      "prompt_hash": "034f5bf9a42c519c8d33ebf771fa2c24d6e880b472d98611abcee585c8356ea2",
+      "doc_hash": "b13bb76c3f282b47590b1ae6eaaaa8df887e36b50a508d0d41afedd9286c7bac",
+      "target_hash": "a22b2e955bea1dd54d1775191f03000f464318ddbf8f9a2188850135c57b38c5",
+      "input_tokens": 61921,
+      "input_token_sha256": "c9fd64e68a8b9c679cf975429836ee2f942512d7d65b2eac0f9a14098535eab1",
+      "targets": [
+        "NP-intermediate problems",
+        "NP-intermediate problems",
+        "NP-intermediate"
+      ],
+      "prediction": " NP-intermediate problem",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.3333333333333333,
+      "finish_reason": "stop",
+      "elapsed_s": 7.724
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 243,
+      "prompt_hash": "740179e180bc2874056751f151e6b9c881030a8c384abb6ed900492087fb8c9d",
+      "doc_hash": "ac1b03eb6773b3964457d3a0a116034bde9cdb27272aaccf2c8f3cc623dc0dfb",
+      "target_hash": "f8916a70c821c9eaddafe57add149bc55e287234b32dd8d224e9786edb295d8f",
+      "input_tokens": 63903,
+      "input_token_sha256": "9655a1c7281cdd73a722b2d969d1e956ed37a9756fc664c9986cb16e11b58311",
+      "targets": [
+        "graph isomorphism problem",
+        "the discrete logarithm problem",
+        "graph isomorphism problem, the discrete logarithm problem and the integer factorization problem"
+      ],
+      "prediction": " The graph isomorphism problem",
+      "score": 0.3333333333333333,
+      "historical_two_tier_score": 0.6666666666666666,
+      "finish_reason": "stop",
+      "elapsed_s": 8.06
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 244,
+      "prompt_hash": "cc25b22e2f7e77d37ca8230231e75f9a446e7a8f07fbf01e6d0d6a5319c8c2a7",
+      "doc_hash": "0834d16dd8346f2d2ed56af2df4c396a24ea5e81e25a225c7fd091d39ac13e56",
+      "target_hash": "00ff893595fc5dc235dab40e10f02219d1826e100027828cb407cf2910247049",
+      "input_tokens": 64296,
+      "input_token_sha256": "2a9e2195004ecf0e96697f75215084ba9353368961d3f3795a9600dee3cf8aba",
+      "targets": [
+        "The graph isomorphism problem",
+        "graph isomorphism",
+        "The graph isomorphism problem"
+      ],
+      "prediction": " The graph isomorphism problem",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.125
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 245,
+      "prompt_hash": "c8e048a1ff61869460b99c615043a4f022783ecdc29b2cdfde5864004f9f4158",
+      "doc_hash": "72462df693485dc53758a8fb3d50d6b0178b5dc6763ac9c7f6ffc202f3fbd04f",
+      "target_hash": "001d2cd1f6744d75d97a37e95fad03201ba4d48e344ac79d6752e500f40cc24b",
+      "input_tokens": 62823,
+      "input_token_sha256": "09c7b7f5633c6bef9d62b8547de94622be52bd09a7010c1a0e0b70568dd40cb6",
+      "targets": [
+        "NP-complete",
+        "NP-complete",
+        "NP-complete"
+      ],
+      "prediction": " NP-complete",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.798
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 246,
+      "prompt_hash": "d277c4087a929271f96d5aa34fffc00f3927fe5631c4a194b242c12f989bf9e3",
+      "doc_hash": "f8cc756518a7bbfd7984570a90d069ee6af6ab6f76b5b2d774e047d484e0677a",
+      "target_hash": "bc6d8c2cddff15abed029ca410f187edc14a0272a4581f38ae174259a4d90c00",
+      "input_tokens": 63827,
+      "input_token_sha256": "724956eaf808c1dfd7262ff4b0c576fda5a2e53120e9e52a96a537041ecbc1eb",
+      "targets": [
+        "polynomial time hierarchy",
+        "polynomial time",
+        "polynomial time hierarchy"
+      ],
+      "prediction": " the polynomial time hierarchy",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.995
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 247,
+      "prompt_hash": "cda42db8826d6df76f7cc65ea26adcb79b7e8da4d9704cd1214267a621f5fce7",
+      "doc_hash": "5a34a5275ee4f0b128149573ec81c2465099e33a5f27d7422c951f32ea0d7d69",
+      "target_hash": "260c2a2b98706cbc1b8a2e72fb7b3d11691ea4e51a77c2b197323c93dbc06103",
+      "input_tokens": 63163,
+      "input_token_sha256": "e54d2e3d9dcf1b476655a21fdcd6ff0779523854bdb769e8e1bf9fb72dad6749",
+      "targets": [
+        "second level",
+        "second",
+        "second"
+      ],
+      "prediction": " its second level",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.874
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 248,
+      "prompt_hash": "15f9e50d72ff6b4045f7ae1e4d31373a70147ef73dcf72192322bcfa2c471c21",
+      "doc_hash": "eca20503e466e5fadd5f6bbbab9271efbc56b1c22ab81d54d047cd172767f715",
+      "target_hash": "8ee0247fdf21e1819f5932a2f1fc22f894204f78c0edc04a4c84500c5867f6db",
+      "input_tokens": 61782,
+      "input_token_sha256": "ec7a8b765942269f473f6425686b66560af7e491f2b4001a8c3db7b37f9e63f4",
+      "targets": [
+        "Laszlo Babai and Eugene Luks",
+        "Babai and Eugene Luks",
+        "Laszlo Babai and Eugene Luks"
+      ],
+      "prediction": " Laszlo Babai and Eugene Luks",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.85
+    },
+    {
+      "task": "ruler_qa_squad",
+      "doc_id": 249,
+      "prompt_hash": "de2d76b787cf3f4a4ccf8fabe2a17a1cbede71675ff8a77ac00f72073d1faf20",
+      "doc_hash": "b7395f654fc5cffb79c0730e7a4c6f4a8d6500db8aea0622bcd45791c0853010",
+      "target_hash": "abf427ea091ee504c28b5dce4b6c03f3aa8aa56553d0f35c6cdef8ff8883d63b",
+      "input_tokens": 61229,
+      "input_token_sha256": "0c928f8571ad8fb95ad82e508d8e5f7339310d77f9d759d009b8db5edb1201c0",
+      "targets": [
+        "The integer factorization problem",
+        "integer factorization",
+        "integer factorization problem"
+      ],
+      "prediction": " The integer factorization problem",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.675
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_squad": 74.33333333333333
+  }
+}

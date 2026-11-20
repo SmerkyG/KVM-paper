@@ -1,0 +1,163 @@
+{
+  "method": "retro-quest-author",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": true,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "float16",
+  "prompt_tokens": 65536,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 66,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": 2048,
+  "records": [
+    {
+      "prefill_s": 5.454764387999603,
+      "decode_s": 0.776535902001342,
+      "capture_s": 1.6702958829991985,
+      "output_token_ids": [
+        2628,
+        25855,
+        320,
+        1378,
+        384,
+        8,
+        341,
+        310,
+        471,
+        220,
+        15,
+        69,
+        280,
+        286,
+        457,
+        262,
+        557,
+        262,
+        586,
+        1118,
+        2033,
+        636,
+        7530,
+        2292,
+        610,
+        12427,
+        11,
+        341,
+        286,
+        610,
+        636,
+        7530,
+        4293,
+        12427,
+        11,
+        220,
+        15,
+        4521,
+        46111,
+        5421,
+        52406,
+        58113,
+        1198,
+        10669,
+        26309,
+        25,
+        5438,
+        67592,
+        677,
+        1302,
+        7682,
+        75,
+        22,
+        2808,
+        271,
+        1547,
+        54337,
+        2958,
+        25,
+        2816,
+        25697,
+        307,
+        14460,
+        9199,
+        23148,
+        335
+      ],
+      "graph_same_cache_checks": {
+        "0": {
+          "max_abs": 0.48046875,
+          "mean_abs": 0.03608211874961853,
+          "graph_argmax": 25855,
+          "eager_argmax": 25855
+        },
+        "1": {
+          "max_abs": 0.53515625,
+          "mean_abs": 0.027357595041394234,
+          "graph_argmax": 320,
+          "eager_argmax": 320
+        },
+        "14": {
+          "max_abs": 0.11328125,
+          "mean_abs": 0.010758674703538418,
+          "graph_argmax": 262,
+          "eager_argmax": 262
+        },
+        "15": {
+          "max_abs": 0.03515625,
+          "mean_abs": 0.004523451440036297,
+          "graph_argmax": 557,
+          "eager_argmax": 557
+        },
+        "16": {
+          "max_abs": 0.1103515625,
+          "mean_abs": 0.023335905745625496,
+          "graph_argmax": 262,
+          "eager_argmax": 262
+        },
+        "17": {
+          "max_abs": 0.033203125,
+          "mean_abs": 0.005915449466556311,
+          "graph_argmax": 586,
+          "eager_argmax": 586
+        },
+        "30": {
+          "max_abs": 0.01806640625,
+          "mean_abs": 0.002667576540261507,
+          "graph_argmax": 7530,
+          "eager_argmax": 7530
+        },
+        "31": {
+          "max_abs": 0.0205078125,
+          "mean_abs": 0.002881158608943224,
+          "graph_argmax": 4293,
+          "eager_argmax": 4293
+        },
+        "32": {
+          "max_abs": 0.046875,
+          "mean_abs": 0.006101006176322699,
+          "graph_argmax": 12427,
+          "eager_argmax": 12427
+        },
+        "33": {
+          "max_abs": 0.0234375,
+          "mean_abs": 0.0038828174583613873,
+          "graph_argmax": 11,
+          "eager_argmax": 11
+        },
+        "64": {
+          "max_abs": 0.03125,
+          "mean_abs": 0.005713165737688541,
+          "graph_argmax": 335,
+          "eager_argmax": 335
+        }
+      },
+      "iteration": 0,
+      "warmup": false,
+      "decode_ms_per_token": 11.946706184636032
+    }
+  ],
+  "median_decode_ms_per_token": 11.946706184636032,
+  "median_prefill_s": 5.454764387999603
+}

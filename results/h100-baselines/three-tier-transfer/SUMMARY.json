@@ -1,0 +1,315 @@
+{
+  "hardware": [
+    "NVIDIA H100 80GB HBM3, GPU-e990762e-21ba-1072-8311-be210c4e4762, 580.196.07, 81559 MiB"
+  ],
+  "source_audit_files": 49,
+  "frontier_cases": 24,
+  "frontier_max_abs": 0.0019398927688598633,
+  "model": [
+    {
+      "length": 32768,
+      "mode": "three-tier-bf16",
+      "top8_ms": 7.82809335009782,
+      "top8_before_ms": 7.831671866211032,
+      "top8_after_ms": 7.824514833984608,
+      "threshold_ms": 7.714847511230527,
+      "uncached_ms": 7.760702870605485,
+      "reduction_pct": 1.446659279630047,
+      "dense_speedup": 1.1309408851494591
+    },
+    {
+      "length": 32768,
+      "mode": "three-tier-int4",
+      "top8_ms": 7.780406497314596,
+      "top8_before_ms": 7.791398090820856,
+      "top8_after_ms": 7.769414903808336,
+      "threshold_ms": 7.562172067871131,
+      "uncached_ms": 7.5993464404295885,
+      "reduction_pct": 2.8049232327229667,
+      "dense_speedup": 1.1537738621703153
+    },
+    {
+      "length": 65536,
+      "mode": "three-tier-bf16",
+      "top8_ms": 8.26771940258797,
+      "top8_before_ms": 8.268031140625354,
+      "top8_after_ms": 8.267407664550586,
+      "threshold_ms": 7.943368324218714,
+      "uncached_ms": 8.024540032226302,
+      "reduction_pct": 3.92310215883388,
+      "dense_speedup": 1.2699139423418269
+    },
+    {
+      "length": 65536,
+      "mode": "three-tier-int4",
+      "top8_ms": 8.12206465039056,
+      "top8_before_ms": 8.124059991210686,
+      "top8_after_ms": 8.120069309570432,
+      "threshold_ms": 7.875862950195156,
+      "uncached_ms": 8.009962630370904,
+      "reduction_pct": 3.031269890021915,
+      "dense_speedup": 1.2807985928490315
+    }
+  ],
+  "attention": [
+    {
+      "length": 32768,
+      "mode": "three-tier-bf16",
+      "top8": 37.16753323872884,
+      "three-tier-reference": 37.57346669832865,
+      "three-tier": 36.83579961458842
+    },
+    {
+      "length": 32768,
+      "mode": "three-tier-int4",
+      "top8": 36.22120022773743,
+      "three-tier-reference": 33.556399742762245,
+      "three-tier": 32.88839956124624
+    },
+    {
+      "length": 65536,
+      "mode": "three-tier-bf16",
+      "top8": 51.859300335248314,
+      "three-tier-reference": 47.08883265654246,
+      "three-tier": 45.20296653111776
+    },
+    {
+      "length": 65536,
+      "mode": "three-tier-int4",
+      "top8": 47.82050053278605,
+      "three-tier-reference": 45.626999934514366,
+      "three-tier": 43.23796729246775
+    }
+  ],
+  "checks": [
+    {
+      "length": 32768,
+      "mode": "three-tier-bf16",
+      "steps": 17,
+      "max_logit_abs": 0
+    },
+    {
+      "length": 32768,
+      "mode": "three-tier-int4",
+      "steps": 17,
+      "max_logit_abs": 0
+    },
+    {
+      "length": 65536,
+      "mode": "three-tier-bf16",
+      "steps": 17,
+      "max_logit_abs": 0
+    },
+    {
+      "length": 65536,
+      "mode": "three-tier-int4",
+      "steps": 17,
+      "max_logit_abs": 0
+    }
+  ],
+  "quality": [
+    {
+      "task": "niah_multikey_3",
+      "examples": 16,
+      "scores": [
+        100.0,
+        50.0,
+        93.75,
+        31.25,
+        93.75
+      ]
+    },
+    {
+      "task": "niah_multivalue",
+      "examples": 16,
+      "scores": [
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0
+      ]
+    }
+  ],
+  "settings": {
+    "three-tier-bf16/32768": {
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 2,
+      "merge_block": 32
+    },
+    "three-tier-int4/32768": {
+      "tile": 64,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32
+    },
+    "three-tier-bf16/65536": {
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32
+    },
+    "three-tier-int4/65536": {
+      "tile": 128,
+      "workers": 64,
+      "page_warps": 1,
+      "merge_block": 32
+    }
+  },
+  "retrieval_pairs": {
+    "three-tier-bf16": {
+      "improved": 7,
+      "regressed": 0,
+      "unchanged": 25,
+      "first_prefill_token_disagreements": 0
+    },
+    "three-tier-int4": {
+      "improved": 11,
+      "regressed": 1,
+      "unchanged": 20,
+      "first_prefill_token_disagreements": 0
+    }
+  },
+  "miss_diagnostic": [
+    {
+      "mode": "three-tier-bf16",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "score": 0.0,
+      "identical_output_tokens": true
+    },
+    {
+      "mode": "three-tier-bf16",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "score": 1.0,
+      "identical_output_tokens": true
+    },
+    {
+      "mode": "three-tier-int4",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "score": 1.0,
+      "identical_output_tokens": true
+    },
+    {
+      "mode": "three-tier-int4",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "score": 0.0,
+      "identical_output_tokens": true
+    }
+  ],
+  "quality_scoring": "quality stores full fixed-length output; quality_first_response stops at EOS/EOT",
+  "quality_first_response": [
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 43.75,
+      "full_output": 50.0
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 93.75,
+      "full_output": 93.75
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 31.25,
+      "full_output": 31.25
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 87.5,
+      "full_output": 93.75
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 98.4375,
+      "full_output": 100.0
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 98.4375,
+      "full_output": 100.0
+    }
+  ],
+  "retrieval_pairs_first_response": {
+    "bf16": {
+      "improved": 8,
+      "regressed": 0,
+      "unchanged": 24
+    },
+    "int4": {
+      "improved": 10,
+      "regressed": 1,
+      "unchanged": 21
+    }
+  }
+}

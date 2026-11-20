@@ -1,0 +1,2050 @@
+{
+  "stage": "complete",
+  "scope": "CPU rescoring of saved generations; first response ends at first EOS/EOT",
+  "stop_tokens": [
+    128001,
+    128009
+  ],
+  "tokenizer_sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+  "input_sha256": {
+    "three-tier-v2-three-tier-bf16-32k-quality-top8.json": "61959f07d7f2170166bcf9c3818b2ebeb24c4dadfcd34bfe1cbe3cb908f16cdb",
+    "three-tier-v2-three-tier-bf16-32k-quality-threshold.json": "3c8152c0261ed1c9ed4480f8683fbddf5fb70d371bf8fb5290f79f280e23906d",
+    "three-tier-v2-three-tier-int4-32k-quality-top8.json": "1c31608cdb88f0fbae9a73770d71ae7f2c6f061e4fded7a56efce449065881ce",
+    "three-tier-v2-three-tier-int4-32k-quality-threshold.json": "d1b047695d7641c26c85cdc8d94edd877d3ed81e10ccaf905ad3c0312c7cc99f",
+    "ruler-llama-retroinfer-32k-selected.json": "234b9100601b70a58c1c387b803608e48ed4a24b1cc1fd57d501a17bdfdbedf7",
+    "ruler-llama-retroinfer-32k-missing5.json": "69074c8439251fc1b9ddcee76124efd12f0e4c573740297f2b27c79846c5babd",
+    "ruler-32k-dense-full.json": "c32dea4bc803e050bedeb6dc58ee22c2af2331a2a3885263fa2f1b2de7c1d8ee"
+  },
+  "summary": [
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 43.75,
+      "full_output": 50.0
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 93.75,
+      "full_output": 93.75
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 31.25,
+      "full_output": 31.25
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 87.5,
+      "full_output": 93.75
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 98.4375,
+      "full_output": 100.0
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "n": 16,
+      "first_response": 100.0,
+      "full_output": 100.0
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "n": 16,
+      "first_response": 98.4375,
+      "full_output": 100.0
+    }
+  ],
+  "paired_outcomes": {
+    "bf16": {
+      "improved": 8,
+      "regressed": 0,
+      "unchanged": 24
+    },
+    "int4": {
+      "improved": 10,
+      "regressed": 1,
+      "unchanged": 21
+    }
+  },
+  "records": [
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 4,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e072a6b9b14d14f9fa60a28a41f89330363675d89aed0f5768989ea7cc436564"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "b8efa5f44780a18e5d4e3abc44452c20794eb74fe3f1dc013bbdffba6fe42062"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 46,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "d4f61e9440c26df7d2a73258d707489abf76e782efb413252376db1eeeb8eeed"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9f90da8f86e0c7efbd05665576bb7766acd40ab3964544586c83f717c508e552"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 68,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "fe12c10e7b4e6e2f599810d7a9556a728485bcdc0304db23161e59a63651da3f"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 78,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "12db7837ca27bb9f05b5541c07aa838f6f6e87474379eb2ebfc79c4e71066ba7"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 126,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "4db7d77afaebadf7a1acb7a5309c9aba73eb76dd72454d63df14c8c89d2b1697"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "faf48df994ebff8ddc85ad7ea7d5027af68bab6814f129db6bb7bccdabb2c49a"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 139,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "cf898d94d467c8e1d27e7f579049f43622b4f29397eeb070335cade0c007bbef"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 156,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "1dc062a079d56d1971d06b88b943bbb1787800b0dc768a46c2d0892d02816744"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 164,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "38c24a46ef5aad625c3b19a255d6a9a9fc70d07a5a86829e6b17f5ff2c5ac532"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 170,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "891ebf8aa8b459334a65818b32f159707df8e93889e29d70aaef734bc7a98e61"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "00a9c0a77ab326997b059391db4b4ba6d5b23e9fb6970e75c4bd489e33a87cc5"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 193,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "a1baecda344c04d84271d6049cf8b2094f0308506731aef37e4a3a72b82b8144"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 202,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 30,
+      "input_token_sha256": "a65ff1eea4ef9092e71c638a74e364d987b381c6d80ae8c4d3a97623b39e8815"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 235,
+      "first_score": 0.0,
+      "full_score": 1.0,
+      "first_stop_position": 23,
+      "input_token_sha256": "1bac48884fceb0a0f100800710d0f83982760b63f37c0c5032d8d3a14188a32c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 17,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4a98bdc83977095b5d25146ac81740778023ff71b66232a4baa006bea594d20f"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 19,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "fd0a10d6ceba2298759b94fe82ce3e204621aa9edd0b9f092f138ab984bf220e"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 31,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "a9a20eca27baa476e52b6aadc9a839c6194651246aab27589c140d329f47cf96"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "15829877bfc513b625f6335d11d44e38f7f32e57731b739c6e0f351a1556732c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 60,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "df6b93790f912316da25467e40281a2d895ec0a7295adaeeef5b145d9d3e9961"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 74,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "bb5c32cf443f1862a8f45139fbe94c104ad150cf2bcd1ec7ac6969f7acf67dc2"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 84,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1883b274d05f7bc9a600daad252c628c58de4fca956dd96064b9d6c83dc3ac7d"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 100,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e2dadd0dee6be07e44726034575a56cfdc887ee1474dfbaa3d8aaef714929fe4"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 123,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "efa270781ece0e7db1d40d04336348c593ded0491ed1702a730ce9e3db41eb2c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 125,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4803e0c565536239aaa261a9a17b626a78719065b8e710bbec752c68f1cb5ecf"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "999bad937a14237a914414cf5c3749ef3bca719e3847a355f539bafe1380b29c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "941350a55fddb7789a779c2918f1ca6611c486122b3bff103f526d1c700f5ba3"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 160,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9771d284885f431607f09b90f0a690e5b3f818080e8ad2b12c9f3ef9893f6baf"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 181,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "871fae6c3be59e3b450e3d3a0854464692c692dfe853c615399be8a46c1a06c7"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 194,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4f1d25fbb0304cba7c100a0a0a60637a7bfa3324412881bc414c96eee90cfdb3"
+    },
+    {
+      "mode": "bf16",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 212,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1c5e64ea752b391d5b9d6b2eb7b0cbca79274bd83e78b78cff8ba377dc7f1220"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 4,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "e072a6b9b14d14f9fa60a28a41f89330363675d89aed0f5768989ea7cc436564"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "b8efa5f44780a18e5d4e3abc44452c20794eb74fe3f1dc013bbdffba6fe42062"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 46,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "d4f61e9440c26df7d2a73258d707489abf76e782efb413252376db1eeeb8eeed"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9f90da8f86e0c7efbd05665576bb7766acd40ab3964544586c83f717c508e552"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 68,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "fe12c10e7b4e6e2f599810d7a9556a728485bcdc0304db23161e59a63651da3f"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 78,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "12db7837ca27bb9f05b5541c07aa838f6f6e87474379eb2ebfc79c4e71066ba7"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 126,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "4db7d77afaebadf7a1acb7a5309c9aba73eb76dd72454d63df14c8c89d2b1697"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "faf48df994ebff8ddc85ad7ea7d5027af68bab6814f129db6bb7bccdabb2c49a"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "cf898d94d467c8e1d27e7f579049f43622b4f29397eeb070335cade0c007bbef"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 156,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "1dc062a079d56d1971d06b88b943bbb1787800b0dc768a46c2d0892d02816744"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 164,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "38c24a46ef5aad625c3b19a255d6a9a9fc70d07a5a86829e6b17f5ff2c5ac532"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 170,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "891ebf8aa8b459334a65818b32f159707df8e93889e29d70aaef734bc7a98e61"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "00a9c0a77ab326997b059391db4b4ba6d5b23e9fb6970e75c4bd489e33a87cc5"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 193,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "a1baecda344c04d84271d6049cf8b2094f0308506731aef37e4a3a72b82b8144"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 202,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 31,
+      "input_token_sha256": "a65ff1eea4ef9092e71c638a74e364d987b381c6d80ae8c4d3a97623b39e8815"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 235,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "1bac48884fceb0a0f100800710d0f83982760b63f37c0c5032d8d3a14188a32c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 17,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4a98bdc83977095b5d25146ac81740778023ff71b66232a4baa006bea594d20f"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 19,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "fd0a10d6ceba2298759b94fe82ce3e204621aa9edd0b9f092f138ab984bf220e"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 31,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "a9a20eca27baa476e52b6aadc9a839c6194651246aab27589c140d329f47cf96"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "15829877bfc513b625f6335d11d44e38f7f32e57731b739c6e0f351a1556732c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 60,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "df6b93790f912316da25467e40281a2d895ec0a7295adaeeef5b145d9d3e9961"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 74,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "bb5c32cf443f1862a8f45139fbe94c104ad150cf2bcd1ec7ac6969f7acf67dc2"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 84,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1883b274d05f7bc9a600daad252c628c58de4fca956dd96064b9d6c83dc3ac7d"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 100,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e2dadd0dee6be07e44726034575a56cfdc887ee1474dfbaa3d8aaef714929fe4"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 123,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "efa270781ece0e7db1d40d04336348c593ded0491ed1702a730ce9e3db41eb2c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 125,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4803e0c565536239aaa261a9a17b626a78719065b8e710bbec752c68f1cb5ecf"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "999bad937a14237a914414cf5c3749ef3bca719e3847a355f539bafe1380b29c"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "941350a55fddb7789a779c2918f1ca6611c486122b3bff103f526d1c700f5ba3"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 160,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9771d284885f431607f09b90f0a690e5b3f818080e8ad2b12c9f3ef9893f6baf"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 181,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "871fae6c3be59e3b450e3d3a0854464692c692dfe853c615399be8a46c1a06c7"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 194,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4f1d25fbb0304cba7c100a0a0a60637a7bfa3324412881bc414c96eee90cfdb3"
+    },
+    {
+      "mode": "bf16",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 212,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1c5e64ea752b391d5b9d6b2eb7b0cbca79274bd83e78b78cff8ba377dc7f1220"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 4,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e072a6b9b14d14f9fa60a28a41f89330363675d89aed0f5768989ea7cc436564"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "b8efa5f44780a18e5d4e3abc44452c20794eb74fe3f1dc013bbdffba6fe42062"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 46,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "d4f61e9440c26df7d2a73258d707489abf76e782efb413252376db1eeeb8eeed"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9f90da8f86e0c7efbd05665576bb7766acd40ab3964544586c83f717c508e552"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 68,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "fe12c10e7b4e6e2f599810d7a9556a728485bcdc0304db23161e59a63651da3f"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 78,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "12db7837ca27bb9f05b5541c07aa838f6f6e87474379eb2ebfc79c4e71066ba7"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 126,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "4db7d77afaebadf7a1acb7a5309c9aba73eb76dd72454d63df14c8c89d2b1697"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 127,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "faf48df994ebff8ddc85ad7ea7d5027af68bab6814f129db6bb7bccdabb2c49a"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 139,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "cf898d94d467c8e1d27e7f579049f43622b4f29397eeb070335cade0c007bbef"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 156,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "1dc062a079d56d1971d06b88b943bbb1787800b0dc768a46c2d0892d02816744"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 164,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "38c24a46ef5aad625c3b19a255d6a9a9fc70d07a5a86829e6b17f5ff2c5ac532"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 170,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 21,
+      "input_token_sha256": "891ebf8aa8b459334a65818b32f159707df8e93889e29d70aaef734bc7a98e61"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "00a9c0a77ab326997b059391db4b4ba6d5b23e9fb6970e75c4bd489e33a87cc5"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 193,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "a1baecda344c04d84271d6049cf8b2094f0308506731aef37e4a3a72b82b8144"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 202,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 30,
+      "input_token_sha256": "a65ff1eea4ef9092e71c638a74e364d987b381c6d80ae8c4d3a97623b39e8815"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multikey_3",
+      "source_row": 235,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 23,
+      "input_token_sha256": "1bac48884fceb0a0f100800710d0f83982760b63f37c0c5032d8d3a14188a32c"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 17,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4a98bdc83977095b5d25146ac81740778023ff71b66232a4baa006bea594d20f"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 19,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "fd0a10d6ceba2298759b94fe82ce3e204621aa9edd0b9f092f138ab984bf220e"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 31,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "a9a20eca27baa476e52b6aadc9a839c6194651246aab27589c140d329f47cf96"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "15829877bfc513b625f6335d11d44e38f7f32e57731b739c6e0f351a1556732c"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 60,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "df6b93790f912316da25467e40281a2d895ec0a7295adaeeef5b145d9d3e9961"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 74,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "bb5c32cf443f1862a8f45139fbe94c104ad150cf2bcd1ec7ac6969f7acf67dc2"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 84,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1883b274d05f7bc9a600daad252c628c58de4fca956dd96064b9d6c83dc3ac7d"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 100,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e2dadd0dee6be07e44726034575a56cfdc887ee1474dfbaa3d8aaef714929fe4"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 123,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "efa270781ece0e7db1d40d04336348c593ded0491ed1702a730ce9e3db41eb2c"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 125,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4803e0c565536239aaa261a9a17b626a78719065b8e710bbec752c68f1cb5ecf"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "999bad937a14237a914414cf5c3749ef3bca719e3847a355f539bafe1380b29c"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "941350a55fddb7789a779c2918f1ca6611c486122b3bff103f526d1c700f5ba3"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 160,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9771d284885f431607f09b90f0a690e5b3f818080e8ad2b12c9f3ef9893f6baf"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 181,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "871fae6c3be59e3b450e3d3a0854464692c692dfe853c615399be8a46c1a06c7"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 194,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4f1d25fbb0304cba7c100a0a0a60637a7bfa3324412881bc414c96eee90cfdb3"
+    },
+    {
+      "mode": "int4",
+      "variant": "top8",
+      "task": "niah_multivalue",
+      "source_row": 212,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1c5e64ea752b391d5b9d6b2eb7b0cbca79274bd83e78b78cff8ba377dc7f1220"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 4,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "e072a6b9b14d14f9fa60a28a41f89330363675d89aed0f5768989ea7cc436564"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "b8efa5f44780a18e5d4e3abc44452c20794eb74fe3f1dc013bbdffba6fe42062"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 46,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "d4f61e9440c26df7d2a73258d707489abf76e782efb413252376db1eeeb8eeed"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "first_score": 0.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9f90da8f86e0c7efbd05665576bb7766acd40ab3964544586c83f717c508e552"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 68,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "fe12c10e7b4e6e2f599810d7a9556a728485bcdc0304db23161e59a63651da3f"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 78,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "12db7837ca27bb9f05b5541c07aa838f6f6e87474379eb2ebfc79c4e71066ba7"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 126,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "4db7d77afaebadf7a1acb7a5309c9aba73eb76dd72454d63df14c8c89d2b1697"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "faf48df994ebff8ddc85ad7ea7d5027af68bab6814f129db6bb7bccdabb2c49a"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "cf898d94d467c8e1d27e7f579049f43622b4f29397eeb070335cade0c007bbef"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 156,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "1dc062a079d56d1971d06b88b943bbb1787800b0dc768a46c2d0892d02816744"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 164,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "38c24a46ef5aad625c3b19a255d6a9a9fc70d07a5a86829e6b17f5ff2c5ac532"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 170,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "891ebf8aa8b459334a65818b32f159707df8e93889e29d70aaef734bc7a98e61"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "first_score": 0.0,
+      "full_score": 0.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "00a9c0a77ab326997b059391db4b4ba6d5b23e9fb6970e75c4bd489e33a87cc5"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 193,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "a1baecda344c04d84271d6049cf8b2094f0308506731aef37e4a3a72b82b8144"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 202,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 31,
+      "input_token_sha256": "a65ff1eea4ef9092e71c638a74e364d987b381c6d80ae8c4d3a97623b39e8815"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multikey_3",
+      "source_row": 235,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "1bac48884fceb0a0f100800710d0f83982760b63f37c0c5032d8d3a14188a32c"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 17,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4a98bdc83977095b5d25146ac81740778023ff71b66232a4baa006bea594d20f"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 19,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "fd0a10d6ceba2298759b94fe82ce3e204621aa9edd0b9f092f138ab984bf220e"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 31,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "a9a20eca27baa476e52b6aadc9a839c6194651246aab27589c140d329f47cf96"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "15829877bfc513b625f6335d11d44e38f7f32e57731b739c6e0f351a1556732c"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 60,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "df6b93790f912316da25467e40281a2d895ec0a7295adaeeef5b145d9d3e9961"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 74,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "bb5c32cf443f1862a8f45139fbe94c104ad150cf2bcd1ec7ac6969f7acf67dc2"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 84,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1883b274d05f7bc9a600daad252c628c58de4fca956dd96064b9d6c83dc3ac7d"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 100,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e2dadd0dee6be07e44726034575a56cfdc887ee1474dfbaa3d8aaef714929fe4"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 123,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "efa270781ece0e7db1d40d04336348c593ded0491ed1702a730ce9e3db41eb2c"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 125,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4803e0c565536239aaa261a9a17b626a78719065b8e710bbec752c68f1cb5ecf"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "999bad937a14237a914414cf5c3749ef3bca719e3847a355f539bafe1380b29c"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "941350a55fddb7789a779c2918f1ca6611c486122b3bff103f526d1c700f5ba3"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 160,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9771d284885f431607f09b90f0a690e5b3f818080e8ad2b12c9f3ef9893f6baf"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 181,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "871fae6c3be59e3b450e3d3a0854464692c692dfe853c615399be8a46c1a06c7"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 194,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4f1d25fbb0304cba7c100a0a0a60637a7bfa3324412881bc414c96eee90cfdb3"
+    },
+    {
+      "mode": "int4",
+      "variant": "threshold",
+      "task": "niah_multivalue",
+      "source_row": 212,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1c5e64ea752b391d5b9d6b2eb7b0cbca79274bd83e78b78cff8ba377dc7f1220"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 4,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "e072a6b9b14d14f9fa60a28a41f89330363675d89aed0f5768989ea7cc436564"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "b8efa5f44780a18e5d4e3abc44452c20794eb74fe3f1dc013bbdffba6fe42062"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 46,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "d4f61e9440c26df7d2a73258d707489abf76e782efb413252376db1eeeb8eeed"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9f90da8f86e0c7efbd05665576bb7766acd40ab3964544586c83f717c508e552"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 68,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "fe12c10e7b4e6e2f599810d7a9556a728485bcdc0304db23161e59a63651da3f"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 78,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "12db7837ca27bb9f05b5541c07aa838f6f6e87474379eb2ebfc79c4e71066ba7"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 126,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "4db7d77afaebadf7a1acb7a5309c9aba73eb76dd72454d63df14c8c89d2b1697"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "faf48df994ebff8ddc85ad7ea7d5027af68bab6814f129db6bb7bccdabb2c49a"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "cf898d94d467c8e1d27e7f579049f43622b4f29397eeb070335cade0c007bbef"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 156,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "1dc062a079d56d1971d06b88b943bbb1787800b0dc768a46c2d0892d02816744"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 164,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "38c24a46ef5aad625c3b19a255d6a9a9fc70d07a5a86829e6b17f5ff2c5ac532"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 170,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "891ebf8aa8b459334a65818b32f159707df8e93889e29d70aaef734bc7a98e61"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "00a9c0a77ab326997b059391db4b4ba6d5b23e9fb6970e75c4bd489e33a87cc5"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 193,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "a1baecda344c04d84271d6049cf8b2094f0308506731aef37e4a3a72b82b8144"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 202,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 31,
+      "input_token_sha256": "a65ff1eea4ef9092e71c638a74e364d987b381c6d80ae8c4d3a97623b39e8815"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 235,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "1bac48884fceb0a0f100800710d0f83982760b63f37c0c5032d8d3a14188a32c"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 17,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4a98bdc83977095b5d25146ac81740778023ff71b66232a4baa006bea594d20f"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 19,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "fd0a10d6ceba2298759b94fe82ce3e204621aa9edd0b9f092f138ab984bf220e"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 31,
+      "first_score": 0.75,
+      "full_score": 1.0,
+      "first_stop_position": 21,
+      "input_token_sha256": "a9a20eca27baa476e52b6aadc9a839c6194651246aab27589c140d329f47cf96"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "15829877bfc513b625f6335d11d44e38f7f32e57731b739c6e0f351a1556732c"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 60,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "df6b93790f912316da25467e40281a2d895ec0a7295adaeeef5b145d9d3e9961"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 74,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "bb5c32cf443f1862a8f45139fbe94c104ad150cf2bcd1ec7ac6969f7acf67dc2"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 84,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1883b274d05f7bc9a600daad252c628c58de4fca956dd96064b9d6c83dc3ac7d"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 100,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e2dadd0dee6be07e44726034575a56cfdc887ee1474dfbaa3d8aaef714929fe4"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 123,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "efa270781ece0e7db1d40d04336348c593ded0491ed1702a730ce9e3db41eb2c"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 125,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4803e0c565536239aaa261a9a17b626a78719065b8e710bbec752c68f1cb5ecf"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "999bad937a14237a914414cf5c3749ef3bca719e3847a355f539bafe1380b29c"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "941350a55fddb7789a779c2918f1ca6611c486122b3bff103f526d1c700f5ba3"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 160,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9771d284885f431607f09b90f0a690e5b3f818080e8ad2b12c9f3ef9893f6baf"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 181,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "871fae6c3be59e3b450e3d3a0854464692c692dfe853c615399be8a46c1a06c7"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 194,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4f1d25fbb0304cba7c100a0a0a60637a7bfa3324412881bc414c96eee90cfdb3"
+    },
+    {
+      "mode": "retroinfer",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 212,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1c5e64ea752b391d5b9d6b2eb7b0cbca79274bd83e78b78cff8ba377dc7f1220"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 4,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "e072a6b9b14d14f9fa60a28a41f89330363675d89aed0f5768989ea7cc436564"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "b8efa5f44780a18e5d4e3abc44452c20794eb74fe3f1dc013bbdffba6fe42062"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 46,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "d4f61e9440c26df7d2a73258d707489abf76e782efb413252376db1eeeb8eeed"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 59,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9f90da8f86e0c7efbd05665576bb7766acd40ab3964544586c83f717c508e552"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 68,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "fe12c10e7b4e6e2f599810d7a9556a728485bcdc0304db23161e59a63651da3f"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 78,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 27,
+      "input_token_sha256": "12db7837ca27bb9f05b5541c07aa838f6f6e87474379eb2ebfc79c4e71066ba7"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 126,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "4db7d77afaebadf7a1acb7a5309c9aba73eb76dd72454d63df14c8c89d2b1697"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "faf48df994ebff8ddc85ad7ea7d5027af68bab6814f129db6bb7bccdabb2c49a"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 29,
+      "input_token_sha256": "cf898d94d467c8e1d27e7f579049f43622b4f29397eeb070335cade0c007bbef"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 156,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "1dc062a079d56d1971d06b88b943bbb1787800b0dc768a46c2d0892d02816744"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 164,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "38c24a46ef5aad625c3b19a255d6a9a9fc70d07a5a86829e6b17f5ff2c5ac532"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 170,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 22,
+      "input_token_sha256": "891ebf8aa8b459334a65818b32f159707df8e93889e29d70aaef734bc7a98e61"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 187,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 26,
+      "input_token_sha256": "00a9c0a77ab326997b059391db4b4ba6d5b23e9fb6970e75c4bd489e33a87cc5"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 193,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 25,
+      "input_token_sha256": "a1baecda344c04d84271d6049cf8b2094f0308506731aef37e4a3a72b82b8144"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 202,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 31,
+      "input_token_sha256": "a65ff1eea4ef9092e71c638a74e364d987b381c6d80ae8c4d3a97623b39e8815"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multikey_3",
+      "source_row": 235,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 24,
+      "input_token_sha256": "1bac48884fceb0a0f100800710d0f83982760b63f37c0c5032d8d3a14188a32c"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 17,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4a98bdc83977095b5d25146ac81740778023ff71b66232a4baa006bea594d20f"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 19,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "fd0a10d6ceba2298759b94fe82ce3e204621aa9edd0b9f092f138ab984bf220e"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 31,
+      "first_score": 0.75,
+      "full_score": 1.0,
+      "first_stop_position": 21,
+      "input_token_sha256": "a9a20eca27baa476e52b6aadc9a839c6194651246aab27589c140d329f47cf96"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 36,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "15829877bfc513b625f6335d11d44e38f7f32e57731b739c6e0f351a1556732c"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 60,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "df6b93790f912316da25467e40281a2d895ec0a7295adaeeef5b145d9d3e9961"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 74,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "bb5c32cf443f1862a8f45139fbe94c104ad150cf2bcd1ec7ac6969f7acf67dc2"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 84,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1883b274d05f7bc9a600daad252c628c58de4fca956dd96064b9d6c83dc3ac7d"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 100,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "e2dadd0dee6be07e44726034575a56cfdc887ee1474dfbaa3d8aaef714929fe4"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 123,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "efa270781ece0e7db1d40d04336348c593ded0491ed1702a730ce9e3db41eb2c"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 125,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4803e0c565536239aaa261a9a17b626a78719065b8e710bbec752c68f1cb5ecf"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 127,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "999bad937a14237a914414cf5c3749ef3bca719e3847a355f539bafe1380b29c"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 139,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "941350a55fddb7789a779c2918f1ca6611c486122b3bff103f526d1c700f5ba3"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 160,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "9771d284885f431607f09b90f0a690e5b3f818080e8ad2b12c9f3ef9893f6baf"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 181,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "871fae6c3be59e3b450e3d3a0854464692c692dfe853c615399be8a46c1a06c7"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 194,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "4f1d25fbb0304cba7c100a0a0a60637a7bfa3324412881bc414c96eee90cfdb3"
+    },
+    {
+      "mode": "dense",
+      "variant": "reference",
+      "task": "niah_multivalue",
+      "source_row": 212,
+      "first_score": 1.0,
+      "full_score": 1.0,
+      "first_stop_position": 28,
+      "input_token_sha256": "1c5e64ea752b391d5b9d6b2eb7b0cbca79274bd83e78b78cff8ba377dc7f1220"
+    }
+  ]
+}

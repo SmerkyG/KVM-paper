@@ -1,0 +1,82 @@
+{
+  "dense-32k": {
+    "decode_ms": 8.706174095216568,
+    "prefill_s": 1.5675362615002086,
+    "measured_repetitions_ms": [
+      8.715763720701375,
+      8.69658446973176
+    ],
+    "speedup_vs_dense": 1.0,
+    "latency_change_vs_top8_pct": 4.625693407120601
+  },
+  "dense-64k": {
+    "decode_ms": 10.100226834964587,
+    "prefill_s": 4.783610505495744,
+    "measured_repetitions_ms": [
+      10.108116555670676,
+      10.092337114258498
+    ],
+    "speedup_vs_dense": 1.0,
+    "latency_change_vs_top8_pct": 16.04243846379947
+  },
+  "top8-32k": {
+    "decode_ms": 8.321258203125126,
+    "prefill_s": 1.6537308840051992,
+    "measured_repetitions_ms": [
+      8.323836278322005,
+      8.318680127928246
+    ],
+    "speedup_vs_dense": 1.046256934071206,
+    "latency_change_vs_top8_pct": 0.0
+  },
+  "top8-64k": {
+    "decode_ms": 8.703907784664011,
+    "prefill_s": 4.181756720005069,
+    "measured_repetitions_ms": [
+      8.70487274902132,
+      8.702942820306703
+    ],
+    "speedup_vs_dense": 1.1604243846379947,
+    "latency_change_vs_top8_pct": 0.0
+  },
+  "region-32k": {
+    "decode_ms": 7.541241969242662,
+    "prefill_s": 1.6555952060080017,
+    "measured_repetitions_ms": [
+      7.547053797850367,
+      7.535430140634958
+    ],
+    "speedup_vs_dense": 1.1544748372648883,
+    "latency_change_vs_top8_pct": -9.373777556734398
+  },
+  "region-64k": {
+    "decode_ms": 7.952175617191415,
+    "prefill_s": 4.2003454089935985,
+    "measured_repetitions_ms": [
+      7.9526294697274125,
+      7.951721764655417
+    ],
+    "speedup_vs_dense": 1.2701211996789163,
+    "latency_change_vs_top8_pct": -8.636720264857612
+  },
+  "entry-32k": {
+    "decode_ms": 7.57261932324127,
+    "prefill_s": 1.6581036889983807,
+    "measured_repetitions_ms": [
+      7.564533589842881,
+      7.580705056639658
+    ],
+    "speedup_vs_dense": 1.1496912393966885,
+    "latency_change_vs_top8_pct": -8.996702921713185
+  },
+  "entry-64k": {
+    "decode_ms": 7.960391376471421,
+    "prefill_s": 4.198142053501215,
+    "measured_repetitions_ms": [
+      7.957726076185168,
+      7.963056676757674
+    ],
+    "speedup_vs_dense": 1.2688103332227976,
+    "latency_change_vs_top8_pct": -8.542328648088859
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "stage": "submitted",
+  "jobs": [
+    {
+      "name": "three-tier-repair-stable-norm-v1-pagec0p5-check",
+      "id": "1794278051075763828-three-tier-repair-stable-norm-v1-pagec0p5-check",
+      "command": [
+        "env",
+        "CUDA_HOME=/usr/local/cuda-12.4",
+        "LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64",
+        "HF_HUB_OFFLINE=1",
+        "LOD_TRACK_UPDATES=1",
+        "PYTHONPATH=/home/ubuntu/comparison/RetroInfer:.",
+        "/home/ubuntu/.local/bin/uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/ubuntu/comparison/.venv/bin/python",
+        "--with",
+        "triton==3.7.1",
+        "python",
+        "-m",
+        "benchmarks.h100_checked_run",
+        "--require-run",
+        "/home/ubuntu/.local/state/lod-cluster-run/1794278036432338199-three-tier-repair-stable-residual-check-v1/run.json",
+        "--",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_three_tier_check",
+        "--h100",
+        "--page-threshold",
+        "0.5",
+        "--page-threshold-rule",
+        "page",
+        "--page-query",
+        "normalized",
+        "--page-residual",
+        "pages",
+        "--output",
+        "/home/ubuntu/comparison/results/three-tier-repair-stable-norm-v1-pagec0p5-check.json"
+      ],
+      "output": "/home/ubuntu/comparison/results/three-tier-repair-stable-norm-v1-pagec0p5-check.json"
+    }
+  ]
+}

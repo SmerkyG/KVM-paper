@@ -1,0 +1,150 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 65536,
+  "batch_size": 1,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 2.0,
+    "original_max_position_embeddings": 32768
+  },
+  "context_limit": 65536,
+  "methods": [
+    "lod",
+    "dense",
+    "multipole-512"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 63488,
+  "warmup_steps": 512,
+  "dense_kv_source": "device",
+  "captures_host_kv": true,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 63488,
+      "prefill_token_id": 2681,
+      "input_token_sha256": "f4c8626ccfba39cf4ce164f82ae0c0fdcb6768d15e7110435d6ddff6d77baec0",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 4.1827185749998534,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.183314228999961,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.206122121000135,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 8.17053560351555
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16,
+            "graph_argmax_by_request": [
+              16
+            ],
+            "eager_argmax_by_request": [
+              16
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 5.5194745720000356,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.529237520999914,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 5.54053521600008,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 10.799292033202956
+        },
+        "multipole-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 16,
+            "eager_argmax": 16
+          },
+          "windows": [
+            {
+              "seconds": 10.911314389999916,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.2689308169999549,
+                0.25938298300002316,
+                0.24536390700018273,
+                0.2605535930001679
+              ]
+            },
+            {
+              "seconds": 10.977559036000002,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.2751251150000371,
+                0.26972488699993846,
+                0.280172728000025,
+                0.2754163030001564
+              ]
+            },
+            {
+              "seconds": 10.95424492799998,
+              "steps": 512,
+              "cache_update_events": 4,
+              "cache_update_seconds": [
+                0.25071396199996343,
+                0.2744911400000092,
+                0.26857011200013403,
+                0.2795603330000631
+              ]
+            }
+          ],
+          "median_decode_ms": 21.39500962499996,
+          "last_layer_selected_prefix_counts": [
+            486,
+            506,
+            512,
+            505,
+            504,
+            512,
+            498,
+            503
+          ],
+          "cache_setup_s": 10.183326173000069
+        }
+      },
+      "elapsed_s": 129.82245970999998
+    }
+  ]
+}

@@ -1,0 +1,886 @@
+{
+  "stage": "complete",
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "mode": "two-tier",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "c571509a6c0b9641a9aadf4c4df3187fdeeeeec5c04b9a48a49b41e09ac3e8bd",
+      "source_file_count": 150
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  },
+  "threshold_multiplier": null,
+  "threshold_union": false,
+  "batch_size": 1,
+  "limit_per_task": 50,
+  "selection": "prefix",
+  "tasks": [
+    "ruler_qa_hotpot"
+  ],
+  "records": [
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 250,
+      "prompt_hash": "7c03146adbf5f5905fcbf1588bf863f475969cf287ac136f4258bccc48941e89",
+      "doc_hash": "deb0f904a9d3f7c1e962052ce58084781b143a705f509de6ff1887925647403c",
+      "target_hash": "cc3ec7c2db9d85a40ab7548e608d331392dee358d12d2bd7ada2a56414f5c29f",
+      "input_tokens": 62024,
+      "input_token_sha256": "195625a19cfdff88e830a7ead46879f04be5070175fb183a903460d80d2ebf82",
+      "targets": [
+        "Istanbul, Turkey"
+      ],
+      "prediction": " Istanbul",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.78
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 251,
+      "prompt_hash": "ec59cf421580abaa86a8dbacb6375df352c59084d9d4514a7803e69a03b66cda",
+      "doc_hash": "d58c07bf74ff0faba5b46332abb83fac84ce5b95b617e1bec40ce036ac030c1b",
+      "target_hash": "e9425ba9efe7f7db45226aecef47b653d4f2d5ae56f4a0ee81c69d8f45461b7d",
+      "input_tokens": 64100,
+      "input_token_sha256": "856c964e2777b506d28f7a78a2dbadcf555b824690c85dcd8de58d3489393dde",
+      "targets": [
+        "super-regional shopping mall"
+      ],
+      "prediction": " a super-regional shopping mall owned by Simon Property Group",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.221
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 252,
+      "prompt_hash": "990f89cd0c1d337efd50971a00b2c8509be1a5ed11e5490e4579203bb1edbe38",
+      "doc_hash": "d21ec1142701cafe605b6aec0f2b0031fb3c5f5b9918d6f0d1e5132482d7c1a7",
+      "target_hash": "fc3c7bd662e8e0a0864a01e0827bf608524f86f1269678b86f869f00448bed96",
+      "input_tokens": 65047,
+      "input_token_sha256": "72e27243b72d404f68933c01f2a3198f3c1bf4ddddf1e0aa9024928803d5edc4",
+      "targets": [
+        "Ordos City"
+      ],
+      "prediction": " Ordos City",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.12
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 253,
+      "prompt_hash": "88d38880b8bdde5f08ae513d6e29edf01e088dea1e0405aa6af925ba765012f6",
+      "doc_hash": "1c18827eec88c1a961a7aea097c54ac1392ac31da903c19c72c7b98b81d10071",
+      "target_hash": "12ad27be11b10951dab0ebcdd421628cce525440e61498a537b54c1cdf0bcd7a",
+      "input_tokens": 61613,
+      "input_token_sha256": "2dd628d2e5ff8324c59bc10f4601c8846bbaf433f2271767df98d32ead2b7083",
+      "targets": [
+        "Scott Sidney"
+      ],
+      "prediction": " Alain Resnais",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.665
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 254,
+      "prompt_hash": "de00b24818cb33eab81771c58ec50ab5ebf856aa499eabc3e56b80530b0d7054",
+      "doc_hash": "4424c5ca6b1c10ed22dee00f9d7343b651d0b91da0227db92e942871f9214fdf",
+      "target_hash": "c7acef94e3af7dd207c585e584e8db4601bd35a97a11de35146401e786ea99c7",
+      "input_tokens": 62003,
+      "input_token_sha256": "9e97b540f7b26310f7a42ec3ae7e04dff9bc305bb975eb0abce851e663d3ca47",
+      "targets": [
+        "over 600 stores"
+      ],
+      "prediction": " over 600",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.807
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 255,
+      "prompt_hash": "f61df28e7a0ef359013c1c58c309739e00ed2699e0979b5093752c56db4c87e5",
+      "doc_hash": "6370409a50af3b3b4b2ec28a27fa8380c9956e9bfb63685c972fe51c95b2a62e",
+      "target_hash": "64f9e227c983eaf9a3f245352883c201a0d42958cff644b0b3b1f8c2d0c0932b",
+      "input_tokens": 63413,
+      "input_token_sha256": "6257cb837862a6c9522a002bb796cd37f249894518d35a5caed3db09d2e78291",
+      "targets": [
+        "Berea College"
+      ],
+      "prediction": " Berea College",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.938
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 256,
+      "prompt_hash": "8c51f06cdc4d4f3ae003502b4300c7603c197a6075cdae48bd2ee3c8f29a53c5",
+      "doc_hash": "4e80c233eac0c00f299703bf440320e06dd2dcd5b62fa585d37a292152d4c961",
+      "target_hash": "a4ccf6516c2d80e68c765c49139a5a9f6cd3fb06aded9ea5366468369ddac125",
+      "input_tokens": 65127,
+      "input_token_sha256": "ee54a3cb53f3e9b90128aea89ae230841765c7d9851a48a44c183f4a5058da89",
+      "targets": [
+        "1945"
+      ],
+      "prediction": " 1946",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.481
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 257,
+      "prompt_hash": "bf555b11b4dd9cf813d424801457e6da48d26123af92c1fa276eaf488dd5fa81",
+      "doc_hash": "3b0f5382692a0e91d7cf3173a432d81155a4ddb73060fb8471760a6b7ef7fd33",
+      "target_hash": "fe59fff17ca9bc540275c815f1566271daac30ec0627f5c6f0aa5cd5c040d191",
+      "input_tokens": 62089,
+      "input_token_sha256": "111babdf4217172c9dc5035c16eda183bac8ba211a9297c93e98c2ec33890973",
+      "targets": [
+        "Mountbatten family"
+      ],
+      "prediction": " Mountbatten family",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.834
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 258,
+      "prompt_hash": "6d179e898f26491fd0b64ee143facbe9e7af1a9a851735d1f7bbc9c8f967e832",
+      "doc_hash": "fb97511971f938fb6bc6401d6553ef98c503eeb15b624b4d83595a090ea1957c",
+      "target_hash": "60e3a6fe9d763768ab576443fc57189064da32f47bf0568fa79563ac51460ecb",
+      "input_tokens": 65316,
+      "input_token_sha256": "bc932d812861929cafc34bfb78ef92d69db6ff07d991a23b6b909d1b4e7d4e0e",
+      "targets": [
+        "James Burke"
+      ],
+      "prediction": " James Burke",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.126
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 259,
+      "prompt_hash": "87cf2384dd37a1d2758f4383938cdcf03c2fc67f89a2eb0dbd798cc15f5263ef",
+      "doc_hash": "6b243504530d4ed70b1cddbca0c8a36714c239890ac4e40734ae8071d1f85be0",
+      "target_hash": "f2d4293807cdc6f43f5ed6ae84166a6ee105de6f9b9c1de0bf21da1fa3038bca",
+      "input_tokens": 64881,
+      "input_token_sha256": "571032bc98b1c3d3b2f535b44e88e05d30b72b308468dd5f1d4750e3c204d3c5",
+      "targets": [
+        "Gulangyu"
+      ],
+      "prediction": " Gulangyu",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.084
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 260,
+      "prompt_hash": "3d8e437644c0ed7a81d54869bb02536e2d7fcd5eb6a46d85c9e21f5c4d40cec0",
+      "doc_hash": "6c9e9d4979e6abf46c21778f469d5ebea9b9fd6b2008248afa9fbb0eb18585fb",
+      "target_hash": "99966c707968931d191748e7d8ae0c00247ebb101b69cf880f7f5a07bf04022b",
+      "input_tokens": 63407,
+      "input_token_sha256": "b20d649a62be6ff17119b2c50b306da9250b5ffb4cc98cd472b674e8f1634adb",
+      "targets": [
+        "Slaughterhouse-Five"
+      ],
+      "prediction": " Slaughterhouse-Five",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.959
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 261,
+      "prompt_hash": "54438bee4794036f38569778a941e1a32c64b6b2e9b17fdab8f271cd287ac82d",
+      "doc_hash": "b1dd473568fc422a703a2c630d6e22bba2c67dd1851366e0c8bd800ade8b45bc",
+      "target_hash": "707b97506181c32ddc7e97fae43e930e2dba9d80a2c337f3b395858a566bd6e4",
+      "input_tokens": 63608,
+      "input_token_sha256": "0c46337055544bb30823bdbc29720f25321370bd280c6d1d8f0b661ed9129378",
+      "targets": [
+        "the east of Ireland"
+      ],
+      "prediction": " Leinster",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.88
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 262,
+      "prompt_hash": "7568ab427af7a2bb30e995251dcc7c4e58ec77c6d10f0f30502e5475e3baf255",
+      "doc_hash": "2930722423e888ddbea6616f039a43a310d089d70ec61da7cbac232cfd6647d2",
+      "target_hash": "c23347daf4fe912f42639bf329dd0ee5c547c1e50ef3718f8161730684a208be",
+      "input_tokens": 62749,
+      "input_token_sha256": "68ea5e5f7e20ba02b7b00887e00d48c2c1c0f4308405e4198b36730b4273dbfa",
+      "targets": [
+        "Distillery"
+      ],
+      "prediction": " Cliftonville",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.837
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 263,
+      "prompt_hash": "96628589aef50504ec8a3ce488ca5ae22f02da35060bb65c2a715632a9763084",
+      "doc_hash": "47c6ee5e42436b1bdabf6602b3f008afd86e940646af2fee4b6adc65e6716b4a",
+      "target_hash": "113035c1e3615c265003bd10a0b241608a8cce8ea20ec0f0ae8faf85671dcd60",
+      "input_tokens": 62790,
+      "input_token_sha256": "093c065927fd4ed3bf7931aea9dcce697ac74af2666e1557a3ed5b17954a52d4",
+      "targets": [
+        "Tybalt"
+      ],
+      "prediction": " Tybalt",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.859
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 264,
+      "prompt_hash": "a3ec692e5be0f5e87b9d670e61c9b3fc8349f20c551744c6b49c7c9e4614d8fb",
+      "doc_hash": "2f17bb12a005a10fd101c5f114a24a708537a675927df67bb609196e722703af",
+      "target_hash": "dd848ff75b244b0f4a1e4bf43a346327ae5377ac84aa80cf51ab4b2516a0850f",
+      "input_tokens": 63028,
+      "input_token_sha256": "97c4183e59d1a6d5decef6ec589beb91ee75e8b29e0df298a2476d7990c7081b",
+      "targets": [
+        "SKUM"
+      ],
+      "prediction": " SKUM",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.902
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 265,
+      "prompt_hash": "d9ec1ceeba7c9594ec58013f430012c9cd054cc9fdb1206693166a4c04a75c92",
+      "doc_hash": "5ec430fd102ee4147fef3cf9adcdf94bfccd75fcb6c1b4c52377c3a91dbe6684",
+      "target_hash": "7bafd73ff79ef29d4723ccb8f4106df92ded63b7b67735d3d4bdd9784af89a61",
+      "input_tokens": 60860,
+      "input_token_sha256": "5f0151dafe38c0c0f4b648d9ff4541242c8f139a2e534549d75785a5a9d24ba4",
+      "targets": [
+        "Anabolic steroids"
+      ],
+      "prediction": " Anabolic steroids",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.915
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 266,
+      "prompt_hash": "e29f5a9fec44d96a307caff10d8e3b92295c47cc6f41628be8558d3e87f25941",
+      "doc_hash": "9e9e2ad361472e6fadf2e6bc1d98ed6358473650020d6ce03bc7209ddc69c1d5",
+      "target_hash": "82fa679844e5f943dbb8b3a8d980b2a379464a9c8b6584dd24c6239b1599c8db",
+      "input_tokens": 64792,
+      "input_token_sha256": "8be465174b6ca6b338232d8d71eccef4dea96ec696b4d97186fa255b45f320c3",
+      "targets": [
+        "Don S. Davis"
+      ],
+      "prediction": " Don S. Davis",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.231
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 267,
+      "prompt_hash": "d240448c81b78afc4df0da2f7eceacb0dbefc0a8802e489f7b3cf7cc31ea4357",
+      "doc_hash": "79e730322b6a6df821b4d52070f4e5e6435fdaccb1b799e6a14aa262f74ad2c6",
+      "target_hash": "7995d88b6ae9ead95da6075e938a0d1fb1e2cc7345cd30ca8a86a51eae55a907",
+      "input_tokens": 59480,
+      "input_token_sha256": "578cc7c80408050d107cc14753e640d2e9897d54493bbcbf019a1a29c5a9052f",
+      "targets": [
+        "Charles Kelley"
+      ],
+      "prediction": " Lady Antebellum",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.459
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 268,
+      "prompt_hash": "8e870595927bdf1fb645821aec1ea644bbb0b387b52367f209b52b5b08c64567",
+      "doc_hash": "d0f2e1f20764455763753813b50b2e47418f0726c38c16485e0d034193bb883d",
+      "target_hash": "eb8a1c4749a95cf5c431b222d6d2d7131910ae03d5fad94b0bc0120085364130",
+      "input_tokens": 63837,
+      "input_token_sha256": "058d41a5999df5d4d286a761fe44d0e1c91edd16e39b24897840140dc2fb25a0",
+      "targets": [
+        "3,384,569"
+      ],
+      "prediction": " 3,384,569",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.154
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 269,
+      "prompt_hash": "4d5e1368579535bc438b9e723d77524578bc4821d48a8433d952064c4334de99",
+      "doc_hash": "c2ed8427d7bed64b951f7dc7cf4aa41775accdf8ef8433dedda082c818afe253",
+      "target_hash": "333ce54273ab09c0d81a5bf555addbb8489e7a7a47e2fc46d7940c59eb5fefbf",
+      "input_tokens": 62596,
+      "input_token_sha256": "354fe50edc01c20027bb7d023074dd7753c1790d5116acfe1f71a205f200dcbf",
+      "targets": [
+        "Anna Clyne"
+      ],
+      "prediction": " Anna Clyne",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.792
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 270,
+      "prompt_hash": "a4ee6c8d7afd757841ae5412f767a2f746a0a969bf567f5392999f63997b9cc3",
+      "doc_hash": "d2033dabbe5ca6b3ec5ad9cf7a0b718432ddeb341916f038bc70f6e9b3994f02",
+      "target_hash": "01606de45a2f1c0de81e6c3d57112f994bddf5410929e90fc81d5ab1718f281b",
+      "input_tokens": 61946,
+      "input_token_sha256": "40d6188331124293b9007bcf18294e622de3053b63416837b70a4f1c465d0908",
+      "targets": [
+        "USS Essex"
+      ],
+      "prediction": " USS Essex (CV-9)",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.816
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 271,
+      "prompt_hash": "4e7e113d7c6f7d6f28a9d984907e5813a34d474e6ca897208c72dd1a2079eb94",
+      "doc_hash": "085b7b43ddb61e8150beb852c893b7a94f3dea28b2adf8d737e6508f471984f7",
+      "target_hash": "a314fedb4bce7ea032789fdb1234b665b68965c7f7cc29f2bf4fbf94eeeb9b34",
+      "input_tokens": 64518,
+      "input_token_sha256": "33ec5dfd478b7d9c59892c28263375761f3e7388f655a5954020caeeffd15f1b",
+      "targets": [
+        "yes"
+      ],
+      "prediction": " Yes",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.023
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 272,
+      "prompt_hash": "f23741561499b4c75c614f8d871b758c98fd40cdb813f07e233c79fa95dbe521",
+      "doc_hash": "d7d60431ab1c7629867810a2da99bf192b3f6526a37bdcd32fd3a4bc182f8254",
+      "target_hash": "a0267556e2e98ae6448d63d86806e9dfe4bc7eba163bd627e067f302b4a36848",
+      "input_tokens": 64480,
+      "input_token_sha256": "cba68f2ff298ef41fadfa19502749f8d2fa0b3916d4c09e7d47dbe5d5f7622a0",
+      "targets": [
+        "Catwoman"
+      ],
+      "prediction": " The movie is \"Lego Knights' Kingdom\" (based on the Lego Knights' Kingdom theme, though the document does not explicitly name the film, it states",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "length",
+      "elapsed_s": 8.802
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 273,
+      "prompt_hash": "eaf6a251fecfbd79047f1437be75a6de0d08063dc171cddd3c9deff70a1aba91",
+      "doc_hash": "17de3e4efdbbce2f989ec4cd9bab48f6047a3e5ff8578d890fd94bcfc27bae47",
+      "target_hash": "59f8e3d82e76b26c3bfb38678c8604a74211cae9c941f6f468da5888c0a18702",
+      "input_tokens": 62993,
+      "input_token_sha256": "58939958b434cbc418480b8311946f6acc90cc21a1c093ab21543166c636176f",
+      "targets": [
+        "7 miles"
+      ],
+      "prediction": " 7 miles",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.841
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 274,
+      "prompt_hash": "f1b2309799cd623a1cffbf97a999735caaeec540e990203dde9516e8f82c6e00",
+      "doc_hash": "f52c1164d5f9f59b401773dfb19a2c40337551578bf9d0bd80fba979d263f4ff",
+      "target_hash": "ac664805441a78e8d22d488c1af33326d85961fe31884d1263477d8d61b611ef",
+      "input_tokens": 65426,
+      "input_token_sha256": "7782586ca6c68c88f66bfd1d8f5d27804fccde34cad38f3842825c5db1c08fb3",
+      "targets": [
+        "Laura Ann Osnes"
+      ],
+      "prediction": " Laura Osnes",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.185
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 275,
+      "prompt_hash": "798c60df8c2425019f58ee55c68b206dfb10d73e90fc0e2ebf044a3270c1be0a",
+      "doc_hash": "14a15a687d7ad71f26e7454a1db3025f2d0536a7939a6e60cd079d26505d3508",
+      "target_hash": "d6ce741f343e4bc662a4b719bcaa42c3883a6915e4764a42b8b24566aa3509f2",
+      "input_tokens": 64000,
+      "input_token_sha256": "19eb6feb413db14f5baa776d346fb51d661c7573f265221103f1d628f2d85e5d",
+      "targets": [
+        "20"
+      ],
+      "prediction": " more than 20",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.981
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 276,
+      "prompt_hash": "f8205ba17f1680f83b0be90f17327cbf857489c8fb8ce945803eadf0818fdcc5",
+      "doc_hash": "0bc493bd08e3576daee1a65d30eb497bd6376d653a405800dc113c0706c4b948",
+      "target_hash": "9a661d11598d7981df6bcf17fd1a8e51e021201bb1fd74b7112341119ee83f2e",
+      "input_tokens": 65252,
+      "input_token_sha256": "76c6250ee2e7d76cf3dc0c494001e74830a6c2e5b7dfc2caaaa64ed34036f445",
+      "targets": [
+        "Eucryphia"
+      ],
+      "prediction": " Eucryphia",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.212
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 277,
+      "prompt_hash": "f62dcfced776cdf0870161ad8f2a3161c9a907ec420081b6a5b34282b40ae381",
+      "doc_hash": "473afd86a166aba8dd23d5c704cff54195a913f34bbd1d994d34f522417be576",
+      "target_hash": "e8d3bb75aecf9aca1f28f7fb5d4331a3f60b491f8348584910118f328d62df68",
+      "input_tokens": 61920,
+      "input_token_sha256": "b45e751dcbfd9f6a4dbd021838f2b00a16bcb947225860a62e32a91a29078dce",
+      "targets": [
+        "Venice"
+      ],
+      "prediction": " Venice",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.639
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 278,
+      "prompt_hash": "006b87a58acb2edce5f98b74774f029456243acef8e2178697bbf619e9f77055",
+      "doc_hash": "44938927b713d81f6a64fa695011ff9edb9c2a06a57cf33607173528d52a12dd",
+      "target_hash": "ec09da41fcaa70975c4726f8f62bfa51bb1eb9dd4fff37d6268123b37787fcb6",
+      "input_tokens": 61920,
+      "input_token_sha256": "725f7c3fdf724598ecfbc954f0d1d4a3f0fc7c5f89956cdae9ff494eeed9026f",
+      "targets": [
+        "Waimea Bay"
+      ],
+      "prediction": " Waimea Bay",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.697
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 279,
+      "prompt_hash": "01950e2d63958999215150c5c45bb0e1498bdeb30ad8d9d8e71907d0b9c19900",
+      "doc_hash": "c74e314b14da355589819599b67949dc6275c6f4aced617d3d6565ed1baa89ec",
+      "target_hash": "fd79433c57d32233290eba7ca1c72c53a4fc02065bccfc2d00a1ec2c8139ab24",
+      "input_tokens": 64343,
+      "input_token_sha256": "d4e70f5b276da1aeee3789c59df491323bc2b39a6524a19654d360143f2113ff",
+      "targets": [
+        "evangelical Christian periodical"
+      ],
+      "prediction": " Christianity Today",
+      "score": 0.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.004
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 280,
+      "prompt_hash": "443aff91ae664ad9765414fc5761d240c84ec6823b78080858a6c71e7945976b",
+      "doc_hash": "5533845905b7000f90326bfbec687bf75d9a5f652717b5af46092f89c82e8a7a",
+      "target_hash": "d3668c921ddec2c0e62b86367b1f35103d5a0384f30c282c25b4bc8b069fd266",
+      "input_tokens": 63486,
+      "input_token_sha256": "f32b2ed0aaec6058bafce3ca6b9667d8b5cdeb8e9a236fe2627b119eb2dac14f",
+      "targets": [
+        "James Franco"
+      ],
+      "prediction": " James Franco",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.871
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 281,
+      "prompt_hash": "a20ed3ffa32985158a6e0105fffe13f6e399ea8c10adfcf2c7890332f81d5649",
+      "doc_hash": "2fc65acd5acaad079cacfda29a0682feff1cbd333b2fb49879d5dd843aa641bd",
+      "target_hash": "5f7bff54fc1186017ecdaed39ea36c77f490d57ea7695ce7d0c33c46c4a364a7",
+      "input_tokens": 62664,
+      "input_token_sha256": "31e89397fd97b90c35d2d9ee63461997cdb3e1fc57157ece8fc6ba532a586a5b",
+      "targets": [
+        "DI Humphrey Goodman"
+      ],
+      "prediction": " DI Humphrey Goodman",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.825
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 282,
+      "prompt_hash": "24e123a21f700c8a652f63e686eb7b54bc291f90e471dcb30983bb2cd816da44",
+      "doc_hash": "be6e61ba9f3ba1ff0af6b7052cfeba8a324416c4480c657713fc15da065f8ce7",
+      "target_hash": "cd916a19340f6fa3508bca226ce41e0de29e1c0811dd6244fc4e5fdf469ea1d2",
+      "input_tokens": 64464,
+      "input_token_sha256": "3c833fc8b6e52e0c07a715f634774927849e751acaae4626ea99716e41c609d9",
+      "targets": [
+        "February"
+      ],
+      "prediction": " February",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.013
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 283,
+      "prompt_hash": "bc582be7382bc1db89d4d831d2eaf960515a2197e16cabfeee99244c3a09f537",
+      "doc_hash": "719ecbea7e39f2f525592f31353401d9c11f2460ff667aa94c407c3d8aebf43c",
+      "target_hash": "daacb61fa7a74474e0fcb668158eba3a8d400d79b789f098237f11e16e77bdfe",
+      "input_tokens": 61493,
+      "input_token_sha256": "1be59607b271e9df2c9f36a1f35641e87783db6c3190386917a140d8dda48b3e",
+      "targets": [
+        "Sacred Planet"
+      ],
+      "prediction": " Sacred Planet",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.621
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 284,
+      "prompt_hash": "2690dd35795d85966ee8028767690af42429bd65eb7f30d27d82d7010b7d0bb8",
+      "doc_hash": "f5a84457f35bd145b91d117e298b3633cb6d18cd0fb43c563f1104013a01c17e",
+      "target_hash": "9d0150168520c78ffbc430a4c7e65f7133c3c9b446f4206bbd4330e02d00d021",
+      "input_tokens": 62668,
+      "input_token_sha256": "21f3d9e87a3c0a3245617cf429ed973745af4202c5044252e211292131f9a403",
+      "targets": [
+        "Hanna"
+      ],
+      "prediction": " Hanna",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.751
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 285,
+      "prompt_hash": "ef263b8da1660ed27e55e2d074ac46e6f3a13eaf500c9a18761f2d4fc5d7fc64",
+      "doc_hash": "2fcbf22dbef5608d63b0e35fda4c947570ae55fb1dc2509024a6e2210875f9e0",
+      "target_hash": "c9619513a07f49757ceecb329fb7b650aad5001250cc46ceea7d3d1e2bc9799d",
+      "input_tokens": 62723,
+      "input_token_sha256": "5fd19abbfc30fd05ce1bd31d3b594480c1fa892a10e9d9447919be54a24634e0",
+      "targets": [
+        "Ferdi Taygan"
+      ],
+      "prediction": " Ferdi Taygan",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.869
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 286,
+      "prompt_hash": "0f98c3b7aeeb83ddd5e06d19deb34538b8d41138f67ae9391956ebee377d636d",
+      "doc_hash": "d4233c17edf6af03a381f4191198b64955bb1bf4ab78a36261ec6779c960c86d",
+      "target_hash": "3dd002f9b31e504cdf2b6e03af46b13cb23bbeda9fd6b1784f064a295878feb1",
+      "input_tokens": 64608,
+      "input_token_sha256": "69c712e2378d76253f7a646a4c63cd7e9c44120e83cbb3381f7d367a4c42b17f",
+      "targets": [
+        "paracyclist"
+      ],
+      "prediction": " Paracycling",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.072
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 287,
+      "prompt_hash": "c413581cfb2ad29f02613c2a683083b80242130fc36f6e8db3393ea5f6e0a956",
+      "doc_hash": "3b3a0ab4b2fea5745d25d3f8c68b07b14190226b3e58512d56b3041d2dc5ea1e",
+      "target_hash": "4dd472451f9ebdbf39f7ad6b7aa58a9735df9c89fb91756708ec243eff2d640e",
+      "input_tokens": 63855,
+      "input_token_sha256": "491125eb7a606675a0ba568a55b8fe9882ed7c226faf858fa7e8b2a8b8d9b496",
+      "targets": [
+        "The Dragon School in Oxford"
+      ],
+      "prediction": " The Dragon School in Oxford and Haileybury",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.137
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 288,
+      "prompt_hash": "5c367150f11405211d981e9a70eac2a777d162e65ef8175524f02c379e0ba801",
+      "doc_hash": "32469b008558455a53eadf8649bb2bb6def72bc535ec6be577c0f1135cd2d665",
+      "target_hash": "45f8aec3e4319d33ec8f663fe76edd597f0a036d083e54481f7b055cb6c0b943",
+      "input_tokens": 64661,
+      "input_token_sha256": "7365d5d3e4e8fcc6f0f66aa8af2559901a747b719182661d14a1dfbb83b0c55f",
+      "targets": [
+        "Suicide Kings"
+      ],
+      "prediction": " Suicide Kings",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.064
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 289,
+      "prompt_hash": "a95eef932270a4e06c4ce297c8abc9bd4174d525844209bf065c776f6c57d593",
+      "doc_hash": "8bb5b3177ab1787ec99222cf9e94fac16bd94fa019b99915d3bf602a661e6e09",
+      "target_hash": "24e37b91b6a351ca52808d0b69c359e7c4b64461da9586fb88a2c639995ef0d9",
+      "input_tokens": 60433,
+      "input_token_sha256": "5a84d569801e8bf97efd0cf793ecea2025369a41254e0b2116d51aa5be92b710",
+      "targets": [
+        "Hey Pa! There's a Goat on the Roof"
+      ],
+      "prediction": " Hey Pa! There's a Goat on the Roof",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.736
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 290,
+      "prompt_hash": "0629de4ba47fe690278029af4e22182ac2c6a8ad79ab2867fea2c85aa4c43ea6",
+      "doc_hash": "99a3341c4a57b064013e2c5c84b00366e0293c76febaec16df342211ddcef49c",
+      "target_hash": "b387ff33f3d34c5bb190a87b06001585391614976d3b530713e5fafc996e9235",
+      "input_tokens": 62887,
+      "input_token_sha256": "d70d988df5e8bacd507dc2769af519da96bb8d87b5885111b02e2a6fd2391a53",
+      "targets": [
+        "a record of 13\u20133"
+      ],
+      "prediction": " 13\u20133",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.169
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 291,
+      "prompt_hash": "706e4e61336c80c81949ffa4e5f4328fff0f70c26e6171fa2517e7d6bd64c20d",
+      "doc_hash": "bdbf1540b37ae63ed8f373e09c841791c144dd76d54013d099c17bd3a95494d2",
+      "target_hash": "09696b62095d5ccbca24bdfe96d4be66166bee5af3810dc2c890e7e9c8c712fd",
+      "input_tokens": 62862,
+      "input_token_sha256": "0084dbfb7b32130fa34b6b09e6ff9a5571c2a13869677a848225461849a95a8c",
+      "targets": [
+        "8,211 at the 2010 census"
+      ],
+      "prediction": " 8,211",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.116
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 292,
+      "prompt_hash": "365df8a68d3565cb21e8f31dfd1e47f20f48ba24855c6ca220ac67b222d4baeb",
+      "doc_hash": "893eb23324b94b391b3181f2bd9ac7b49fd37781f1fbd69dba6eafa277358d51",
+      "target_hash": "59fc15fe6d63b9c5d8dbee795d75cec56581a920b00a807fc22b08bd1b3c8cfd",
+      "input_tokens": 64450,
+      "input_token_sha256": "f36fde0f610005d43cd19a3fe374b9bac1842a806587621d587da52728eb47d1",
+      "targets": [
+        "The Crowned Prince of the Philadelphia Mob"
+      ],
+      "prediction": " The Crowned Prince of the Philadelphia Mob",
+      "score": 1.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.181
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 293,
+      "prompt_hash": "e77161ac2f7c0add45d271bd9a4c786754c0a7132d981f795a397b4d1b52a2ed",
+      "doc_hash": "47842c28c6594474b45cfa3b59a680c2d334e1b192db53d4eda7b395f076822a",
+      "target_hash": "7aa7bd820d96cae939ab1d91bb7a6592781d293bd54de7ce9de48a7feaf8f439",
+      "input_tokens": 62140,
+      "input_token_sha256": "e5b302a9dd243499ddcef21c885e3aba74daf99662c24f47ead9ccde7ee937ba",
+      "targets": [
+        "supervisor of the royal works"
+      ],
+      "prediction": " supervisor of the royal works",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.808
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 294,
+      "prompt_hash": "a95e074072eb74bf19f40a9c2b8e287ba8aa9078eec8e9c607751e8d7c142f6e",
+      "doc_hash": "ac9a153c1c56e7b1c411061c5efab9fbdb69b297f3ef1e8ae52a539644a685ac",
+      "target_hash": "35e639889ed407a4074b49f2d672b74b0ab6a0582bf44549d5f429084e6d9316",
+      "input_tokens": 62702,
+      "input_token_sha256": "878c9468618965a88fab6e0f3f4bfa2826006a487bc060cd4257f3606d73604c",
+      "targets": [
+        "Janet Damita Jo Jackson"
+      ],
+      "prediction": " Janet Jackson",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.789
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 295,
+      "prompt_hash": "a7914ab36cd78f41d085c62ec98dd6883cb90df064b93ce25d183582e97f21c6",
+      "doc_hash": "6c4ebc37a94a2d3abfc4896a058e472645ac762645414a11b615e59b63deb1da",
+      "target_hash": "e70370f5bb06eebe1c2931e08e0acaded0719f60565401b37f8824744058cd01",
+      "input_tokens": 65322,
+      "input_token_sha256": "9d94d98daa4a71e255c9a50ecc4fc54210ffbe65fe5362cbe29bc1e2a04752c0",
+      "targets": [
+        "Continental Army"
+      ],
+      "prediction": " Continental Army",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 8.163
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 296,
+      "prompt_hash": "c656a06771c40a9002003a4fb9ac8bb261de381771f033c40dd3f8b048be4294",
+      "doc_hash": "d25ce169de9de7b6615b3f1d8833579d338922179398a467fee8ec1ec2e17275",
+      "target_hash": "27634259dd4ee13a6f06f45ef5e69d92f6c8039f0977e5538a5efc65daa39169",
+      "input_tokens": 62835,
+      "input_token_sha256": "c169e77e26ce406b4331c7ce70aa9ec50213c6b0eed0232d72d8513b28b646a8",
+      "targets": [
+        "Macaronesia"
+      ],
+      "prediction": " Spain",
+      "score": 0.0,
+      "historical_two_tier_score": 0.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.781
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 297,
+      "prompt_hash": "40fd76747e46a9a0ce8a1e859aa1a0d3a5db15cd34c0d8d846fbc37a2fd9d77c",
+      "doc_hash": "f6aa1f323ceb072323b40c9d35aaadeb394909800db5a85eab7824db3d53e9fc",
+      "target_hash": "f5d00402216558bbbbfa4d78eb23044c815013927b2a07ccc06f78f29f241bcd",
+      "input_tokens": 61901,
+      "input_token_sha256": "437fccbb9cefcd05a9d98c9b7458fff3fd2fa9c593a0ce74c1cdb5e942d1cd07",
+      "targets": [
+        "Treaty of Gandamak"
+      ],
+      "prediction": " The Treaty of Gandamak",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.77
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 298,
+      "prompt_hash": "2a59e18118ad214a1f489dd3cd8cd6b955a58eab3ed7c46b0be5e7cda967725b",
+      "doc_hash": "6a8de8af9d0e49b5831537a88a7c52ed82f3318aabdfe3452718c95f634e00e1",
+      "target_hash": "84fc8dd1a274beb86fdf72c695b4d2f5eff78c657ebfba9fc05fa82ed9ed5e61",
+      "input_tokens": 61185,
+      "input_token_sha256": "dafb99566db84b7d623531fb0d619cb329d2e3e8c56ee43b6059c09ac66a36ab",
+      "targets": [
+        "Oregon"
+      ],
+      "prediction": " Oregon",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.584
+    },
+    {
+      "task": "ruler_qa_hotpot",
+      "doc_id": 299,
+      "prompt_hash": "c9f034c8e037f582b4d3597304127d9f60fcfdfcba40e3f8cb1055f6733311c4",
+      "doc_hash": "e9b62644c41cda25493c9026fdf45152f1e93b61668ce44774b71c7cb7bd886a",
+      "target_hash": "97c8fe53b5f427e9299038a7aa0d09ccaa908be733e5ae33198cb281f082099f",
+      "input_tokens": 61538,
+      "input_token_sha256": "256ca5cc29404488e5bcb6eaa3c0f0402abc407176937774beca9a6e6a9ca7e3",
+      "targets": [
+        "early 1970s"
+      ],
+      "prediction": " during the early 1970s",
+      "score": 1.0,
+      "historical_two_tier_score": 1.0,
+      "finish_reason": "stop",
+      "elapsed_s": 7.818
+    }
+  ],
+  "task_scores": {
+    "ruler_qa_hotpot": 70.0
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "rope_scaling": {
+    "rope_type": "yarn",
+    "factor": 4.0,
+    "original_max_position_embeddings": 32768
+  },
+  "context_limit": 128000,
+  "methods": [
+    "lod",
+    "dense",
+    "subset-512",
+    "subset-2048"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 128000,
+      "prefill_token_id": 10091,
+      "input_token_sha256": "ee9a8a059d6c59c8325b707e22db829a02e61356c81be9736fa52b39a51d847f",
+      "decoders": {
+        "lod": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8183,
+            "eager_argmax": 8183
+          },
+          "windows": [
+            {
+              "seconds": 4.427046316995984,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.440840267008753,
+              "steps": 512,
+              "cache_update_events": 72
+            },
+            {
+              "seconds": 4.451766226993641,
+              "steps": 512,
+              "cache_update_events": 72
+            }
+          ],
+          "median_decode_ms": 8.67351614650147
+        },
+        "dense": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8183,
+            "eager_argmax": 8183,
+            "graph_argmax_by_request": [
+              8183
+            ],
+            "eager_argmax_by_request": [
+              8183
+            ]
+          },
+          "windows": [
+            {
+              "seconds": 7.086320986985811,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 7.096298532997025,
+              "steps": 512,
+              "cache_update_events": 0
+            },
+            {
+              "seconds": 7.10761762400216,
+              "steps": 512,
+              "cache_update_events": 0
+            }
+          ],
+          "median_decode_ms": 13.859958072259815
+        },
+        "subset-512": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8183,
+            "eager_argmax": 8183
+          },
+          "windows": [
+            {
+              "seconds": 17.512915209008497,
+              "steps": 512,
+              "cache_update_events": 4
+            },
+            {
+              "seconds": 17.49523106800916,
+              "steps": 512,
+              "cache_update_events": 4
+            },
+            {
+              "seconds": 17.545668453996768,
+              "steps": 512,
+              "cache_update_events": 4
+            }
+          ],
+          "median_decode_ms": 34.20491251759472,
+          "last_layer_selected_prefix_counts": [
+            512,
+            512,
+            510,
+            508,
+            507,
+            508,
+            505,
+            509
+          ]
+        },
+        "subset-2048": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8183,
+            "eager_argmax": 8183
+          },
+          "windows": [
+            {
+              "seconds": 17.361189243005356,
+              "steps": 512,
+              "cache_update_events": 4
+            },
+            {
+              "seconds": 17.381253158993786,
+              "steps": 512,
+              "cache_update_events": 4
+            },
+            {
+              "seconds": 17.403547516994877,
+              "steps": 512,
+              "cache_update_events": 4
+            }
+          ],
+          "median_decode_ms": 33.94776007615974,
+          "last_layer_selected_prefix_counts": [
+            2048,
+            2047,
+            2044,
+            2044,
+            2041,
+            2044,
+            2046,
+            2043
+          ]
+        }
+      }
+    }
+  ]
+}

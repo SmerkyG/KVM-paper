@@ -1,0 +1,102 @@
+{
+  "batch_size": 1,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      },
+      "python": "3.12.13"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_file_count": 217,
+      "source_sha256": "2affa319f5f92c7a3f7a8054189c73024b7f6ebd55ac48a5282a0fc1ca051e3a"
+    }
+  },
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_routes": null,
+  "decode_threshold_entry_block": 32,
+  "decode_threshold_entry_warps": 4,
+  "decode_threshold_implementation": "legacy",
+  "decode_threshold_multiplier": 16.0,
+  "decode_threshold_rule": "region",
+  "decode_threshold_splits": 64,
+  "decode_threshold_tile": 64,
+  "decode_threshold_union": false,
+  "decode_tokens": 1025,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.7,
+  "measure": "speed",
+  "measurements": {
+    "65536": {
+      "cohort_decode_timings_seconds": [
+        29.949618922546506,
+        29.937817154452205
+      ],
+      "cohort_prefill_timings_seconds": [
+        7.953368999063969,
+        7.958217121660709
+      ],
+      "decode_ms_per_batch_step": 29.241912146972027,
+      "decode_timings_seconds": [
+        29.949618922546506,
+        29.937817154452205
+      ],
+      "decode_tokens_per_second": 34.19749006063371,
+      "first_mismatch_positions": [
+        [
+          57
+        ],
+        [
+          null
+        ]
+      ],
+      "greedy_output_identical": false,
+      "output_token_sha256": [
+        [
+          "b699442d9ad3828e4c4a34f3a60ce41801fc6bfd3d1b9138708d5cb157304330"
+        ],
+        [
+          "7289dee91d97367b66763b3e110cf2983032c96c6b5f29f75f3e6fb760f83020"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 8237.519440584247,
+      "prefill_seconds": 7.955793060362339,
+      "prefill_timings_seconds": [
+        7.953368999063969,
+        7.958217121660709
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "7289dee91d97367b66763b3e110cf2983032c96c6b5f29f75f3e6fb760f83020"
+      ]
+    }
+  },
+  "mode": "two-tier",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16385,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 1,
+  "tensor_parallel_size": 1
+}

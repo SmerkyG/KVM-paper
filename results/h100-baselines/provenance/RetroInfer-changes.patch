@@ -1,0 +1,13 @@
+diff --git a/library/retroinfer/setup.py b/library/retroinfer/setup.py
+index 5aa2de2..5b71291 100644
+--- a/library/retroinfer/setup.py
++++ b/library/retroinfer/setup.py
+@@ -9,7 +9,7 @@ ext_modules = [
+     CppExtension(
+         'retroinfer_kernels.WaveBuffer',
+         sources=[f'{src_dir}/wave_buffer_cpu.cpp'],
+-        include_dirs=['/usr/local/cuda-12/include'],
++        include_dirs=['/usr/local/cuda-12.4/include'],
+         library_dirs=['/usr/local/lib'],
+         extra_compile_args=['-O3', '-fopenmp'],
+         extra_link_args=['-fopenmp'],

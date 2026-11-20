@@ -1,0 +1,156 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-full",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": false,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": true,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "decode_threshold": {
+    "implementation": "materialized",
+    "rule": "region",
+    "multiplier": 16.0,
+    "entry_bound": 16,
+    "work_bound": 16,
+    "tile": 64,
+    "splits": 32,
+    "entry_block": 32,
+    "shared_entry_block": 64,
+    "shared_pack_workers": 16,
+    "shared_pack_shards": 4,
+    "shared_precise": true,
+    "merge_block": 0,
+    "three_tier_workers": 32,
+    "three_tier_page_warps": 1,
+    "three_tier_cached_means": true,
+    "three_tier_pages": 2,
+    "page_threshold_multiplier": null,
+    "page_threshold_rule": null,
+    "page_query": null,
+    "page_residual": null,
+    "page_threshold_warps": 4,
+    "selected_region_cap": null
+  },
+  "prefill_threshold": null,
+  "prompt_tokens": 65536,
+  "manifest": "/home/ubuntu/comparison/results/threshold-next-scaling-prompts.json",
+  "manifest_sha256": "54062a5cc6def39ddfaec7a312b78c5f178ff034642ddade20f8c69fe7010252",
+  "prompt_token_sha256": "8160ddf14d64449dfbbf0c4462cfe49a78ced64189d58c8cd602d141b3bc0d2f",
+  "output_tokens": 2,
+  "prefill_includes_deferred_cache_completion": false,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 8192,
+  "records": [
+    {
+      "prefill_s": 4.924778000000515,
+      "decode_s": 0.010719275000155903,
+      "capture_s": 0.16822556200349936,
+      "cache_init_s": 0.12438562500028638,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16095143424,
+        "after_run_before_collection": 16162252288,
+        "after_run_after_collection": 16162252288,
+        "peak_allocated": 27101268480
+      },
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 10.719275000155903,
+      "decode_ms_per_token": 10.719275000155903,
+      "decode_tokens_per_second": 93.28989133924223
+    },
+    {
+      "prefill_s": 4.768545989005361,
+      "decode_s": 0.010748464999778662,
+      "capture_s": 0.13777246799872955,
+      "cache_init_s": 0.08868250100204023,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16162252288,
+        "after_run_before_collection": 16162252288,
+        "after_run_after_collection": 16162252288,
+        "peak_allocated": 27134822912
+      },
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.748464999778662,
+      "decode_ms_per_token": 10.748464999778662,
+      "decode_tokens_per_second": 93.03654056840605
+    },
+    {
+      "prefill_s": 4.752249908997328,
+      "decode_s": 0.010794120003993157,
+      "capture_s": 0.14289570500113769,
+      "cache_init_s": 0.07817691899981583,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16162252288,
+        "after_run_before_collection": 16162252288,
+        "after_run_after_collection": 16162252288,
+        "peak_allocated": 27134822912
+      },
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.794120003993157,
+      "decode_ms_per_token": 10.794120003993157,
+      "decode_tokens_per_second": 92.64303154217869
+    },
+    {
+      "prefill_s": 4.7523551819977,
+      "decode_s": 0.010696459998143837,
+      "capture_s": 0.12745272099709837,
+      "cache_init_s": 0.08347060599771794,
+      "decode_warmup_s": 0.0,
+      "output_token_ids": [
+        2628,
+        2628
+      ],
+      "memory_bytes": {
+        "before_cache_init": 16162252288,
+        "after_run_before_collection": 16162252288,
+        "after_run_after_collection": 16162252288,
+        "peak_allocated": 27134822912
+      },
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 10.696459998143837,
+      "decode_ms_per_token": 10.696459998143837,
+      "decode_tokens_per_second": 93.48887390534163
+    }
+  ],
+  "median_decode_ms_per_batch_step": 10.748464999778662,
+  "median_decode_tokens_per_second": 93.03654056840605,
+  "median_decode_ms_per_token": 10.748464999778662,
+  "median_prefill_s": 4.7523551819977
+}

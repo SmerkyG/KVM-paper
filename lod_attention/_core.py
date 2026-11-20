@@ -42,6 +42,7 @@ from .kernels.lod_kernels import (
     route_logits_hierarchical_topk,
     split_append_merge_topk,
     streaming_state_maxsim,
+    state_score_max,
     tiled_dot_maxsim,
 )
 from ._tensor_ops import (
@@ -79,6 +80,7 @@ class TritonLODAttentionCore(nn.Module):
     prefill_overlap_exact_state = False
     exact_decode_limit = 0
     prefill_local_attention_backend = "torch"
+    prefill_cuda_route_coarse = False
     decode_state_update_len = 256
     decode_cache_headroom = 256
     state_growth_factor = 16.0
@@ -651,6 +653,28 @@ class TritonLODAttentionCore(nn.Module):
             raise ValueError("state clustering role must be leaf or centroid")
         if purpose not in {"append", "assignment"}:
             raise ValueError("state clustering purpose must be append or assignment")
+        if (os.environ.get('LOD_H100_STATE_FUSED_RESCALE')=='1' and torch.version.hip is None
+                and key.is_cuda and key.dtype==torch.bfloat16 and key.ndim==4
+                and key.size(-1)==128 and key.stride(-1)==1 and query_scale is None
+                and role=='centroid' and self.state_clustering_normalization=='none'
+                and self.state_clustering_centroid_rescale=='coherence'
+                and self.state_clustering_centroid_rescale_scope in ('all',purpose)
+                and not self.state_clustering_radial_bias and not self.state_clustering_rope_fast_pairs
+                and getattr(self,'mla_state_key_normalization','none')=='none'
+                and radial_rms is not None and radial_rms.shape==(*key.shape[:-1],1)
+                and radial_rms.dtype in (torch.float32,torch.bfloat16)):
+            from .kernels.state_rescale import rescale
+            return rescale(key,radial_rms)
+        if (os.environ.get('LOD_H100_STATE_FUSED_RMS')=='1'
+                and torch.version.hip is None and torch.__version__.startswith('2.5.')
+                and key.is_cuda and key.dtype==torch.bfloat16 and key.ndim==4
+                and key.size(-1)==128 and key.stride(-1)==1 and key.numel()//128>=16
+                and query_scale is None and self.state_clustering_normalization=='cosine'
+                and self.state_clustering_centroid_rescale=='none'and not self.state_clustering_radial_bias
+                and not self.state_clustering_rope_fast_pairs
+                and getattr(self,'mla_state_key_normalization','none')=='none'):
+            from .kernels.state_rms import normalize
+            return normalize(key,style=3)
         if query_scale is not None:
             if int(query_scale.size(-2)) == int(key.size(-1)):
                 clustering_key = torch.matmul(
@@ -2011,7 +2035,7 @@ class TritonLODAttentionCore(nn.Module):
                             append_select_k.detach(),
                             purpose="assignment",
                         )
-                        appended_scores, appended_relative = appended_logits.max(dim=-1)
+                        appended_scores, appended_relative = state_score_max(appended_logits)
                     appended_destination = appended_relative + current_state_len
                     use_appended = appended_scores > merge_old_scores
                     destination = torch.where(
@@ -2308,7 +2332,7 @@ class TritonLODAttentionCore(nn.Module):
             )
 
         with torch.no_grad():
-            if query_len > 1 and self.prefill_aiter_route_coarse:
+            if query_len > 1 and (self.prefill_aiter_route_coarse or self.prefill_cuda_route_coarse):
                 if protected_len != 0:
                     raise RuntimeError(
                         "AITER route/coarse prefill requires the separate sink cache"
@@ -2331,16 +2355,19 @@ class TritonLODAttentionCore(nn.Module):
                         "AITER route/coarse prefill does not support MLA key "
                         "normalization"
                     )
-                from .kernels.aiter_prefill_attention import (
-                    aiter_prefill_route_coarse_attention,
-                )
+                if self.prefill_cuda_route_coarse:
+                    from .kernels.cuda_prefill_attention import cuda_prefill_route_coarse_attention as fused_route_coarse
+                else:
+                    from .kernels.aiter_prefill_attention import aiter_prefill_route_coarse_attention as fused_route_coarse
+                    if os.environ.get("LOD_AMD_PREFILL_THRESHOLD"):
+                        from .kernels.threshold_prefill import threshold_prefill_route_coarse_attention as fused_route_coarse
 
                 (
                     routed,
                     coarse,
                     route_head_counts,
                     route_offsets,
-                ) = aiter_prefill_route_coarse_attention(
+                ) = fused_route_coarse(
                     q.contiguous(),
                     state_k.detach().contiguous(),
                     state_v.detach().contiguous(),
@@ -2348,7 +2375,8 @@ class TritonLODAttentionCore(nn.Module):
                     state_len=state_len,
                     kv_group_size=self.num_key_value_groups,
                     scale=self.scaling,
-                    normalize_route_query=self.routing_normalization == "query",
+                    normalize_route_query=(self.routing_normalization == "query" or bool(
+                        self.prefill_aiter_route_coarse and os.environ.get("LOD_AMD_PREFILL_THRESHOLD"))),
                     # Rank the same top eight as the uncapped calculation.
                     # Oversized winners are closed immediately after routing.
                     max_open_leaf_tokens=None,
@@ -2358,6 +2386,8 @@ class TritonLODAttentionCore(nn.Module):
                 self._lod_prefill_aiter_coarse = coarse
                 self._lod_prefill_route_head_counts = route_head_counts
                 self._lod_prefill_route_offsets = route_offsets
+                if coarse.route_counts is not None:
+                    self._lod_prefill_exact_route_counts = coarse.route_counts
                 return routed
 
             logits = self._state_routing_logits(
@@ -3478,11 +3508,20 @@ class TritonLODAttentionCore(nn.Module):
             ),
         }
         route_head_counts = getattr(self, "_lod_prefill_route_head_counts", None)
+        route_counts = getattr(self, "_lod_prefill_exact_route_counts", None)
+        if route_counts is not None:
+            del self._lod_prefill_exact_route_counts
+            leaf_kwargs["route_counts"] = route_counts
+            leaf_kwargs["persistent_workers"] = int(os.environ.get("LOD_AMD_PREFILL_WORKERS", "608"))
+            leaf_kwargs["variable_reduce_backend"] = os.environ.get("LOD_AMD_PREFILL_REDUCE", "bucket")
         if route_head_counts is not None:
             del self._lod_prefill_route_head_counts
         route_offsets = getattr(self, "_lod_prefill_route_offsets", None)
         if route_offsets is not None:
             del self._lod_prefill_route_offsets
+        total_valid_routes = getattr(self, "_lod_prefill_total_valid_routes", None)
+        if total_valid_routes is not None:
+            del self._lod_prefill_total_valid_routes
         if bool(cache.get("quantization_finalized", False)):
             leaf_kwargs.update(
                 quantized_leaf_k=cache.get("quantized_leaf_k"),
@@ -3514,6 +3553,7 @@ class TritonLODAttentionCore(nn.Module):
             active_slots=active_slots,
             route_head_counts=route_head_counts,
             route_offsets=route_offsets,
+            total_valid_routes=total_valid_routes,
             reduce_routes=reduce_routes,
             scale=self.scaling,
             **leaf_kwargs,
@@ -3654,6 +3694,26 @@ class TritonLODAttentionCore(nn.Module):
         output_buffer: torch.Tensor | None = None,
         context_len: int | None = None,
     ) -> torch.Tensor:
+        if self.prefill_aiter_route_coarse and os.environ.get("LOD_AMD_PREFILL_THRESHOLD") and int(q.size(2)) > 1:
+            tile = int(os.environ.get("LOD_AMD_PREFILL_QUERY_TILE", "4096"))
+            if tile < 2:
+                raise ValueError("AMD threshold prefill query tile must be >= 2")
+            if int(q.size(2)) > tile:
+                if local_branch is None:
+                    raise RuntimeError("threshold prefill tiling requires the split local branch")
+                result = torch.empty_like(q) if output_buffer is None else output_buffer
+                begin = 0
+                while begin < int(q.size(2)):
+                    end = min(begin + tile, int(q.size(2)))
+                    if int(q.size(2)) - end == 1:
+                        end -= 1
+                    self._two_level_attention(q[..., begin:end, :], local_k, local_v, state_k, state_v, counts,
+                        owners, exact_k, exact_v, key_norm_sums=key_norm_sums, state_len=state_len,
+                        state_capacity=state_capacity, page_cache=page_cache, local_len=local_len,
+                        new_k=new_k, new_v=new_v, local_branch=(local_branch[0][..., begin:end, :], local_branch[1][..., begin:end]),
+                        sink_k=sink_k, sink_v=sink_v, output_buffer=result[..., begin:end, :], context_len=context_len)
+                    begin = end
+                return result
         del owners, exact_k, exact_v
         q = q.contiguous()
         # The persistent MLA key buffers intentionally hold raw compressed
@@ -3719,7 +3779,9 @@ class TritonLODAttentionCore(nn.Module):
                 state_len=state_len,
                 page_cache=page_cache,
             )
-            if self.max_open_centroid_leaves is not None:
+            threshold_coarse = getattr(self, "_lod_prefill_aiter_coarse", None)
+            threshold_filtered = threshold_coarse is not None and threshold_coarse.closed_regions_only
+            if self.max_open_centroid_leaves is not None and not threshold_filtered:
                 if page_cache is None or not isinstance(
                     page_cache.get("slot_lengths"), torch.Tensor
                 ):
@@ -3747,7 +3809,7 @@ class TritonLODAttentionCore(nn.Module):
                 ):
                     if hasattr(self, name):
                         delattr(self, name)
-            if getattr(self, "_lod_padding_state_reserve", 0):
+            if getattr(self, "_lod_padding_state_reserve", 0) and not threshold_filtered:
                 query_counts = self._repeat_kv(counts[..., :state_len, :]).squeeze(-1)
                 safe_slots = top_slots.clamp_min(0)
                 selected_counts = torch.gather(
@@ -4187,7 +4249,7 @@ class TritonLODAttentionCore(nn.Module):
                 top_slots,
                 page_cache,
                 active_slots=state_len,
-                reduce_routes=aiter_coarse is None,
+                reduce_routes=(aiter_coarse is None or aiter_coarse.closed_regions_only),
             )
         if aiter_coarse is None:
             has_exact = top_slots.ge(0).any(dim=-1)
@@ -4290,7 +4352,7 @@ class TritonLODAttentionCore(nn.Module):
         valid_starts: torch.Tensor | None = None,
         output_buffer: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        if valid_starts is None and self.prefill_local_attention_backend == "aiter":
+        if causal and valid_starts is None and self.prefill_local_attention_backend in ("aiter", "flash_attn"):
             # The exact front is ordinary causal GQA. Reuse the native-GQA CK
             # path used by the local branch instead of physically repeating
             # K/V once per query head for PyTorch SDPA.
@@ -4304,7 +4366,7 @@ class TritonLODAttentionCore(nn.Module):
             )
             return output
         if output_buffer is not None:
-            raise ValueError("direct exact-attention output requires AITER")
+            raise ValueError("direct exact-attention output requires a native flash backend")
         k = self._mla_normalize_key(k, state_centroid=False)
         if valid_starts is not None:
             query_len = int(q.size(2))
@@ -4416,6 +4478,18 @@ class TritonLODAttentionCore(nn.Module):
                 torch.cat(output_tiles, dim=2),
                 torch.cat(lse_tiles, dim=2),
             )
+        if self.prefill_local_attention_backend == "flash_attn":
+            from .kernels.cuda_prefill_attention import cuda_local_attention
+            key_len = int(k.size(2))
+            target_len = key_len - query_offset
+            if int(q.size(2)) == key_len:
+                actual_q = q[..., query_offset:, :]
+            elif int(q.size(2)) == target_len:
+                actual_q = q
+            else:
+                raise ValueError("CUDA local attention requires full-field or suffix queries")
+            return cuda_local_attention(actual_q, k, v, scale=self.scaling,
+                                        output_buffer=output_buffer, return_lse=return_lse)
         if self.prefill_local_attention_backend == "aiter":
             original_dlopen_flags = sys.getdlopenflags()
             deepbind = getattr(os, "RTLD_DEEPBIND", 0)
@@ -5596,7 +5670,7 @@ class TritonLODAttentionCore(nn.Module):
             exact_query_offset = int(exact_k.size(2)) - front_query_end
             exact_q = (
                 suffix_query
-                if self.prefill_local_attention_backend == "aiter"
+                if self.prefill_local_attention_backend in ("aiter", "flash_attn")
                 else torch.cat(
                     (
                         q.new_zeros(*q.shape[:2], exact_query_offset, int(q.size(-1))),
@@ -5642,7 +5716,7 @@ class TritonLODAttentionCore(nn.Module):
             local_v = working_v[..., local_begin:local_end, :]
             query_prefix_len = absolute_query_begin - state_coverage
             suffix_query = q[..., query_begin:query_end, :]
-            if self.prefill_local_attention_backend == "aiter":
+            if self.prefill_local_attention_backend in ("aiter", "flash_attn"):
                 local_query = suffix_query
             else:
                 local_query = torch.cat(

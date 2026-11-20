@@ -1,0 +1,122 @@
+{
+  "benchmark": "h100-fused-prefill-tiles",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.13.0",
+        "transformers": "5.15.0",
+        "triton": "3.7.1",
+        "vllm": "0.27.1"
+      },
+      "python": "3.12.16"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": null,
+      "source_file_count": 56,
+      "source_sha256": "e7ff8df6b2db083452d0d8b331a4cf8abfe1a9a5dfaf75e5883466603e28a0b5"
+    }
+  },
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "measurements": [
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "milliseconds": 26.575304898348723,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "milliseconds": 25.732671009410513,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 32,
+      "block_n": 256,
+      "milliseconds": 41.31667698451451,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "milliseconds": 6.631120508367365,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 9.56625712076823,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 13.158216441761363,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 2048
+    },
+    {
+      "block_m": 32,
+      "block_n": 64,
+      "milliseconds": 52.87441223144531,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 32,
+      "block_n": 128,
+      "milliseconds": 51.0792529296875,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 32,
+      "block_n": 256,
+      "milliseconds": 82.54436594645182,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 64,
+      "milliseconds": 13.310261813077059,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 18.781113891601564,
+      "num_warps": 4,
+      "queries": 16384,
+      "states": 4096
+    },
+    {
+      "block_m": 64,
+      "block_n": 128,
+      "milliseconds": 26.14533386230469,
+      "num_warps": 8,
+      "queries": 16384,
+      "states": 4096
+    }
+  ],
+  "node": "jl-vm-565590",
+  "stage": "complete"
+}

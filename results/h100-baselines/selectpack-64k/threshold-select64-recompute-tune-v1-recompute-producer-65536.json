@@ -1,0 +1,192 @@
+{
+  "stage": "complete",
+  "scope": "Tune fused closed selection on live 64K inputs, without saved Q/K/V snapshots.",
+  "fixture": {
+    "query_shape": [
+      1,
+      32,
+      4096,
+      128
+    ],
+    "regions": 2896,
+    "mean_opened_regions": 15.891128540039062
+  },
+  "records": [
+    {
+      "m": 32,
+      "n": 64,
+      "aggregate": false,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 3.3272510528564454,
+      "samples_ms": [
+        3.3402881622314453,
+        3.3272510528564454,
+        3.31962890625
+      ],
+      "max_abs_error": 0.0,
+      "max_lse_error": 0.0
+    },
+    {
+      "m": 16,
+      "n": 64,
+      "aggregate": false,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 4.446758270263672,
+      "samples_ms": [
+        4.436876678466797,
+        4.448076629638672,
+        4.446758270263672
+      ],
+      "max_abs_error": 0.0,
+      "max_lse_error": 0.0
+    },
+    {
+      "m": 16,
+      "n": 128,
+      "aggregate": false,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 3.389273452758789,
+      "samples_ms": [
+        3.389273452758789,
+        3.3998462677001955,
+        3.373696136474609
+      ],
+      "max_abs_error": 4.969164729118347e-05,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 32,
+      "n": 128,
+      "aggregate": false,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 2.9604736328125,
+      "samples_ms": [
+        2.9531904220581056,
+        2.9631040573120115,
+        2.9604736328125
+      ],
+      "max_abs_error": 4.969164729118347e-05,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 64,
+      "n": 64,
+      "aggregate": false,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 4.709920120239258,
+      "samples_ms": [
+        4.709920120239258,
+        4.710412979125977,
+        4.665222549438477
+      ],
+      "max_abs_error": 4.470348358154297e-08,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 32,
+      "n": 64,
+      "aggregate": true,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 4.168710327148437,
+      "samples_ms": [
+        4.182009506225586,
+        4.168710327148437,
+        4.160416030883789
+      ],
+      "max_abs_error": 0.0,
+      "max_lse_error": 0.0
+    },
+    {
+      "m": 32,
+      "n": 128,
+      "aggregate": true,
+      "warps": 4,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 3.7087680816650392,
+      "samples_ms": [
+        3.757894515991211,
+        3.7087680816650392,
+        3.7043136596679687
+      ],
+      "max_abs_error": 4.969164729118347e-05,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 16,
+      "n": 128,
+      "aggregate": false,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 5.505337524414062,
+      "samples_ms": [
+        5.554841613769531,
+        5.505337524414062,
+        5.503206253051758
+      ],
+      "max_abs_error": 4.969164729118347e-05,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 32,
+      "n": 128,
+      "aggregate": false,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 3.9722366333007812,
+      "samples_ms": [
+        3.9650943756103514,
+        3.973292922973633,
+        3.9722366333007812
+      ],
+      "max_abs_error": 4.969164729118347e-05,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 16,
+      "n": 256,
+      "aggregate": false,
+      "warps": 4,
+      "stages": 1,
+      "valid": true,
+      "median_ms": 4.581638336181641,
+      "samples_ms": [
+        4.63201904296875,
+        4.581638336181641,
+        4.579353713989258
+      ],
+      "max_abs_error": 4.9874186515808105e-05,
+      "max_lse_error": 1.9073486328125e-06
+    },
+    {
+      "m": 32,
+      "n": 64,
+      "aggregate": false,
+      "warps": 8,
+      "stages": 2,
+      "valid": true,
+      "median_ms": 5.016486358642578,
+      "samples_ms": [
+        5.03955192565918,
+        5.016486358642578,
+        4.966764831542969
+      ],
+      "max_abs_error": 4.470348358154297e-08,
+      "max_lse_error": 1.9073486328125e-06
+    }
+  ]
+}

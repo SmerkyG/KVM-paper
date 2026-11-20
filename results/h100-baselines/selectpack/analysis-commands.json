@@ -1,0 +1,51 @@
+{
+  "cpu_only": true,
+  "commands": [
+    [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      "/usr/bin/python3",
+      "python",
+      "-m",
+      "benchmarks.h100_three_tier_repair_collect",
+      "--host",
+      "ubuntu@217.18.55.35",
+      "--prefix",
+      "threshold-next-selectpack",
+      "--directory",
+      "results/h100-baselines/selectpack"
+    ],
+    [
+      "uv",
+      "run",
+      "--offline",
+      "--no-project",
+      "--python",
+      ".venv/bin/python",
+      "python",
+      "-m",
+      "benchmarks.h100_prefill_select_report",
+      "--directory",
+      "results/h100-baselines/selectpack"
+    ]
+  ],
+  "source_sha256": {
+    "benchmarks/h100_threshold_prefill_scan.py": "d78c20563184bcf94e17ed3f08321aac0467f141e211c6613a6c846cd13342ed",
+    "benchmarks/h100_threshold_prefill_fast.py": "557bb219834d8f48a17dcbc35d8d3f3eac86995ff91632c466d7c4151cf5c605",
+    "benchmarks/h100_threshold_prefill_bias.py": "618a51e6199202d50e9cad7ef107b38499cccd30d069a2e996cd1fef409f0a50",
+    "benchmarks/h100_threshold_fast_check.py": "227778c61031e22b135a412833d75612752969da32127b7203d857f280015b5a",
+    "benchmarks/h100_prefill_select_probe.py": "358401350d2c3556e4438d2b77e6ff8c029b5c026446cd28ed6f8d332de26323",
+    "benchmarks/h100_prefill_select_submit.py": "645cc5d5e0e4cdd0e4e58a41c7dd79b982ef2416591568e6da2a6c3db04fb6f9",
+    "benchmarks/h100_prefill_select_report.py": "b7b6bcb997e62326d1342910b1aeaf54b110b213db333cee2603ba567442274a",
+    "benchmarks/h100_comparison.py": "29b0163c9c756e747fa19a383c37d7f8b749e6759d05fbdf73270639ceeecabc",
+    "benchmarks/retro_ruler_run.py": "4159030e57cb5e087141a875237ba15dd041b32f01807ea6aedcf42c5a804903"
+  },
+  "kernel_sources_match_final_automatic_verification": true,
+  "verification_run": "1794317301909012248-threshold-next-selectpack-final-default-v1-automatic-128000-verify",
+  "report_sha256": "8048c7a7d6c102e69f7d292b2b6c5d3c7bc543b8be1ce6b2b7c9ab24ef03528b",
+  "raw_result_hashes": "SUMMARY.json:input_sha256",
+  "gpu_experiment_commands": "provenance/*/run.json:command"
+}

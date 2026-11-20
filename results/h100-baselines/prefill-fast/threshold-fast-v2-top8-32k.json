@@ -1,0 +1,132 @@
+{
+  "measurement_scope": "full-model inference",
+  "method": "retro-lod-bf16",
+  "model": "meta-llama/Llama-3.1-8B-Instruct",
+  "checkpoint": "/home/ubuntu/.cache/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659",
+  "lod_cuda_graph": true,
+  "quest_cuda_graph": false,
+  "squeezed_cuda_graph": false,
+  "squeezed_index": null,
+  "squeezed_index_read_s": null,
+  "squeezed_offline_clustering_s": null,
+  "squeezed_threshold_percentile": null,
+  "squeezed_cluster_fraction_pct": null,
+  "squeezed_observation_window": null,
+  "squeezed_batch_implementation": null,
+  "multipole_cuda_graph": false,
+  "multipole_budget": null,
+  "multipole_cluster_seed": null,
+  "native_cuda_graph": false,
+  "replay_prompt_tokens": true,
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prefill_threshold": null,
+  "prompt_tokens": 32768,
+  "manifest": "/home/ubuntu/lod-h100/results/prompts-b1.json",
+  "output_tokens": 2,
+  "decode_warmup_steps": 0,
+  "timed_decode_steps": 1,
+  "quest_budget_ratio": null,
+  "quest_budget_tokens": null,
+  "quest_shared_kv": false,
+  "quest_batch_implementation": null,
+  "prefill_mlp_chunk": 65536,
+  "records": [
+    {
+      "prefill_s": 2.446943585993722,
+      "decode_s": 0.008406371998717077,
+      "capture_s": 0.20026358700124547,
+      "cache_init_s": 0.26222699199570343,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 0,
+      "warmup": true,
+      "decode_ms_per_batch_step": 8.406371998717077,
+      "decode_ms_per_token": 8.406371998717077,
+      "decode_tokens_per_second": 118.95738139504333
+    },
+    {
+      "prefill_s": 1.655662321994896,
+      "decode_s": 0.008384065004065633,
+      "capture_s": 0.1524792830023216,
+      "cache_init_s": 0.010513460991205648,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 1,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.384065004065633,
+      "decode_ms_per_token": 8.384065004065633,
+      "decode_tokens_per_second": 119.27388438842927
+    },
+    {
+      "prefill_s": 1.6632437840016792,
+      "decode_s": 0.008379146995139308,
+      "capture_s": 0.1491723630024353,
+      "cache_init_s": 0.009890480010653846,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 2,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.379146995139308,
+      "decode_ms_per_token": 8.379146995139308,
+      "decode_tokens_per_second": 119.34389032440818
+    },
+    {
+      "prefill_s": 1.6642435480025597,
+      "decode_s": 0.008589409000705928,
+      "capture_s": 0.15213590799248777,
+      "cache_init_s": 0.010279915994033217,
+      "decode_warmup_s": 0.0,
+      "lod_route_geometry": {
+        "group_size": 32,
+        "warps": 1,
+        "reduce_warps": 4,
+        "page_block": 16
+      },
+      "lod_layer_catch_up_events_timed": 0,
+      "output_token_ids": [
+        489,
+        489
+      ],
+      "iteration": 3,
+      "warmup": false,
+      "decode_ms_per_batch_step": 8.589409000705928,
+      "decode_ms_per_token": 8.589409000705928,
+      "decode_tokens_per_second": 116.42244535308706
+    }
+  ],
+  "median_decode_ms_per_batch_step": 8.384065004065633,
+  "median_decode_tokens_per_second": 119.27388438842927,
+  "median_decode_ms_per_token": 8.384065004065633,
+  "median_prefill_s": 1.6632437840016792
+}

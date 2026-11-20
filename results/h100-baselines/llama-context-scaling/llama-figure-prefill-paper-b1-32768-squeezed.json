@@ -1,0 +1,48 @@
+{
+  "stage": "complete",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+  "dtype": "bfloat16",
+  "batch_size": 1,
+  "prompt_tokens": 32768,
+  "prefill": "dense causal",
+  "method": "squeezed",
+  "requested_centroids": null,
+  "input_token_sha256": "2e98c060e0551c9d71530a0b1c6089892e60c2ec720459d45874ef62c7370fef",
+  "records": [
+    {
+      "prefill_s": 7.324570176002453,
+      "dense_prompt_s": 1.7272666040007607,
+      "index_calibration_install_s": 5.597303572001692,
+      "first_token_ids": [
+        489
+      ],
+      "initial_centroids": 1633,
+      "iteration": 0,
+      "warmup": true
+    },
+    {
+      "prefill_s": 2.7874392480007373,
+      "dense_prompt_s": 1.5544933939963812,
+      "index_calibration_install_s": 1.232945854004356,
+      "first_token_ids": [
+        489
+      ],
+      "initial_centroids": 1633,
+      "iteration": 1,
+      "warmup": false
+    },
+    {
+      "prefill_s": 2.8031062180016306,
+      "dense_prompt_s": 1.561275164000108,
+      "index_calibration_install_s": 1.2418310540015227,
+      "first_token_ids": [
+        489
+      ],
+      "initial_centroids": 1633,
+      "iteration": 2,
+      "warmup": false
+    }
+  ],
+  "median_prefill_s": 2.795272733001184
+}

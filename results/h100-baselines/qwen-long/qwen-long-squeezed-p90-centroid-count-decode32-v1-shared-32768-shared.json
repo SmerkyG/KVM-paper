@@ -1,0 +1,236 @@
+{
+  "stage": "complete",
+  "model_name": "Qwen/Qwen3-8B",
+  "model_revision": "b968826d9c46dd6066d109eabc6255188de91218",
+  "dtype": "bfloat16",
+  "rope_max_position_embeddings": 40960,
+  "batch_size": 1,
+  "rope_scaling": null,
+  "context_limit": 32768,
+  "methods": [
+    "squeezed-1531-p90",
+    "squeezed-2900-p90"
+  ],
+  "prefill": "shared optimized two-tier threshold LoD",
+  "timing": "decode-only; contiguous teacher-forced windows; cache writes and required updates included",
+  "timing_prefix_length": 30720,
+  "warmup_steps": 512,
+  "dense_kv_source": null,
+  "captures_host_kv": true,
+  "cohort_sha256": null,
+  "records": [
+    {
+      "task": "prolong-timing",
+      "input_tokens": 30720,
+      "prefill_token_id": 13311,
+      "input_token_sha256": "96b5ff56d0b2a24956920e4031f82158e91407b83dc6e866611a841ab9c6c46f",
+      "decoders": {
+        "squeezed-1531-p90": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8610,
+            "eager_argmax": 8610
+          },
+          "windows": [
+            {
+              "seconds": 5.398550516998512,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                1531,
+                1531
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 2275.3115234375,
+                "min": 101,
+                "max": 16797
+              }
+            },
+            {
+              "seconds": 5.415560913999798,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                1531,
+                1531
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 2591.2822265625,
+                "min": 101,
+                "max": 14950
+              }
+            },
+            {
+              "seconds": 5.445568822000496,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                1531,
+                1531
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 3100.25,
+                "min": 101,
+                "max": 12622
+              }
+            }
+          ],
+          "median_decode_ms": 10.577267410155855,
+          "last_layer_selected_prefix_counts": [
+            1124,
+            124,
+            856,
+            1043,
+            169,
+            374,
+            194,
+            176,
+            2193,
+            2401,
+            2106,
+            5278,
+            5201,
+            2199,
+            8053,
+            4329,
+            101,
+            163,
+            135,
+            800,
+            1353,
+            254,
+            3947,
+            270,
+            594,
+            2132,
+            867,
+            1745,
+            109,
+            733,
+            173,
+            198
+          ],
+          "squeezed_index": {
+            "seconds": 60.200229688000945,
+            "clusters": 1531,
+            "cluster_percent": 5.0,
+            "threshold": {
+              "0.5": 4.359309855317406e-07,
+              "0.7": 2.2074859771237243e-06,
+              "0.8": 5.420361958385911e-06,
+              "0.9": 1.8613245629239827e-05
+            },
+            "observation_window": 100,
+            "reused": false
+          }
+        },
+        "squeezed-2900-p90": {
+          "graph_check": {
+            "max_abs": 0.0,
+            "mean_abs": 0.0,
+            "graph_argmax": 8610,
+            "eager_argmax": 8610
+          },
+          "windows": [
+            {
+              "seconds": 5.810211235000679,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 2111.8056640625,
+                "min": 101,
+                "max": 17677
+              }
+            },
+            {
+              "seconds": 5.830397236999488,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 2349.223876953125,
+                "min": 101,
+                "max": 15114
+              }
+            },
+            {
+              "seconds": 5.85996405700098,
+              "steps": 512,
+              "cache_update_events": 0,
+              "last_layer_centroid_slots_per_kv_head": [
+                2900,
+                2900
+              ],
+              "selected_prefix_tokens_per_query_head": {
+                "mean": 2821.2568359375,
+                "min": 101,
+                "max": 13111
+              }
+            }
+          ],
+          "median_decode_ms": 11.387494603514625,
+          "last_layer_selected_prefix_counts": [
+            2435,
+            204,
+            619,
+            895,
+            230,
+            157,
+            560,
+            140,
+            3117,
+            2932,
+            3056,
+            5015,
+            6071,
+            2231,
+            7733,
+            4257,
+            101,
+            130,
+            129,
+            303,
+            1588,
+            343,
+            2867,
+            142,
+            600,
+            1763,
+            834,
+            2344,
+            120,
+            1180,
+            156,
+            326
+          ],
+          "squeezed_index": {
+            "seconds": 107.73412937800094,
+            "clusters": 2900,
+            "cluster_percent": 9.470934030045722,
+            "threshold": {
+              "0.5": 3.5967656231150613e-07,
+              "0.7": 1.8799978874994744e-06,
+              "0.8": 4.734263256978011e-06,
+              "0.9": 1.658043038332835e-05
+            },
+            "observation_window": 100,
+            "reused": false
+          },
+          "lookup_only_ms_per_token": {
+            "1531": 0.9787139892578125,
+            "2900": 1.7525800466537476
+          }
+        }
+      },
+      "elapsed_s": 232.26402402300027
+    }
+  ]
+}

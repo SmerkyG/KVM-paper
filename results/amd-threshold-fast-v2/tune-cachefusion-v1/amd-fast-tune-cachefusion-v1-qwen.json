@@ -1,0 +1,2514 @@
+{
+  "stage": "complete",
+  "scope": "Tune attention using frozen real-model queries and semantic KV snapshots.\n\nThe model itself and cache catch-up are excluded. Every measured invocation\nincludes the complete attention pipeline and identical local-length rollback.\n",
+  "inputs": [
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-00.pt",
+      "sha256": "d68c166479a69a8bff2f210622d1cf11e31554db7c5bbf30a511feac1d35eeed"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-08.pt",
+      "sha256": "6f3d3861af8c63208a33b43aa190808f3fd9a05646da0e82861a668248311083"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-15.pt",
+      "sha256": "80584f3563d986dda72af00f33822dc90efca8f5999f27334cce0c4d2a9bdca8"
+    }
+  ],
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 84.2656393845876,
+      "repetitions_us": [
+        84.2656393845876,
+        84.27564303080241,
+        84.24689372380574
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": []
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 70.12351353963216,
+      "repetitions_us": [
+        70.12351353963216,
+        70.16205787658691,
+        70.12185454368591
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 7.478749999999991,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold_pack",
+          "device_us": 12.318874999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.114000000000013,
+          "calls": 1.0
+        },
+        {
+          "name": "_compact_leaves",
+          "device_us": 25.62862499999998,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 7.599000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 6.233874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 5.069000000000006,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 50.960640112559,
+      "repetitions_us": [
+        51.567718386650085,
+        50.960640112559,
+        50.94230671723684
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.243874999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.523875000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.944000000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 21.023749999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.213874999999984,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.288999999999994,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 48.49608242511749,
+      "repetitions_us": [
+        49.11399384339651,
+        48.476919531822205,
+        48.49608242511749
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.234000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.678749999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.813999999999988,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 21.15387499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.138875000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.273875000000011,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 50.39772888024648,
+      "repetitions_us": [
+        51.161885261535645,
+        50.39772888024648,
+        50.39523045221964
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.274000000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.738875000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.893874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 22.933750000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.164000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.283875000000005,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 56.198492646217346,
+      "repetitions_us": [
+        56.18224541346232,
+        56.198492646217346,
+        56.22078478336334
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.44399999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.513749999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.863874999999988,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 21.07874999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.178875000000019,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.273999999999997,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 49.975027640660606,
+      "repetitions_us": [
+        49.94502663612366,
+        49.987733364105225,
+        49.975027640660606
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.2688749999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.558875000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.798875000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 19.983874999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.4888749999999895,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.2940000000000005,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 49.43378269672394,
+      "repetitions_us": [
+        49.99023675918579,
+        49.43378269672394,
+        49.29191370805105
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.408999999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.703750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.889000000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.723874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.308749999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.298999999999992,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 51.4681339263916,
+      "repetitions_us": [
+        51.42105122407278,
+        51.50917669137319,
+        51.4681339263916
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.414,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.663749999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.843999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 23.198750000000018,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.253874999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.293999999999993,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 56.65995180606842,
+      "repetitions_us": [
+        56.86307450135549,
+        56.65995180606842,
+        56.61557118097941
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.469000000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.208625000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.8789999999999925,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.663749999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.31900000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.323999999999998,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 49.39920206864675,
+      "repetitions_us": [
+        49.95127518971761,
+        49.29503798484802,
+        49.39920206864675
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.203875000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.523875,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.873999999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 19.343624999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.498999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.2790000000000035,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 49.35253659884135,
+      "repetitions_us": [
+        49.26212131977081,
+        49.45420225461324,
+        49.35253659884135
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.433750000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.699000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.813999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.798625,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.379000000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.283999999999999,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 51.37105782826742,
+      "repetitions_us": [
+        52.18521257241567,
+        51.307931542396545,
+        51.37105782826742
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.398874999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.688875000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.944000000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 23.198625000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.224000000000011,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.309000000000012,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 57.03932046890259,
+      "repetitions_us": [
+        57.18744297822317,
+        56.934321920077004,
+        57.03932046890259
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.39887499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.43874999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.839000000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.613750000000014,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.384000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.289000000000014,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 81.20736479759216,
+      "repetitions_us": [
+        81.20736479759216,
+        81.18341366449992,
+        81.20903372764587
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 4.9738749999999925,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold",
+          "device_us": 33.28862500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 7.913999999999991,
+          "calls": 1.0
+        },
+        {
+          "name": "_scan_groups",
+          "device_us": 5.903999999999984,
+          "calls": 1.0
+        },
+        {
+          "name": "_pack_selected",
+          "device_us": 4.373999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "_expand_pages",
+          "device_us": 7.108875000000012,
+          "calls": 1.0
+        },
+        {
+          "name": "_leaves",
+          "device_us": 8.484000000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 9.623750000000033,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 4.709000000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.3638749999999895,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 68.84334484736125,
+      "repetitions_us": [
+        68.87813409169515,
+        68.84334484736125,
+        68.79501044750214
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 7.563875000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold_pack",
+          "device_us": 12.293875000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.173999999999989,
+          "calls": 1.0
+        },
+        {
+          "name": "_compact_leaves",
+          "device_us": 24.418625000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 7.653874999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 6.318875000000016,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.259,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 51.006476084391274,
+      "repetitions_us": [
+        51.006476084391274,
+        51.02355281511942,
+        50.94689130783081
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.25387499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.593874999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.824000000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 21.32875,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.183875000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.284000000000004,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 48.06171854337057,
+      "repetitions_us": [
+        48.0710913737615,
+        48.06171854337057,
+        48.04880420366923
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.323874999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.768874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.798999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.728625,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.059000000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.269000000000018,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 48.83400102456411,
+      "repetitions_us": [
+        48.820038636525474,
+        48.863584796587624,
+        48.83400102456411
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.2639999999999985,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.75375,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.878999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 21.533749999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.103874999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.27400000000001,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 55.834958950678505,
+      "repetitions_us": [
+        55.83225190639496,
+        55.834958950678505,
+        55.83704014619192
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.414000000000008,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.26375,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.793999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.688749999999985,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.063875000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.278999999999989,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 49.83398814996084,
+      "repetitions_us": [
+        49.83503123124441,
+        49.816906452178955,
+        49.83398814996084
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.233874999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.598874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.803874999999991,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 19.843749999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.608999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.313999999999991,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 49.20565585295359,
+      "repetitions_us": [
+        49.453785022099815,
+        49.15962119897207,
+        49.20565585295359
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.28875,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.718999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.0238749999999985,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.87375000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.269000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.294000000000004,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 49.1829514503479,
+      "repetitions_us": [
+        49.28691188494364,
+        49.1829514503479,
+        49.14420346419016
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.278750000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.714000000000015,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.848750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.758874999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.273999999999983,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.3089999999999975,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 56.946193178494774,
+      "repetitions_us": [
+        57.515352964401245,
+        56.946193178494774,
+        56.93994462490082
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.358999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.58362499999999,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.053999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 20.828750000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.28400000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.298875000000004,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 47.194644808769226,
+      "repetitions_us": [
+        47.194644808769226,
+        47.14923103650411,
+        47.212560971577965
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.238999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.533874999999986,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 6.0138750000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 17.12375,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.563875000000012,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.3039999999999985,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 46.31944994131724,
+      "repetitions_us": [
+        46.216949820518494,
+        46.326527992884316,
+        46.31944994131724
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.313999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.733875000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.853999999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 18.18374999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.398999999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.308874999999999,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 47.42443064848582,
+      "repetitions_us": [
+        47.42443064848582,
+        47.26006090641022,
+        47.428389390309654
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.333874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.688749999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.843999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 19.168750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.304000000000011,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.3190000000000115,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 53.99998525778452,
+      "repetitions_us": [
+        53.88893187046051,
+        53.99998525778452,
+        54.09873525301615
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0009765625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.418750000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.629,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.934000000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 18.13862500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.443999999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.289000000000005,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 92.04889337221782,
+      "repetitions_us": [
+        92.00828274091084,
+        92.04889337221782,
+        92.05701947212219
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": []
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "indexed",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 72.56725927193959,
+      "repetitions_us": [
+        72.58871694405873,
+        72.56725927193959,
+        72.48913745085399
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {},
+      "profile": [
+        {
+          "name": "_scores",
+          "device_us": 7.508999999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "_threshold_pack",
+          "device_us": 12.263750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "_coarse_select_gqa",
+          "device_us": 8.244,
+          "calls": 1.0
+        },
+        {
+          "name": "_compact_leaves",
+          "device_us": 27.91362500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "_local",
+          "device_us": 7.623999999999995,
+          "calls": 1.0
+        },
+        {
+          "name": "_merge_append",
+          "device_us": 6.178874999999994,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.258875,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 54.518312215805054,
+      "repetitions_us": [
+        54.449766874313354,
+        54.540395736694336,
+        54.518312215805054
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.24400000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.604000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 5.943874999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 24.523874999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.233750000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.283875000000004,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 52.7710368235906,
+      "repetitions_us": [
+        52.7710368235906,
+        52.73457864920298,
+        52.81249682108561
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.353999999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.74375000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.833999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 25.183625000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.1840000000000135,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.299000000000008,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 53.77051730950674,
+      "repetitions_us": [
+        53.77051730950674,
+        53.82592479387919,
+        53.7561426560084
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.313999999999998,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.748875000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.818999999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 26.603625,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.158999999999988,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.2189999999999905,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 2,
+      "microseconds": 60.51010390122732,
+      "repetitions_us": [
+        60.4537824789683,
+        60.51010390122732,
+        60.5109433333079
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 132,
+        "spills": 0,
+        "shared": 2048
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.4188749999999954,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.408749999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.843874999999988,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 25.10875,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.163999999999991,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.279,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 53.83310715357462,
+      "repetitions_us": [
+        53.87727419535319,
+        53.82289985815684,
+        53.83310715357462
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.178999999999997,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.549000000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 6.074000000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 24.28862500000001,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.439000000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.303624999999995,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 54.31414643923441,
+      "repetitions_us": [
+        54.513717691103615,
+        54.31414643923441,
+        53.832064072291054
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.338874999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.723875000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.894000000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 25.248625000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.279000000000012,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.2940000000000005,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 55.083503325780235,
+      "repetitions_us": [
+        55.21621803442637,
+        55.04350860913595,
+        55.083503325780235
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.329,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.653750000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.913874999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 27.038624999999996,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.2690000000000055,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.308999999999999,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 16,
+      "entry_warps": 1,
+      "microseconds": 61.370725433031716,
+      "repetitions_us": [
+        61.26864751180013,
+        61.50676806767782,
+        61.370725433031716
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 120,
+        "spills": 0,
+        "shared": 64
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.428749999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.253750000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.87900000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 25.53375000000001,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.253999999999987,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.288999999999991,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 55.23809293905894,
+      "repetitions_us": [
+        55.23809293905894,
+        55.162464578946434,
+        55.27580281098684
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 0,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 6.349000000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.528999999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 6.168750000000005,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 24.863875000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.448750000000006,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.293999999999999,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 55.527254939079285,
+      "repetitions_us": [
+        55.73767423629761,
+        55.527254939079285,
+        55.39329846700033
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.359000000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.773625,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.859000000000009,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 26.813625000000002,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.269000000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.294000000000004,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 56.72244727611542,
+      "repetitions_us": [
+        56.625997026761375,
+        56.89369638760885,
+        56.72244727611542
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 0,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 4
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.368875000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 10.663999999999993,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.858874999999992,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 28.238750000000003,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.318875000000011,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.30387500000001,
+          "calls": 1.0
+        }
+      ]
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "cached",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 32,
+      "entry_warps": 1,
+      "microseconds": 63.035915295283,
+      "repetitions_us": [
+        63.035915295283,
+        62.970906496047974,
+        63.056960701942444
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_FUSE_LOCAL": 1,
+        "LOD_AMD_THRESHOLD_GRID_SWAP": 1,
+        "LOD_AMD_THRESHOLD_CACHE_CG": 1,
+        "LOD_AMD_THRESHOLD_PACK_WARPS": 16
+      },
+      "kernel_resources": {
+        "registers": 193,
+        "spills": 0,
+        "shared": 128
+      },
+      "profile": [
+        {
+          "name": "scores_lse",
+          "device_us": 5.523874999999999,
+          "calls": 1.0
+        },
+        {
+          "name": "pack",
+          "device_us": 18.503750000000018,
+          "calls": 1.0
+        },
+        {
+          "name": "coarse",
+          "device_us": 4.8340000000000085,
+          "calls": 1.0
+        },
+        {
+          "name": "leaves",
+          "device_us": 27.073750000000004,
+          "calls": 1.0
+        },
+        {
+          "name": "merge_split_d",
+          "device_us": 4.303875000000007,
+          "calls": 1.0
+        },
+        {
+          "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)",
+          "device_us": 4.288999999999991,
+          "calls": 1.0
+        }
+      ]
+    }
+  ],
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=64633739-3233-6161-6664-333365373962, pci_bus_id=117, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "b36d2b939f4f7c0cf473d4978dbfc37ec6ceaca3e0de2d8b0e3cf0344669add0",
+      "source_file_count": 225
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

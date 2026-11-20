@@ -1,0 +1,114 @@
+{
+  "batch_size": 1,
+  "benchmark": "prolong",
+  "benchmark_identity": {
+    "runtime": {
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      },
+      "python": "3.12.13"
+    },
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_file_count": 232,
+      "source_sha256": "9086f9b263a06cfae7d6874429de6830048ffa0fd5b0c50464618f82d9911aff"
+    }
+  },
+  "checkpoint": "Qwen/Qwen3.8-27B-FP8",
+  "dataset": "Seerkfang/prolong-64k-512-new",
+  "dataset_revision": "97295b7d7fe48dc0aa6ba373af3a8b9d945e505b",
+  "decode_routes": null,
+  "decode_threshold_entry_block": 64,
+  "decode_threshold_entry_warps": 4,
+  "decode_threshold_implementation": "materialized",
+  "decode_threshold_multiplier": 16.0,
+  "decode_threshold_options": {
+    "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+    "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+    "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+    "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+    "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32",
+    "LOD_AMD_THRESHOLD_MULTIPLIER": "16",
+    "LOD_AMD_THRESHOLD_PRECISE": "0",
+    "LOD_AMD_THRESHOLD_SPLITS": "128",
+    "LOD_AMD_THRESHOLD_TILE": "64"
+  },
+  "decode_threshold_rule": "region",
+  "decode_threshold_splits": 128,
+  "decode_threshold_tile": 64,
+  "decode_threshold_union": false,
+  "decode_tokens": 1025,
+  "dummy_attention": false,
+  "gpu_memory_utilization": 0.7,
+  "measure": "speed",
+  "measurements": {
+    "65536": {
+      "cohort_decode_timings_seconds": [
+        29.13804541528225,
+        29.11042794585228
+      ],
+      "cohort_prefill_timings_seconds": [
+        7.986872775480151,
+        7.990620605647564
+      ],
+      "decode_ms_per_batch_step": 28.44163738336647,
+      "decode_timings_seconds": [
+        29.13804541528225,
+        29.11042794585228
+      ],
+      "decode_tokens_per_second": 35.159719762998954,
+      "first_mismatch_positions": [
+        [
+          null
+        ],
+        [
+          null
+        ]
+      ],
+      "greedy_output_identical": true,
+      "output_token_sha256": [
+        [
+          "93c31b14630487838bac50c2b0cfcd32c84778e56ed39288d6b3caf91ddb189b"
+        ],
+        [
+          "93c31b14630487838bac50c2b0cfcd32c84778e56ed39288d6b3caf91ddb189b"
+        ]
+      ],
+      "prefill_prompt_tokens_per_second": 8203.539621228667,
+      "prefill_seconds": 7.9887466905638576,
+      "prefill_timings_seconds": [
+        7.986872775480151,
+        7.990620605647564
+      ],
+      "prompts": [
+        {
+          "request_index": 0,
+          "source_stream_indices": [
+            0
+          ],
+          "token_sha256": "60616cd41a41250e75d360dc85c4b1105fc54e1702c226b3091d45421c20437e",
+          "unique_16_token_block_ratio": 1.0
+        }
+      ],
+      "speculative_measurements": [],
+      "warmup_output_token_sha256": [
+        "93c31b14630487838bac50c2b0cfcd32c84778e56ed39288d6b3caf91ddb189b"
+      ]
+    }
+  },
+  "mode": "two-tier",
+  "num_speculative_tokens": null,
+  "scheduler_budget_tokens": 16385,
+  "scheduler_chunk_tokens": 16384,
+  "scheduler_cls": "vllm_lod_plugin.scheduler.LODChunkAlignedScheduler",
+  "seed": 0,
+  "speculative_model": null,
+  "speed_samples": 1,
+  "tensor_parallel_size": 1
+}

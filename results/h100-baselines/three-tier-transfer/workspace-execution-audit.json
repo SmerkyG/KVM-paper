@@ -1,0 +1,10 @@
+{
+  "representative_run": "1794269681785424557-three-tier-v2-three-tier-bf16-32k-threshold",
+  "files_checked": 49,
+  "workspace_mismatches": [],
+  "postrun_change_outside_batch_one_execution": {
+    "path": "benchmarks/retro_lod_batch_adapter.py",
+    "change": "Reject H100 threshold settings in the unsupported batch adapter before GPU setup",
+    "cpu_configuration_check": "passed"
+  }
+}

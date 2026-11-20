@@ -1,0 +1,34 @@
+{
+  "source": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/debug-v8/source",
+  "jobs": [
+    {
+      "id": "24755-amd-qwen-prefill-pack-debug-v8",
+      "command": [
+        "cluster-run",
+        "--detach",
+        "--num-gpus",
+        "1",
+        "--name",
+        "amd-qwen-prefill-pack-debug-v8",
+        "--",
+        "env",
+        "PYTHONPATH=/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/debug-v8/source:/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/debug-v8/source/integrations/vllm_lod",
+        "LOD_AMD_PREFILL_DEBUG=1",
+        "uv",
+        "run",
+        "--offline",
+        "--no-project",
+        "--python",
+        "/home/dan/subusers/agent/.venvs/vllm-rocm-0.27.1/bin/python",
+        "python",
+        "-m",
+        "benchmarks.amd_threshold_prefill_check",
+        "--backend",
+        "blas",
+        "--output",
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/debug-v8/check.json"
+      ],
+      "output": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-prefill/debug-v8/check.json"
+    }
+  ]
+}

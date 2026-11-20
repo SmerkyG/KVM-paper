@@ -1,0 +1,445 @@
+{
+  "stage": "complete",
+  "scope": "Tune attention using frozen real-model queries and semantic KV snapshots.\n\nThe model itself and cache catch-up are excluded. Every measured invocation\nincludes the complete attention pipeline and identical local-length rollback.\n",
+  "inputs": [
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-00.pt",
+      "sha256": "d68c166479a69a8bff2f210622d1cf11e31554db7c5bbf30a511feac1d35eeed"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-08.pt",
+      "sha256": "6f3d3861af8c63208a33b43aa190808f3fd9a05646da0e82861a668248311083"
+    },
+    {
+      "path": "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/amd-threshold-fast-v2/capture-v1/snapshots/qwen/layer-15.pt",
+      "sha256": "80584f3563d986dda72af00f33822dc90efca8f5999f27334cce0c4d2a9bdca8"
+    }
+  ],
+  "records": [
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 84.27850405375163,
+      "repetitions_us": [
+        84.27536487579346,
+        84.27850405375163,
+        84.31809147198994
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 34.97535487016042,
+      "repetitions_us": [
+        35.44138620297114,
+        34.97535487016042,
+        34.96577093998591
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "0",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 40.96773515144984,
+      "repetitions_us": [
+        41.46272440751394,
+        40.96356779336929,
+        40.96773515144984
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0001220703125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 40.98732272783915,
+      "repetitions_us": [
+        40.985651314258575,
+        40.98732272783915,
+        41.010441879431404
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0001220703125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 0,
+      "layer_name": "language_model.model.layers.3.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 34.90993628899256,
+      "repetitions_us": [
+        34.88347431023916,
+        34.92139528195063,
+        34.90993628899256
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.00390625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "0",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 81.31652573744456,
+      "repetitions_us": [
+        81.3359022140503,
+        81.2690258026123,
+        81.31652573744456
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 33.57870876789093,
+      "repetitions_us": [
+        33.57870876789093,
+        33.58892103036245,
+        33.57787926991781
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.015625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "0",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 35.55784374475479,
+      "repetitions_us": [
+        35.55992245674133,
+        35.54805119832357,
+        35.55784374475479
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 35.5559637149175,
+      "repetitions_us": [
+        35.54951151212057,
+        35.56659320990244,
+        35.5559637149175
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.001953125,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 8,
+      "layer_name": "language_model.model.layers.35.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 33.536421755949654,
+      "repetitions_us": [
+        33.54683766762415,
+        33.50850443045298,
+        33.536421755949654
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.015625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "0",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "legacy",
+      "tile": 64,
+      "splits": 64,
+      "entry_block": 32,
+      "entry_warps": 4,
+      "microseconds": 92.24756558736165,
+      "repetitions_us": [
+        92.25943684577942,
+        92.22943584124248,
+        92.24756558736165
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0,
+      "extra_settings": {}
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 38.87590020895004,
+      "repetitions_us": [
+        38.87590020895004,
+        38.879441718260445,
+        38.86027634143829
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "0",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 40.86169848839442,
+      "repetitions_us": [
+        40.87419807910919,
+        40.837948520978294,
+        40.86169848839442
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.000244140625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 40.85378100474676,
+      "repetitions_us": [
+        40.839401384194694,
+        40.85378100474676,
+        40.85378100474676
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.000244140625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "1",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    },
+    {
+      "layer": 15,
+      "layer_name": "language_model.model.layers.63.self_attn.attn",
+      "rule": "region",
+      "implementation": "materialized",
+      "tile": 64,
+      "splits": 128,
+      "entry_block": 64,
+      "entry_warps": 4,
+      "microseconds": 38.86778155962626,
+      "repetitions_us": [
+        38.86778155962626,
+        38.84236514568329,
+        38.88777643442154
+      ],
+      "selection_mismatches": 0,
+      "max_abs_vs_legacy": 0.0625,
+      "extra_settings": {
+        "LOD_AMD_THRESHOLD_IMPLEMENTATION": "materialized",
+        "LOD_AMD_THRESHOLD_TILE": "64",
+        "LOD_AMD_THRESHOLD_SPLITS": "128",
+        "LOD_AMD_THRESHOLD_ENTRY_BLOCK": "64",
+        "LOD_AMD_THRESHOLD_ENTRY_WARPS": "4",
+        "LOD_AMD_THRESHOLD_PRECISE": "0",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_SHARDS": "8",
+        "LOD_AMD_THRESHOLD_MATERIALIZE_WARPS": "1",
+        "LOD_AMD_THRESHOLD_MERGE_BLOCK": "32"
+      }
+    }
+  ],
+  "skipped": [],
+  "hardware": "_CudaDeviceProperties(name='AMD Instinct MI325X', major=9, minor=4, gcnArchName='gfx942:sramecc+:xnack-', total_memory=262128MB, multi_processor_count=304, uuid=32666235-3632-6661-3530-663930396565, pci_bus_id=117, pci_device_id=0, pci_domain_id=0, L2_cache_size=4MB)",
+  "benchmark_identity": {
+    "schema": 1,
+    "source": {
+      "git_commit": "78cf5161cfd16a209a59e9ca16e250451e1bac3f",
+      "source_sha256": "6423527fc6a3ae9ac4cfea046af93aee9e103f6fc9a1adfc3c3cf2f697199b6f",
+      "source_file_count": 233
+    },
+    "runtime": {
+      "python": "3.12.13",
+      "packages": {
+        "aiter": null,
+        "torch": "2.11.0+gitd0c8b1f",
+        "transformers": "5.15.0",
+        "triton": "3.6.0",
+        "vllm": "0.27.1+rocm723"
+      }
+    }
+  }
+}

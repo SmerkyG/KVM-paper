@@ -1,0 +1,306 @@
+{
+  "stage": "complete",
+  "examples_per_task": 32,
+  "models": {
+    "qwen": {
+      "mean": {
+        "archived_dense": 96.14983974358974,
+        "legacy": 94.99198717948718,
+        "optimized": 94.67147435897436,
+        "delta_points": -0.3205128205128205
+      },
+      "improved": 6,
+      "declined": 5,
+      "paired_bootstrap_95_interval_points": [
+        -1.4823717948717947,
+        0.7411858974358974
+      ],
+      "tasks": [
+        {
+          "task": "niah_single_1",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_single_2",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_single_3",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 96.875,
+          "delta_points": -3.125,
+          "improved": 0,
+          "declined": 1
+        },
+        {
+          "task": "niah_multikey_1",
+          "archived_dense": 100.0,
+          "archived_top8": 96.875,
+          "legacy": 100.0,
+          "optimized": 96.875,
+          "delta_points": -3.125,
+          "improved": 0,
+          "declined": 1
+        },
+        {
+          "task": "niah_multikey_2",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 96.875,
+          "optimized": 100.0,
+          "delta_points": 3.125,
+          "improved": 1,
+          "declined": 0
+        },
+        {
+          "task": "niah_multikey_3",
+          "archived_dense": 100.0,
+          "archived_top8": 96.875,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multiquery",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multivalue",
+          "archived_dense": 100.0,
+          "archived_top8": 99.21875,
+          "legacy": 100.0,
+          "optimized": 99.21875,
+          "delta_points": -0.78125,
+          "improved": 0,
+          "declined": 1
+        },
+        {
+          "task": "ruler_cwe",
+          "archived_dense": 99.6875,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "ruler_fwe",
+          "archived_dense": 100.0,
+          "archived_top8": 98.95833333333334,
+          "legacy": 97.91666666666666,
+          "optimized": 100.0,
+          "delta_points": 2.0833333333333335,
+          "improved": 2,
+          "declined": 0
+        },
+        {
+          "task": "ruler_qa_hotpot",
+          "archived_dense": 75.0,
+          "archived_top8": 62.5,
+          "legacy": 65.625,
+          "optimized": 59.375,
+          "delta_points": -6.25,
+          "improved": 0,
+          "declined": 2
+        },
+        {
+          "task": "ruler_qa_squad",
+          "archived_dense": 75.26041666666666,
+          "archived_top8": 78.38541666666666,
+          "legacy": 74.47916666666666,
+          "optimized": 78.38541666666666,
+          "delta_points": 3.90625,
+          "improved": 3,
+          "declined": 0
+        },
+        {
+          "task": "ruler_vt",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        }
+      ],
+      "input_token_range": [
+        59700,
+        65511
+      ]
+    },
+    "k2": {
+      "mean": {
+        "archived_dense": 93.22916666666667,
+        "legacy": 92.16746794871794,
+        "optimized": 92.31570512820512,
+        "delta_points": 0.1482371794871795
+      },
+      "improved": 4,
+      "declined": 1,
+      "paired_bootstrap_95_interval_points": [
+        -0.09615384615384616,
+        0.43669871794871795
+      ],
+      "tasks": [
+        {
+          "task": "niah_single_1",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_single_2",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_single_3",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multikey_1",
+          "archived_dense": 100.0,
+          "archived_top8": 96.875,
+          "legacy": 96.875,
+          "optimized": 96.875,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multikey_2",
+          "archived_dense": 100.0,
+          "archived_top8": 90.625,
+          "legacy": 90.625,
+          "optimized": 90.625,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multikey_3",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multiquery",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "niah_multivalue",
+          "archived_dense": 98.4375,
+          "archived_top8": 97.65625,
+          "legacy": 99.21875,
+          "optimized": 99.21875,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "ruler_cwe",
+          "archived_dense": 92.1875,
+          "archived_top8": 97.1875,
+          "legacy": 95.3125,
+          "optimized": 95.9375,
+          "delta_points": 0.6249999999999999,
+          "improved": 2,
+          "declined": 0
+        },
+        {
+          "task": "ruler_fwe",
+          "archived_dense": 86.45833333333334,
+          "archived_top8": 86.45833333333334,
+          "legacy": 85.41666666666666,
+          "optimized": 87.5,
+          "delta_points": 2.0833333333333335,
+          "improved": 2,
+          "declined": 0
+        },
+        {
+          "task": "ruler_qa_hotpot",
+          "archived_dense": 65.625,
+          "archived_top8": 56.25,
+          "legacy": 62.5,
+          "optimized": 62.5,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        },
+        {
+          "task": "ruler_qa_squad",
+          "archived_dense": 69.27083333333334,
+          "archived_top8": 70.05208333333334,
+          "legacy": 68.22916666666666,
+          "optimized": 67.44791666666666,
+          "delta_points": -0.78125,
+          "improved": 0,
+          "declined": 1
+        },
+        {
+          "task": "ruler_vt",
+          "archived_dense": 100.0,
+          "archived_top8": 100.0,
+          "legacy": 100.0,
+          "optimized": 100.0,
+          "delta_points": 0.0,
+          "improved": 0,
+          "declined": 0
+        }
+      ],
+      "input_token_range": [
+        58771,
+        65496
+      ]
+    }
+  }
+}

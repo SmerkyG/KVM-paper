@@ -1,0 +1,995 @@
+{
+  "models": {
+    "32768": {
+      "dense": {
+        "file": "qwen-opt-v1-dense-32768-models.json",
+        "variant": "dense",
+        "length": 32768,
+        "identity": [
+          "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+          "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+          "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+          "bfloat16",
+          8192,
+          false
+        ],
+        "configuration": null,
+        "cache_update_optimizations": {
+          "packed_max": true,
+          "fused_rms": false,
+          "fused_rescale": true
+        },
+        "median_s": 1.7137841350049712,
+        "samples_s": [
+          1.7081387849902967,
+          1.7172634299931815,
+          1.7137841350049712
+        ],
+        "peak_allocated_gib": 21.21034860610962
+      },
+      "top8": {
+        "file": "qwen-opt-v1-top8-32768-models.json",
+        "variant": "top8",
+        "length": 32768,
+        "identity": [
+          "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+          "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+          "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+          "bfloat16",
+          8192,
+          false
+        ],
+        "configuration": null,
+        "cache_update_optimizations": {
+          "packed_max": true,
+          "fused_rms": false,
+          "fused_rescale": true
+        },
+        "median_s": 1.8473415000044042,
+        "samples_s": [
+          1.8473415000044042,
+          1.8466085899999598,
+          1.848130398997455
+        ],
+        "peak_allocated_gib": 25.43507480621338
+      },
+      "baseline": {
+        "file": "qwen-opt-v1-baseline-32768-models.json",
+        "variant": "baseline",
+        "length": 32768,
+        "identity": [
+          "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+          "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+          "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+          "bfloat16",
+          8192,
+          false
+        ],
+        "configuration": {
+          "rule": "region",
+          "closed_options": {
+            "matmul": "blas",
+            "query_tile": 4096,
+            "exact": "grouped",
+            "workers": 264,
+            "reduce": "wide",
+            "variable_dispatch": true,
+            "metadata": "atomic",
+            "select_warps": 4,
+            "select_qm": 1,
+            "reduce_qm": 4,
+            "packed_output": false,
+            "leaf_m": 64,
+            "leaf_n": 32,
+            "leaf_warps": 4
+          },
+          "fast_tile_queries": null,
+          "fast_leaf_backend": null,
+          "fast_score_reuse": false,
+          "state_fused_rms": false,
+          "state_fused_rescale": false,
+          "state_packed_max": false,
+          "tc_reduce_rows": 4,
+          "tc_reduce_parts": 3,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": true,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "bf16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": false,
+          "direct_proxy_arithmetic": null,
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            "auto"
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "closed"
+        },
+        "cache_update_optimizations": {
+          "packed_max": false,
+          "fused_rms": false,
+          "fused_rescale": false
+        },
+        "median_s": 2.1193695580004714,
+        "samples_s": [
+          2.122259686002508,
+          2.1193695580004714,
+          2.111148259995389
+        ],
+        "peak_allocated_gib": 30.477182388305664
+      },
+      "optimized": {
+        "file": "qwen-opt-v1-optimized-32768-models.json",
+        "variant": "optimized",
+        "length": 32768,
+        "identity": [
+          "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+          "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+          "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+          "bfloat16",
+          8192,
+          false
+        ],
+        "configuration": {
+          "rule": "region",
+          "closed_options": null,
+          "fast_tile_queries": "auto",
+          "fast_leaf_backend": "native",
+          "fast_score_reuse": true,
+          "state_fused_rms": false,
+          "state_fused_rescale": true,
+          "state_packed_max": true,
+          "tc_reduce_rows": 4,
+          "tc_reduce_parts": 3,
+          "fast_recomputed_closed": false,
+          "closed_normalize_query_group": 1,
+          "closed_reduce_backend": "tc-wide",
+          "fast_select_m": 1,
+          "fast_full_select": true,
+          "fast_saved_correction": true,
+          "fast_sparse_packing": false,
+          "fast_bitmap_packing": false,
+          "fast_prefix_filter": false,
+          "prefix_filter_policy": "1",
+          "fast_prefix_full": false,
+          "fast_direct_closed": true,
+          "fast_closed_blas": true,
+          "closed_probability_precision": "scaled-fp16",
+          "closed_arithmetic": "direct",
+          "closed_value_center": false,
+          "direct_hoisted_operands": false,
+          "direct_fused_selection": true,
+          "direct_proxy_arithmetic": "legacy-rounded-product",
+          "direct_selection_mode": "bitmap",
+          "direct_select_warps": 8,
+          "direct_split_word_compaction": true,
+          "fast_exact_geometry": [
+            64,
+            32,
+            4
+          ],
+          "fast_persistent_workers": 264,
+          "direct_fused_merge": false,
+          "fast_shared_log": false,
+          "fast_producer_tile": [
+            64,
+            128,
+            4,
+            "auto"
+          ],
+          "fast_fused_route_merge": false,
+          "fast_fused_merge_tile": [
+            4,
+            16
+          ],
+          "fast_route_capacity": 128,
+          "fast_cap_early_exit": true,
+          "mass_multiplier": 16.0,
+          "entry_bound": 16,
+          "max_regions": null,
+          "leaf_backend": "threshold-default",
+          "grouped_fused_counts": false,
+          "work_bound": 16,
+          "tile_queries": 512,
+          "prefill_block_size": 16384,
+          "reuse_mean": false,
+          "no_host_sync": true,
+          "packed": false,
+          "fuse_pack": false,
+          "pair_reuse": false,
+          "aggregate_metadata": false,
+          "selection_query_group": 1,
+          "selection_prefix_scan": false,
+          "selection_scan_policy": "0",
+          "selection_scan_min_regions": 0,
+          "selection_scan_tile": [
+            32,
+            256
+          ],
+          "selection_scan_warps": 4,
+          "selection_scan_atomic_experts": false,
+          "selection_precomputed_bias": false,
+          "tiled_selection": false,
+          "selection_tile": [
+            16,
+            128
+          ],
+          "implementation": "fast"
+        },
+        "cache_update_optimizations": {
+          "packed_max": true,
+          "fused_rms": false,
+          "fused_rescale": true
+        },
+        "median_s": 1.9649596130038844,
+        "samples_s": [
+          1.9649596130038844,
+          1.9626464390021283,
+          1.9652550949977012
+        ],
+        "peak_allocated_gib": 65.60382270812988
+      }
+    }
+  },
+  "profiles": {
+    "qwen-opt-ranks32-v2-optimized-32768-profiles.json": {
+      "file": "qwen-opt-ranks32-v2-optimized-32768-profiles.json",
+      "variant": "optimized",
+      "length": 32768,
+      "identity": [
+        "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+        "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+        "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+        "bfloat16",
+        8192,
+        false
+      ],
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": "auto",
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "state_fused_rms": false,
+        "state_fused_rescale": true,
+        "state_packed_max": true,
+        "tc_reduce_rows": 4,
+        "tc_reduce_parts": 3,
+        "tc_reduce_ranks": 32,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "tc-wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          "auto"
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "cache_update_optimizations": {
+        "packed_max": true,
+        "fused_rms": false,
+        "fused_rescale": true
+      },
+      "median_s": 1.9689083169942023,
+      "samples_s": [
+        1.9689083169942023
+      ],
+      "peak_allocated_gib": 65.60383987426758,
+      "gpu_seconds": {
+        "fast_prepare": 0.0006892480030655861,
+        "fast_produce": 0.10664927983283998,
+        "fast_select": 0.00015078400075435637,
+        "direct_bitmap_pack": 0.06398563241958619,
+        "direct_closed_normalize": 0.1463947203159332,
+        "direct_closed_pv": 0.03678006422519684,
+        "fast_closed_project": 0.18364287996292117,
+        "dispatch_prepare": 5.0239999080076825e-05,
+        "dispatch_group": 0.007861248046159746,
+        "dispatch_blocks": 5.564799904823303e-05,
+        "dispatch": 0.008016320019960404,
+        "pack": 5.0335998996160926e-05,
+        "kernel": 0.1654803191423416,
+        "reduce": 0.059382879853248596,
+        "fast_exact": 0.23507113766670226,
+        "fast_merge": 0.013241248011589052
+      },
+      "auxiliary_gpu_seconds": {
+        "local_or_initial_exact": 0.4804106903076173,
+        "page_cache_append": 0.0350402559414506,
+        "state_clustering_key": 0.0005531839985633268,
+        "state_streaming_state_maxsim": 0.05848044800758362,
+        "state_split_indices": 0.011219424054026603,
+        "state__gather_by_idx": 0.006631999996956437,
+        "state_clustering_similarity": 0.03354374407976865,
+        "state_state_score_max": 0.010879168003797532,
+        "state_merge_state_in_place": 0.0063331840261816996,
+        "state_prepare_state_clustering_keys": 0.0010391039978712797,
+        "state_update": 0.14541635227203367,
+        "exact_total": 0.23308931255340576
+      },
+      "regions_per_query_head": 14.48667605717977,
+      "entries_per_query_head": 638.9038133091397
+    },
+    "qwen-opt-ranks64-v2-optimized-32768-profiles.json": {
+      "file": "qwen-opt-ranks64-v2-optimized-32768-profiles.json",
+      "variant": "optimized",
+      "length": 32768,
+      "identity": [
+        "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+        "150ad47f9a4196ce5eb724b156e759d357951ea6febfcc4a0be08fa0c846e300",
+        "/home/ubuntu/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+        "bfloat16",
+        8192,
+        false
+      ],
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": "auto",
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "state_fused_rms": false,
+        "state_fused_rescale": true,
+        "state_packed_max": true,
+        "tc_reduce_rows": 4,
+        "tc_reduce_parts": 3,
+        "tc_reduce_ranks": 64,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "tc-wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          "auto"
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      },
+      "cache_update_optimizations": {
+        "packed_max": true,
+        "fused_rms": false,
+        "fused_rescale": true
+      },
+      "median_s": 2.009712761006085,
+      "samples_s": [
+        2.009712761006085
+      ],
+      "peak_allocated_gib": 65.60383987426758,
+      "gpu_seconds": {
+        "fast_prepare": 0.0006898239944130182,
+        "fast_produce": 0.10648371148109437,
+        "fast_select": 0.00015158400009386238,
+        "direct_bitmap_pack": 0.06389824068546295,
+        "direct_closed_normalize": 0.1462920649051666,
+        "direct_closed_pv": 0.03678102445602417,
+        "fast_closed_project": 0.18354134607315062,
+        "dispatch_prepare": 5.119999917224049e-05,
+        "dispatch_group": 0.007868991941213606,
+        "dispatch_blocks": 5.5711999419145284e-05,
+        "dispatch": 0.00802582398056984,
+        "pack": 5.126399919390677e-05,
+        "kernel": 0.16607945489883416,
+        "reduce": 0.1002499840259552,
+        "fast_exact": 0.27655459308624264,
+        "fast_merge": 0.013227839887142179
+      },
+      "auxiliary_gpu_seconds": {
+        "local_or_initial_exact": 0.4802801289558411,
+        "page_cache_append": 0.03506166416406633,
+        "state_clustering_key": 0.0005541119999252259,
+        "state_streaming_state_maxsim": 0.05828806400299072,
+        "state_split_indices": 0.011206880018115045,
+        "state__gather_by_idx": 0.006635328006464987,
+        "state_clustering_similarity": 0.03351433583348988,
+        "state_state_score_max": 0.010872127957642079,
+        "state_merge_state_in_place": 0.0063424639925360685,
+        "state_prepare_state_clustering_keys": 0.0010411839969456196,
+        "state_update": 0.14519158375263214,
+        "exact_total": 0.27456784057617195
+      },
+      "regions_per_query_head": 14.478904724121094,
+      "entries_per_query_head": 638.6407374276055
+    }
+  },
+  "verification": {
+    "32768": {
+      "file": "qwen-opt-audit-v2-optimized-32768-verify.json",
+      "frontiers": 36,
+      "selection_outside_tolerance": 0,
+      "max_abs_reference_error": 0.0625,
+      "max_bf16_steps_above_absolute_tolerance": 1,
+      "largest_reference_pairs": [
+        [
+          8.125,
+          8.0625
+        ],
+        [
+          -8.125,
+          -8.0625
+        ]
+      ],
+      "graph_same_cache_max_abs": 0,
+      "configuration": {
+        "rule": "region",
+        "closed_options": null,
+        "fast_tile_queries": "auto",
+        "fast_leaf_backend": "native",
+        "fast_score_reuse": true,
+        "state_fused_rms": false,
+        "state_fused_rescale": true,
+        "state_packed_max": true,
+        "tc_reduce_rows": 4,
+        "tc_reduce_parts": 3,
+        "tc_reduce_ranks": 32,
+        "fast_recomputed_closed": false,
+        "closed_normalize_query_group": 1,
+        "closed_reduce_backend": "tc-wide",
+        "fast_select_m": 1,
+        "fast_full_select": true,
+        "fast_saved_correction": true,
+        "fast_sparse_packing": false,
+        "fast_bitmap_packing": false,
+        "fast_prefix_filter": false,
+        "prefix_filter_policy": "1",
+        "fast_prefix_full": false,
+        "fast_direct_closed": true,
+        "fast_closed_blas": true,
+        "closed_probability_precision": "scaled-fp16",
+        "closed_arithmetic": "direct",
+        "closed_value_center": false,
+        "direct_hoisted_operands": false,
+        "direct_fused_selection": true,
+        "direct_proxy_arithmetic": "legacy-rounded-product",
+        "direct_selection_mode": "bitmap",
+        "direct_select_warps": 8,
+        "direct_split_word_compaction": true,
+        "fast_exact_geometry": [
+          64,
+          32,
+          4
+        ],
+        "fast_persistent_workers": 264,
+        "direct_fused_merge": false,
+        "fast_shared_log": false,
+        "fast_producer_tile": [
+          64,
+          128,
+          4,
+          "auto"
+        ],
+        "fast_fused_route_merge": false,
+        "fast_fused_merge_tile": [
+          4,
+          16
+        ],
+        "fast_route_capacity": 128,
+        "fast_cap_early_exit": true,
+        "mass_multiplier": 16.0,
+        "entry_bound": 16,
+        "max_regions": null,
+        "leaf_backend": "threshold-default",
+        "grouped_fused_counts": false,
+        "work_bound": 16,
+        "tile_queries": 512,
+        "prefill_block_size": 16384,
+        "reuse_mean": false,
+        "no_host_sync": true,
+        "packed": false,
+        "fuse_pack": false,
+        "pair_reuse": false,
+        "aggregate_metadata": false,
+        "selection_query_group": 1,
+        "selection_prefix_scan": false,
+        "selection_scan_policy": "0",
+        "selection_scan_min_regions": 0,
+        "selection_scan_tile": [
+          32,
+          256
+        ],
+        "selection_scan_warps": 4,
+        "selection_scan_atomic_experts": false,
+        "selection_precomputed_bias": false,
+        "tiled_selection": false,
+        "selection_tile": [
+          16,
+          128
+        ],
+        "implementation": "fast"
+      }
+    }
+  },
+  "checks": {
+    "rescale": {
+      "file": "qwen-opt-v1-rescale-0-checks.json",
+      "elements": 8785920,
+      "different_bits": 0
+    },
+    "native": {
+      "file": "qwen-opt-v1-native-0-checks.json",
+      "steps": 6,
+      "max_mean_error": 0.16797436773777008
+    }
+  },
+  "quality": {
+    "Dense": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 32,
+          "first": 93.75
+        },
+        "niah_multikey_3": {
+          "n": 32,
+          "first": 100.0
+        },
+        "cwe": {
+          "n": 32,
+          "first": 79.375
+        },
+        "qa_1": {
+          "n": 32,
+          "first": 62.5
+        }
+      },
+      "identity": [
+        "Qwen/Qwen3-8B",
+        "b968826d9c46dd6066d109eabc6255188de91218",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "qwen3-preformatted"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/ruler-32k-panel/qwen3-ruler-dense-selected.json"
+      ],
+      "sha256": {
+        "qwen3-ruler-dense-selected.json": "f608a18dc8d25324775fb00c1aca90abc6454e5040acc6316276a918e7ed091b"
+      }
+    },
+    "Fixed top-eight prefill and decode": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 32,
+          "first": 87.5
+        },
+        "niah_multikey_3": {
+          "n": 32,
+          "first": 93.75
+        },
+        "cwe": {
+          "n": 32,
+          "first": 73.75
+        },
+        "qa_1": {
+          "n": 32,
+          "first": 56.25
+        }
+      },
+      "identity": [
+        "Qwen/Qwen3-8B",
+        "b968826d9c46dd6066d109eabc6255188de91218",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "qwen3-preformatted"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/ruler-32k-panel/qwen3-ruler-two-tier-selected.json"
+      ],
+      "sha256": {
+        "qwen3-ruler-two-tier-selected.json": "45cea7c6bd9bdb5dfe8685fcc8d0bcce1c942a5e7cc769d3280c6258c47c2481"
+      }
+    },
+    "Threshold decode, top-eight prefill": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 32,
+          "first": 90.625
+        },
+        "niah_multikey_3": {
+          "n": 32,
+          "first": 100.0
+        },
+        "cwe": {
+          "n": 32,
+          "first": 71.5625
+        },
+        "qa_1": {
+          "n": 32,
+          "first": 59.375
+        }
+      },
+      "identity": [
+        "Qwen/Qwen3-8B",
+        "b968826d9c46dd6066d109eabc6255188de91218",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "qwen3-preformatted"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/threshold-next/threshold-next-qwen-full-v1-qwen-top8-prefill.json"
+      ],
+      "sha256": {
+        "threshold-next-qwen-full-v1-qwen-top8-prefill.json": "d9934c85d250330f7d0a57d154167d8adf0c3f7dae9774124e0a47363dce87fe"
+      }
+    },
+    "Previous threshold prefill and decode": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 32,
+          "first": 90.625
+        },
+        "niah_multikey_3": {
+          "n": 32,
+          "first": 100.0
+        },
+        "cwe": {
+          "n": 32,
+          "first": 78.4375
+        },
+        "qa_1": {
+          "n": 32,
+          "first": 59.375
+        }
+      },
+      "identity": [
+        "Qwen/Qwen3-8B",
+        "b968826d9c46dd6066d109eabc6255188de91218",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "qwen3-preformatted"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/threshold-next/threshold-next-qwen-prefill-full-v1-qwen-threshold-prefill.json"
+      ],
+      "sha256": {
+        "threshold-next-qwen-prefill-full-v1-qwen-threshold-prefill.json": "8d2433ac3745042c6730460f5d368422fae08db99b59ad4bae63c19516c844dd"
+      }
+    },
+    "Optimized threshold prefill and decode": {
+      "tasks": {
+        "niah_multikey_2": {
+          "n": 32,
+          "first": 90.625
+        },
+        "niah_multikey_3": {
+          "n": 32,
+          "first": 100.0
+        },
+        "cwe": {
+          "n": 32,
+          "first": 76.875
+        },
+        "qa_1": {
+          "n": 32,
+          "first": 59.375
+        }
+      },
+      "identity": [
+        "Qwen/Qwen3-8B",
+        "b968826d9c46dd6066d109eabc6255188de91218",
+        null,
+        "bf16",
+        "bf16",
+        "greedy, fixed task limits, ignore eos",
+        "qwen3-preformatted"
+      ],
+      "files": [
+        "/home/dan/subusers/agent/.codex/worktrees/h100-llama31/KVM-paper/results/h100-baselines/qwen-opt/qwen-opt-accepted-v2-optimized-32768-quality.json"
+      ],
+      "sha256": {
+        "qwen-opt-accepted-v2-optimized-32768-quality.json": "6f9846910f3dee3d8cdc58e4c044a4112153f79d39b2ea9008fd1d1ce4b40194"
+      }
+    }
+  },
+  "inputs_sha256": {
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-rescale-0-checks.json": "45567206eb0c3a0258ad781f613dfc43e0d222d3594ad6613df03c960d244630",
+    "results/h100-baselines/qwen-opt/provenance/1794348091965210507-qwen-opt-v1-rescale-0-checks/run.json": "55fad26444e8929a77786f5946def9e0cb457df9b263b3367ca9bad9dba50c40",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-native-0-checks.json": "7971c42e50eab48d4ac63e8cba180d18846e5418f519c09b50024d75558d74ff",
+    "results/h100-baselines/qwen-opt/provenance/1794348092028049667-qwen-opt-v1-native-0-checks/run.json": "b4353a83cd84e895bb58e30b9e51f40f3452b3616b20da3ca56ca5185a5f0074",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-yarn-0-checks.json": "0b74462f543a760cfad478045fde19c5f0b2cab1c1c466eaf90c540d2a7487a7",
+    "results/h100-baselines/qwen-opt/provenance/1794348092091229339-qwen-opt-v1-yarn-0-checks/run.json": "4017d3c1185516b656793fedb0b5ff2c255674ccb4279965971f61397ba85ecc",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-manifest-0-prepare.json": "70e490fee3d7d032ea4c80d7cf13bc0dd97d388ff7f875b98048ab87f23507b2",
+    "results/h100-baselines/qwen-opt/provenance/1794348105337032296-qwen-opt-v1-manifest-0-prepare/run.json": "910d8a5c72ef637231c4e5d076070db8ce65f4e6938e9c161535e41d13412f2a",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-dense-32768-models.json": "b10726d05ced85651f35a7a6bac8ca0cc91a4e592b01a242c65e91a8ba35cacd",
+    "results/h100-baselines/qwen-opt/provenance/1794348164699435157-qwen-opt-v1-dense-32768-models/run.json": "d14085fc4f47acd1903c49e79fd25a7f3fb329c208b04b4720b5071f8fae9cd7",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-top8-32768-models.json": "b74db7f1963f465c8d4d7b4d3140348a0297d6e8358d60f560e767b679b66eb6",
+    "results/h100-baselines/qwen-opt/provenance/1794348164758582239-qwen-opt-v1-top8-32768-models/run.json": "57af9e7e3c6177f41cf17bda59ab3554c0ce4c803c1537dbcf069ee257196139",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-baseline-32768-models.json": "658e1f9b8686d3802f14c607e91e035ebb7fc54e419da6a5130a7a407a2c1aa2",
+    "results/h100-baselines/qwen-opt/provenance/1794348164820265721-qwen-opt-v1-baseline-32768-models/run.json": "4574dfe83407da24fb1467b52bedcb0e4834688cdc420c0fac86df675ceb1049",
+    "results/h100-baselines/qwen-opt/qwen-opt-v1-optimized-32768-models.json": "850e954d0d79568539dba3303d950527b5a0e9051907c44f8cddc0edd44f7dd6",
+    "results/h100-baselines/qwen-opt/provenance/1794348164879612783-qwen-opt-v1-optimized-32768-models/run.json": "aecf099a16fbf3e0f1a2f4ea095cd0ccf5c430f2fcde0e122e6f3eeda5cc1a2c",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-dense-65536-models.json": "7c657f2c189fd0b8b5690d9f6df8dd3ee1383bf5d8e824481a1d09e318c0e241",
+    "results/h100-baselines/qwen-opt/provenance/1794348250154865402-qwen-opt-scale-v1-dense-65536-models/run.json": "670b7edd2e296f67ea6ca86bfa12f804c8e641dea616d780dd1b3d84b6ff2594",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-top8-65536-models.json": "c6a4bac9fced13b02deac6721bbc8e98d7f4f6544525333a97bbb977990a7442",
+    "results/h100-baselines/qwen-opt/provenance/1794348250219637366-qwen-opt-scale-v1-top8-65536-models/run.json": "53c2ef79fb78443e463843bff5edaf7078ad47c49e62f990fad3a1f496d23ed7",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-baseline-65536-models.json": "269f5ed5c16c5f2ec23b2f8541b8cd1bed2664936435602d93623d0ad4a64bac",
+    "results/h100-baselines/qwen-opt/provenance/1794348250283202613-qwen-opt-scale-v1-baseline-65536-models/run.json": "50e2e5090c14fb39d6cf38b91f41023fb8a8e041e2ba7f0531a15a4aa2434777",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-optimized-65536-models.json": "4acf9604ad4c57bbc284882f3cfa000e8944e3dce1274cff49d061a6d1588b87",
+    "results/h100-baselines/qwen-opt/provenance/1794348250344365487-qwen-opt-scale-v1-optimized-65536-models/run.json": "e51149e042eb88bc49f917a34d28b6a96b6b0226a59f6843f783c31752738738",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-dense-128000-models.json": "6ce4f0d510f8120851f4bf746f2f54bfa97e63f1d6dcdb1dbe8dcdd82b1ad860",
+    "results/h100-baselines/qwen-opt/provenance/1794348250404770336-qwen-opt-scale-v1-dense-128000-models/run.json": "313f86abff8f135e2114d68008a9dbd72a7acd7c20884fcd90663a7eccbf898e",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-top8-128000-models.json": "79acebb51108ad06025218e1dce10446f25cf8d17f5d93b70f79aa13ad442d47",
+    "results/h100-baselines/qwen-opt/provenance/1794348250464095020-qwen-opt-scale-v1-top8-128000-models/run.json": "200b634838283140fa89092c5feb63031ed32c785ec61d0e39fcbd9d4b19c411",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-baseline-128000-models.json": "63dc3d7d761007751ff0ccde6d9234b3d5f7f08d3df5d3a64d2aefb00575c2f2",
+    "results/h100-baselines/qwen-opt/provenance/1794348250521464688-qwen-opt-scale-v1-baseline-128000-models/run.json": "7e4379057ee8e8584294486c8bfeee2cf87fea3a17a82b9bdc666a31a172d50d",
+    "results/h100-baselines/qwen-opt/qwen-opt-scale-v1-optimized-128000-models.json": "fcfab5b84d45da16a3abca4158906576e3d109abd8c31a954e47aa0ecd74696d",
+    "results/h100-baselines/qwen-opt/provenance/1794348250581565372-qwen-opt-scale-v1-optimized-128000-models/run.json": "008582fe7c60ffa8880dab93cd4d583f0d507c9eb9c85b62df23fec4d3d9ca81",
+    "results/h100-baselines/qwen-opt/qwen-opt-audit-v2-optimized-32768-verify.json": "e7f1601d0ba52c115f3f177eb5592ac80df165a2b57966d4ebbfd43ce69d6b65",
+    "results/h100-baselines/qwen-opt/provenance/1794348399806573019-qwen-opt-audit-v2-optimized-32768-verify/run.json": "fb1531e346e086f38071e812ddc56203e1011ee2d1dc26e403fa5bb3127d5f84",
+    "results/h100-baselines/qwen-opt/qwen-opt-ranks32-v2-optimized-32768-profiles.json": "520accdfacc7ed5472e319fd0d683666cbe1019541f6494d93f4cd3d2d9be2c2",
+    "results/h100-baselines/qwen-opt/provenance/1794348415550505671-qwen-opt-ranks32-v2-optimized-32768-profiles/run.json": "ce0c12c9b8d15cee30e911f7dc7320acde1211895bacb6a1c05d17a846a3366a",
+    "results/h100-baselines/qwen-opt/qwen-opt-ranks32-v2-optimized-65536-profiles.json": "778988dbec7c5de493e0b592ccc2c77780dbe0ebc0af4fe083d19c274496f7a8",
+    "results/h100-baselines/qwen-opt/provenance/1794348415609894754-qwen-opt-ranks32-v2-optimized-65536-profiles/run.json": "56c836207cf4deb7b9e1a01ba08c2558f34536e3b86d842abec01a95b50e8b2a",
+    "results/h100-baselines/qwen-opt/qwen-opt-ranks64-v2-optimized-32768-profiles.json": "e635cbf1fbb1fa6ffb66445ed4b10e6ea188fb7579f96ebbd1541be25ae84bf8",
+    "results/h100-baselines/qwen-opt/provenance/1794348419117480756-qwen-opt-ranks64-v2-optimized-32768-profiles/run.json": "403b929a1183d4e9632893f446317fb23d10d7dee6ce8dde695ca4525a90b6b2",
+    "results/h100-baselines/qwen-opt/qwen-opt-ranks64-v2-optimized-65536-profiles.json": "5ab708839165d188a13bf191b5729e2d834966bef726494bc3f88b25632aa743",
+    "results/h100-baselines/qwen-opt/provenance/1794348419176118072-qwen-opt-ranks64-v2-optimized-65536-profiles/run.json": "273899f24617dbd36d7cea1d8a5fe514d4ee1addc2b2688ec90cb47fc29e0862",
+    "results/h100-baselines/qwen-opt/qwen-opt-audit-long-v2-optimized-65536-verify.json": "3baf9d48200efed86e8d0be455d3a397e21d9050db15ffb18242559e81c6d346",
+    "results/h100-baselines/qwen-opt/provenance/1794351267420387170-qwen-opt-audit-long-v2-optimized-65536-verify/run.json": "69729cbf730b13c8fb76c373ddbcfd1e99bf1ef90d29d3142d75639135584ed3",
+    "results/h100-baselines/qwen-opt/qwen-opt-audit-long-v2-optimized-128000-verify.json": "d2452070690e03e18e21a33afa07d1fe3703b5da89bcbb9723557527331886e6",
+    "results/h100-baselines/qwen-opt/provenance/1794351267482839503-qwen-opt-audit-long-v2-optimized-128000-verify/run.json": "1521377fde5e752f7fec60e616ff317287a3be0b6b46322efcb1a5176d5d6222",
+    "results/h100-baselines/qwen-opt/qwen-opt-accepted-v2-optimized-32768-quality.json": "6f9846910f3dee3d8cdc58e4c044a4112153f79d39b2ea9008fd1d1ce4b40194",
+    "results/h100-baselines/qwen-opt/provenance/1794351271076394670-qwen-opt-accepted-v2-optimized-32768-quality/run.json": "41ad1be3f1291ba8d575f299adf677ec4e974dfef28238754674e9666fc9d64f",
+    "results/h100-baselines/threshold-next/qwen-tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+    "results/h100-baselines/ruler-32k-panel/qwen3-ruler-dense-selected.json": "f608a18dc8d25324775fb00c1aca90abc6454e5040acc6316276a918e7ed091b",
+    "results/h100-baselines/ruler-32k-panel/qwen3-ruler-two-tier-selected.json": "45cea7c6bd9bdb5dfe8685fcc8d0bcce1c942a5e7cc769d3280c6258c47c2481",
+    "results/h100-baselines/threshold-next/threshold-next-qwen-full-v1-qwen-top8-prefill.json": "d9934c85d250330f7d0a57d154167d8adf0c3f7dae9774124e0a47363dce87fe",
+    "results/h100-baselines/threshold-next/threshold-next-qwen-prefill-full-v1-qwen-threshold-prefill.json": "8d2433ac3745042c6730460f5d368422fae08db99b59ad4bae63c19516c844dd"
+  },
+  "invalid_rope": [
+    "qwen-opt-v1-yarn-0-checks.json",
+    "qwen-opt-scale-v1-dense-65536-models.json",
+    "qwen-opt-scale-v1-top8-65536-models.json",
+    "qwen-opt-scale-v1-baseline-65536-models.json",
+    "qwen-opt-scale-v1-optimized-65536-models.json",
+    "qwen-opt-scale-v1-dense-128000-models.json",
+    "qwen-opt-scale-v1-top8-128000-models.json",
+    "qwen-opt-scale-v1-baseline-128000-models.json",
+    "qwen-opt-scale-v1-optimized-128000-models.json",
+    "qwen-opt-ranks32-v2-optimized-65536-profiles.json",
+    "qwen-opt-ranks64-v2-optimized-65536-profiles.json",
+    "qwen-opt-audit-long-v2-optimized-65536-verify.json",
+    "qwen-opt-audit-long-v2-optimized-128000-verify.json"
+  ],
+  "hardware": [
+    "NVIDIA H100 80GB HBM3, GPU-e990762e-21ba-1072-8311-be210c4e4762, 580.196.07, 81559 MiB"
+  ],
+  "pending": [],
+  "failed": [
+    {
+      "id": "1794348236272305377-qwen-opt-v1-optimized-32768-quality",
+      "name": "qwen-opt-v1-optimized-32768-quality",
+      "variant": "optimized",
+      "length": 32768,
+      "state": "finished",
+      "exit_code": 1
+    },
+    {
+      "id": "1794348216741199880-qwen-opt-v1-optimized-32768-verify",
+      "name": "qwen-opt-v1-optimized-32768-verify",
+      "variant": "optimized",
+      "length": 32768,
+      "state": "finished",
+      "exit_code": 1
+    }
+  ],
+  "cancelled": [
+    {
+      "id": "1794348283599655935-qwen-opt-scale-v1-optimized-65536-verify",
+      "name": "qwen-opt-scale-v1-optimized-65536-verify",
+      "variant": "optimized",
+      "length": 65536,
+      "state": "finished",
+      "exit_code": -15
+    },
+    {
+      "id": "1794348283659962057-qwen-opt-scale-v1-optimized-128000-verify",
+      "name": "qwen-opt-scale-v1-optimized-128000-verify",
+      "variant": "optimized",
+      "length": 128000,
+      "state": "finished",
+      "exit_code": -15
+    }
+  ],
+  "stage": "complete",
+  "native_32k_validated": true,
+  "validated_final": false,
+  "quality_no_task_regression": false
+}
