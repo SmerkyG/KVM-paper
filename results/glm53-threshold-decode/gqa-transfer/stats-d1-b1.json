@@ -1,0 +1,195 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64k-absorbed-rank0.pt",
+  "layer": "language_model.model.layers.3.self_attn.indexer.indexer_op",
+  "batch": 1,
+  "lengths": [
+    65535
+  ],
+  "initial_local": [
+    511
+  ],
+  "regions": [
+    4095
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "tuned": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "static": true,
+      "first": true,
+      "guarded": true,
+      "strip": 64,
+      "merge": 16
+    },
+    "pair_only": {
+      "pair_stats": true
+    },
+    "tuned_pairs": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "static": true,
+      "first": true,
+      "guarded": true,
+      "strip": 64,
+      "merge": 16,
+      "pair_stats": true
+    },
+    "tuned_pairs_cg": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "static": true,
+      "first": true,
+      "guarded": true,
+      "strip": 64,
+      "merge": 16,
+      "pair_stats": true,
+      "merge_cg": true
+    },
+    "tuned_union": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "static": true,
+      "first": true,
+      "guarded": true,
+      "strip": 64,
+      "merge": 16,
+      "union": true
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016226094448938966,
+      "timings_us": [
+        43.94739866256714,
+        43.993398547172546,
+        43.95740032196045,
+        44.553399085998535,
+        44.025400280952454,
+        44.0234512090683,
+        44.011399149894714,
+        44.57939863204956,
+        43.937450647354126,
+        44.55539882183075,
+        43.983399868011475
+      ],
+      "median_us": 44.011399149894714
+    },
+    "tuned": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016231364570558071,
+      "timings_us": [
+        39.92944955825806,
+        39.82144892215729,
+        39.895498752593994,
+        39.967501163482666,
+        39.9134486913681,
+        39.937448501586914,
+        40.00544846057892,
+        39.815449714660645,
+        39.92744982242584,
+        39.971449971199036,
+        39.86944854259491
+      ],
+      "median_us": 39.92744982242584
+    },
+    "pair_only": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016224291175603867,
+      "timings_us": [
+        44.365400075912476,
+        43.74944865703583,
+        43.851399421691895,
+        44.42940056324005,
+        43.76539885997772,
+        43.8214510679245,
+        43.837401270866394,
+        45.019400119781494,
+        43.76139938831329,
+        43.81544888019562,
+        44.34939920902252
+      ],
+      "median_us": 43.837401270866394
+    },
+    "tuned_pairs": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016232432099059224,
+      "timings_us": [
+        40.44544994831085,
+        40.50549864768982,
+        40.447449684143066,
+        40.43945074081421,
+        40.37550091743469,
+        40.37944972515106,
+        40.46745002269745,
+        41.01944863796234,
+        40.399450063705444,
+        40.521448850631714,
+        40.30750095844269
+      ],
+      "median_us": 40.44544994831085
+    },
+    "tuned_pairs_cg": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016230687033385038,
+      "timings_us": [
+        40.19545018672943,
+        40.051451325416565,
+        40.093448758125305,
+        40.10545015335083,
+        40.19345045089722,
+        40.145450830459595,
+        40.25745093822479,
+        40.08750021457672,
+        40.21545052528381,
+        40.281498432159424,
+        40.15744924545288
+      ],
+      "median_us": 40.15744924545288
+    },
+    "tuned_union": {
+      "open_regions": 158.0,
+      "exact_leaves": 26281.0,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.00196760892868042,
+      "relative_l2": 0.0016764645697548985,
+      "timings_us": [
+        40.76144993305206,
+        40.465450286865234,
+        40.46944975852966,
+        40.48545062541962,
+        40.49144983291626,
+        40.517449378967285,
+        40.53744971752167,
+        40.573450922966,
+        40.43945074081421,
+        40.42550027370453,
+        40.4354989528656
+      ],
+      "median_us": 40.48545062541962
+    }
+  }
+}

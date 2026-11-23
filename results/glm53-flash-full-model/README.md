@@ -29,6 +29,8 @@ refinement, the separate sink, 1,024-leaf closure, and global-sequence
 16K-prefill / 256-decode update cadence. Neither arm modifies the native FP8
 weights. KDA remains native in both arms.
 
+The 64K decode follow-up compares the existing top-eight policy and per-head region-mass threshold routing at batches one and eight, using matched traces and top-eight prefill. [Threshold decode measurements](../glm53-threshold-decode/REPORT.md)
+
 ## Protocol and results
 
 Four MI325X GPUs on one node; TP4/EP4/DCP1. Checkpoint files and compilation

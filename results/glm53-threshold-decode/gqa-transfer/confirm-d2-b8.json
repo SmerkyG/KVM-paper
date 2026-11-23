@@ -1,0 +1,94 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64000-v-proj-doc2-rank0.pt",
+  "layer": "language_model.model.layers.19.self_attn.indexer.indexer_op",
+  "batch": 8,
+  "lengths": [
+    63992,
+    63993,
+    63994,
+    63995,
+    63996,
+    63997,
+    63998,
+    63999
+  ],
+  "initial_local": [
+    511,
+    510,
+    509,
+    508,
+    507,
+    506,
+    505,
+    504
+  ],
+  "regions": [
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "tuned": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "score_tile": 128,
+      "selector": 128,
+      "guarded": true,
+      "strip": 64
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016592246247455478,
+      "timings_us": [
+        95.44339776039124,
+        97.0053493976593,
+        92.10345149040222,
+        89.04554843902588,
+        88.99555206298828,
+        88.8155996799469,
+        89.04359936714172,
+        88.85759711265564,
+        88.77760171890259,
+        88.92754912376404,
+        88.72154951095581
+      ],
+      "median_us": 88.99555206298828
+    },
+    "tuned": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016601997194811702,
+      "timings_us": [
+        82.03380107879639,
+        86.32165193557739,
+        82.85375237464905,
+        81.59775137901306,
+        81.19180202484131,
+        81.60175085067749,
+        81.86579942703247,
+        81.03579878807068,
+        82.7477514743805,
+        81.54774904251099,
+        81.52574896812439
+      ],
+      "median_us": 81.60175085067749
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64000-v-proj-doc2-rank0.pt",
+  "layer": "language_model.model.layers.19.self_attn.indexer.indexer_op",
+  "batch": 8,
+  "lengths": [
+    63992,
+    63993,
+    63994,
+    63995,
+    63996,
+    63997,
+    63998,
+    63999
+  ],
+  "initial_local": [
+    511,
+    510,
+    509,
+    508,
+    507,
+    506,
+    505,
+    504
+  ],
+  "regions": [
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "tuned": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "score_tile": 128,
+      "selector": 128,
+      "guarded": true,
+      "strip": 64
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016599453520029783,
+      "timings_us": [
+        95.3914999961853,
+        96.36150002479553,
+        91.50159955024719,
+        89.01965022087097,
+        88.59965205192566,
+        88.57365250587463,
+        88.65965008735657,
+        88.56769800186157,
+        88.69165182113647,
+        88.65569829940796,
+        88.5656476020813
+      ],
+      "kernel_medians_us": {
+        "_score_regions": 14.458500000000072,
+        "_select_and_pack": 20.63900000000001,
+        "_attend_exact": 38.53800000000001,
+        "_merge_fields": 8.839000000000084
+      },
+      "median_us": 88.65965008735657
+    },
+    "tuned": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016602815594524145,
+      "timings_us": [
+        82.36380219459534,
+        85.7717514038086,
+        83.34580063819885,
+        81.34790062904358,
+        81.40984773635864,
+        81.66390061378479,
+        81.73385262489319,
+        81.63585066795349,
+        81.5378487110138,
+        81.57784938812256,
+        81.09784722328186
+      ],
+      "kernel_medians_us": {
+        "_score_regions": 12.798500000000104,
+        "_select_and_pack": 18.618500000000154,
+        "_attend_exact": 36.03800000000001,
+        "_merge_fields": 9.09849999999983
+      },
+      "median_us": 81.63585066795349
+    }
+  }
+}

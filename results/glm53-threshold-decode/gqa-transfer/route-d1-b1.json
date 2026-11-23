@@ -1,0 +1,200 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64k-absorbed-rank0.pt",
+  "layer": "language_model.model.layers.3.self_attn.indexer.indexer_op",
+  "batch": 1,
+  "lengths": [
+    65535
+  ],
+  "initial_local": [
+    511
+  ],
+  "regions": [
+    4095
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "score32": {
+      "score_tile": 32
+    },
+    "score128": {
+      "score_tile": 128
+    },
+    "select128": {
+      "selector": 128
+    },
+    "select128_score128": {
+      "selector": 128,
+      "score_tile": 128
+    },
+    "cutoff_once": {
+      "cutoff": true
+    },
+    "no_empty_atomic": {
+      "guarded": true
+    },
+    "short_masks": {
+      "half_masks": true
+    },
+    "shared_regions": {
+      "union": true
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.001622707350179553,
+      "timings_us": [
+        43.44939887523651,
+        43.37339997291565,
+        44.05539929866791,
+        43.34745109081268,
+        43.48340034484863,
+        43.3353990316391,
+        44.69740092754364,
+        44.337400794029236,
+        43.34140121936798,
+        43.41939985752106,
+        43.437400460243225
+      ],
+      "median_us": 43.437400460243225
+    },
+    "score32": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016229390166699886,
+      "timings_us": [
+        43.917399644851685,
+        43.95340085029602,
+        43.99940073490143,
+        44.14539933204651,
+        44.51339840888977,
+        44.25739943981171,
+        44.0093994140625,
+        44.38939988613129,
+        43.95340085029602,
+        45.39940059185028,
+        43.95740032196045
+      ],
+      "median_us": 44.0093994140625
+    },
+    "score128": {
+      "unsupported": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    "select128": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016225753352046013,
+      "timings_us": [
+        44.46739852428436,
+        43.743398785591125,
+        44.059398770332336,
+        43.9193993806839,
+        43.865400552749634,
+        43.77540051937103,
+        44.51940059661865,
+        43.86940002441406,
+        43.945398926734924,
+        44.45140063762665,
+        43.77340078353882
+      ],
+      "median_us": 43.9193993806839
+    },
+    "select128_score128": {
+      "unsupported": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    "cutoff_once": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016224602004513144,
+      "timings_us": [
+        44.58340108394623,
+        44.62735056877136,
+        45.123350620269775,
+        44.45340037345886,
+        46.0673987865448,
+        44.63939964771271,
+        45.14540135860443,
+        44.991400837898254,
+        44.50939893722534,
+        45.14339864253998,
+        45.09339928627014
+      ],
+      "median_us": 44.991400837898254
+    },
+    "no_empty_atomic": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016226287698373199,
+      "timings_us": [
+        43.91539990901947,
+        43.309399485588074,
+        43.31539869308472,
+        44.58940029144287,
+        43.917399644851685,
+        43.27940046787262,
+        43.22940111160278,
+        43.29744875431061,
+        43.3153510093689,
+        43.24139952659607,
+        43.399399518966675
+      ],
+      "median_us": 43.3153510093689
+    },
+    "short_masks": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016227993182837963,
+      "timings_us": [
+        44.73940134048462,
+        43.23340058326721,
+        43.37339997291565,
+        43.357399106025696,
+        43.28944981098175,
+        44.44339871406555,
+        43.94940137863159,
+        43.22740137577057,
+        43.92139911651611,
+        43.96539926528931,
+        43.84340047836304
+      ],
+      "median_us": 43.84340047836304
+    },
+    "shared_regions": {
+      "open_regions": 158.0,
+      "exact_leaves": 26281.0,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.00196760892868042,
+      "relative_l2": 0.0016752355732023716,
+      "timings_us": [
+        43.885400891304016,
+        43.42544972896576,
+        43.49544942378998,
+        43.427398800849915,
+        43.4033989906311,
+        44.34739947319031,
+        44.05339956283569,
+        44.087401032447815,
+        43.38139891624451,
+        43.621399998664856,
+        43.451398611068726
+      ],
+      "median_us": 43.49544942378998
+    }
+  }
+}

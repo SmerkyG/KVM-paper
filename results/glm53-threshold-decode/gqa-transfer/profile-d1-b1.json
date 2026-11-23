@@ -1,0 +1,98 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64k-absorbed-rank0.pt",
+  "layer": "language_model.model.layers.3.self_attn.indexer.indexer_op",
+  "batch": 1,
+  "lengths": [
+    65535
+  ],
+  "initial_local": [
+    511
+  ],
+  "regions": [
+    4095
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "tuned": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "static": true,
+      "first": true,
+      "guarded": true,
+      "strip": 64,
+      "merge": 16
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016226504230871797,
+      "timings_us": [
+        43.4128999710083,
+        43.442851305007935,
+        43.42690110206604,
+        43.30289959907532,
+        43.48689913749695,
+        43.512898683547974,
+        43.36490035057068,
+        43.27484965324402,
+        43.44485104084015,
+        43.43484938144684,
+        43.36884915828705
+      ],
+      "profile_samples": {
+        "_score_regions": 45,
+        "_select_and_pack": 44,
+        "_attend_exact": 44,
+        "_merge_fields": 44
+      },
+      "kernel_medians_us": {
+        "_score_regions": 5.277999999999906,
+        "_select_and_pack": 5.158000000000072,
+        "_attend_exact": 23.23899999999992,
+        "_merge_fields": 3.7579999999999245
+      },
+      "median_us": 43.42690110206604
+    },
+    "tuned": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016229588072746992,
+      "timings_us": [
+        40.01489877700806,
+        39.81294929981232,
+        39.70099985599518,
+        39.77699875831604,
+        39.76700007915497,
+        39.765000343322754,
+        39.732950925827026,
+        39.86094892024994,
+        39.7209495306015,
+        39.764949679374695,
+        39.750948548316956
+      ],
+      "profile_samples": {
+        "_score_regions": 50,
+        "_select_and_pack": 50,
+        "_attend_exact": 50,
+        "_merge_fields": 50
+      },
+      "kernel_medians_us": {
+        "_score_regions": 5.398999999999887,
+        "_select_and_pack": 4.918999999999983,
+        "_attend_exact": 19.558999999999997,
+        "_merge_fields": 3.8789999999999054
+      },
+      "median_us": 39.765000343322754
+    }
+  }
+}

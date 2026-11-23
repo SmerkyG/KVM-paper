@@ -1,0 +1,224 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64000-v-proj-doc2-rank0.pt",
+  "layer": "language_model.model.layers.19.self_attn.indexer.indexer_op",
+  "batch": 8,
+  "lengths": [
+    63992,
+    63993,
+    63994,
+    63995,
+    63996,
+    63997,
+    63998,
+    63999
+  ],
+  "initial_local": [
+    511,
+    510,
+    509,
+    508,
+    507,
+    506,
+    505,
+    504
+  ],
+  "regions": [
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047,
+    4047
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "qwen": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 128,
+      "entry": 64,
+      "splits": 64
+    },
+    "qwen_precise": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 128,
+      "entry": 64,
+      "splits": 64,
+      "precise": true
+    },
+    "qwen_split_channels": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 128,
+      "entry": 64,
+      "splits": 64,
+      "split_dim": true
+    },
+    "k2": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 128,
+      "entry": 128,
+      "splits": 32,
+      "pv": 2,
+      "backend": {
+        "waves_per_eu": 2,
+        "matrix_instr_nonkdim": 16
+      }
+    },
+    "k2_split_channels": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 128,
+      "entry": 128,
+      "splits": 32,
+      "pv": 2,
+      "backend": {
+        "waves_per_eu": 2,
+        "matrix_instr_nonkdim": 16
+      },
+      "split_dim": true
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016590249724686146,
+      "timings_us": [
+        90.61279892921448,
+        89.20679688453674,
+        89.14480209350586,
+        88.8868510723114,
+        89.6728515625,
+        89.02679681777954,
+        89.1328513622284,
+        88.8587474822998,
+        88.84680271148682,
+        88.94284963607788,
+        88.99279832839966
+      ],
+      "median_us": 89.02679681777954
+    },
+    "qwen": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.001660431851632893,
+      "timings_us": [
+        118.54039430618286,
+        118.63240003585815,
+        119.0384030342102,
+        119.0883994102478,
+        119.05239820480347,
+        118.85244846343994,
+        119.5844054222107,
+        119.04439926147461,
+        119.35440301895142,
+        118.99044513702393,
+        119.1383957862854
+      ],
+      "median_us": 119.04439926147461
+    },
+    "qwen_precise": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.007623195648193359,
+      "relative_l2": 0.0016519391210749745,
+      "timings_us": [
+        216.72110557556152,
+        206.69724941253662,
+        207.06124305725098,
+        205.75125217437744,
+        206.22925758361816,
+        206.35924339294434,
+        205.45530319213867,
+        207.6092004776001,
+        206.2833070755005,
+        207.31124877929688,
+        206.811261177063
+      ],
+      "median_us": 206.69724941253662
+    },
+    "qwen_split_channels": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016604939009994268,
+      "timings_us": [
+        97.75469899177551,
+        97.60069847106934,
+        97.97670245170593,
+        98.06870222091675,
+        97.67469763755798,
+        97.74069786071777,
+        97.97269701957703,
+        97.90264964103699,
+        97.8206992149353,
+        97.74869680404663,
+        97.94870018959045
+      ],
+      "median_us": 97.8206992149353
+    },
+    "k2": {
+      "unsupported": "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+    },
+    "k2_split_channels": {
+      "open_regions": 33.59375,
+      "exact_leaves": 4709.4609375,
+      "union_loaded_leaves": 11234.75,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016615043859928846,
+      "timings_us": [
+        164.067804813385,
+        163.3478045463562,
+        163.65180015563965,
+        163.0918025970459,
+        163.3678436279297,
+        164.5018458366394,
+        163.71779441833496,
+        163.38584423065186,
+        163.58184814453125,
+        163.70985507965088,
+        163.3718490600586
+      ],
+      "median_us": 163.58184814453125
+    }
+  }
+}

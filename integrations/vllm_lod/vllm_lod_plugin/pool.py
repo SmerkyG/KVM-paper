@@ -191,6 +191,21 @@ class VLLMLayerLODPool:
             )
         settings = settings.for_family(self.family)
         self.settings = settings
+        self.glm_decode_threshold = None
+        self.glm_threshold_deferred_merge = False
+        self.glm_threshold_gqa_ports = False
+        self.glm_threshold_capture_audit = None
+        if self.family is ModelFamily.GLM53_FLASH and "LOD_GLM_DECODE_THRESHOLD" in os.environ:
+            c = float(os.environ["LOD_GLM_DECODE_THRESHOLD"])
+            if not math.isfinite(c) or c <= 0:
+                raise ValueError("LOD_GLM_DECODE_THRESHOLD must be finite and positive")
+            if settings.levels != 2 or dtype != torch.bfloat16 or self.dcp_world_size != 1:
+                raise ValueError("GLM decode threshold requires two-tier BF16 without DCP")
+            self.glm_decode_threshold = c
+            self.glm_threshold_gqa_ports = os.environ.get("LOD_GLM_THRESHOLD_GQA_PORTS") == "1"
+            if os.environ.get("LOD_GLM_THRESHOLD_AUDIT_CAPTURE") == "1":
+                self.glm_threshold_capture_audit = {}
+            self.glm_threshold_deferred_merge = self.glm_threshold_gqa_ports or os.environ.get("LOD_GLM_THRESHOLD_DEFERRED_MERGE") == "1"
 
         state_normalization = "none" if has_key_norm else "cosine"
         centroid_rescale = "coherence" if has_key_norm else "none"
@@ -4250,6 +4265,10 @@ class VLLMLayerLODPool:
         """Reserve graph scratch before vLLM computes its native cache budget."""
         if not 1 <= rows <= self.max_requests:
             raise ValueError("decode scratch rows exceed the fixed LOD pool")
+        if getattr(self, "glm_decode_threshold", None) is not None:
+            from lod_attention.kernels.glm_threshold_decode import reserve
+            reserve(self)
+            return
         if self.dcp_world_size > 1:
             # DCP processes the gathered queries, not this rank's TP head
             # shard. Allocate that geometry once; a later reservation must
@@ -4696,11 +4715,6 @@ class VLLMLayerLODPool:
             raise ValueError("unexpected gathered Kimi DCP query geometry")
         if tuple(key.shape[:2]) != (rows, self.kv_heads):
             raise ValueError("Kimi DCP current K/V geometry differs from its pool")
-        virtual_kv_heads = max(1, gathered_heads // 16)
-        q = query.unsqueeze(2).contiguous()
-        k = key.unsqueeze(2).contiguous()
-        v = value.unsqueeze(2).contiguous()
-        cache_indices = self.active_indices[:rows]
         active_slots = self.active_decode_rows[:rows]
         if self.dcp_world_size > 1 and len(active_slots) != rows:
             raise RuntimeError(
@@ -4710,6 +4724,15 @@ class VLLMLayerLODPool:
             self.ensure_dcp_sharded(active_slots)
         self.ensure_unified_page1_fixed(active_slots)
 
+        if self.glm_decode_threshold is not None:
+            from lod_attention.kernels.glm_threshold_decode import attention
+            return attention(self, query, key, output, self.glm_decode_threshold)
+
+        virtual_kv_heads = max(1, gathered_heads // 16)
+        q = query.unsqueeze(2).contiguous()
+        k = key.unsqueeze(2).contiguous()
+        v = value.unsqueeze(2).contiguous()
+        cache_indices = self.active_indices[:rows]
         buffers = self._dcp_buffers(q, rows)
         page = self.state["page_cache"]
 

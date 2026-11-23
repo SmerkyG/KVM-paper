@@ -43,6 +43,7 @@ def main():
     p.add_argument("--niah-samples", type=int, default=8)
     p.add_argument("--max-new-tokens", type=int, default=64)
     p.add_argument("--weight-cache-id", default="glm53-flash-tp4")
+    p.add_argument("--speed-repeats", type=int, default=1, help="Measured generations after the full warmup")
     p.add_argument("--kv-cache-gib", type=int, default=16)
     p.add_argument("--enforce-eager", action="store_true")
     p.add_argument("--exact-all-history", action="store_true",
@@ -62,6 +63,8 @@ def main():
                    help="Optional node-local location for captured tensors (large; never commit)")
     p.add_argument("--output", type=Path, required=True)
     args = p.parse_args()
+    if args.speed_repeats < 1:
+        p.error("--speed-repeats must be positive")
     if args.tp != 4 or min(args.length, args.kv_cache_gib, args.niah_samples,
                           args.max_new_tokens) < 1 or args.decode_tokens < 2:
         p.error("this matched panel requires TP4 and positive sizes / at least two outputs")
@@ -108,6 +111,8 @@ def main():
     # This also avoids this image's native GLM indexer mixed prefill/decode
     # offset bug. It does not pad prompts, force answers, or delay EOS after
     # prefill; shorter answers still finish naturally.
+    if args.measure == "speed" and os.environ.get("LOD_GLM_THRESHOLD_GQA_PORTS") == "1":
+        os.environ["LOD_GLM_THRESHOLD_AUDIT_CAPTURE"] = "1"
     configure_synchronized_decode_environment(enabled=True, batch_size=args.batch_size)
     max_outputs = args.decode_tokens if args.measure == "speed" else args.max_new_tokens
     kwargs = llm_kwargs(checkpoint=args.checkpoint, mode=args.mode,
@@ -315,11 +320,15 @@ def main():
 
         result["measurements"] = evaluate_speed(llm, tokenizer, lengths=[args.length],
             batch_size=args.batch_size, samples=args.batch_size,
-            decode_tokens=args.decode_tokens, repeats=1, seed=1234,
+            decode_tokens=args.decode_tokens, repeats=args.speed_repeats, seed=1234,
             fixed_decode_trace=True, retain_warmup_allocator=True,
             report_memory=True, progress_callback=progress)
         measured = result["measurements"][str(args.length)]
         result["post_speed_workers"] = llm.collective_rpc(audit_loaded_model)
+        if args.mode == "two-tier" and "LOD_GLM_DECODE_THRESHOLD" in os.environ:
+            c = float(os.environ["LOD_GLM_DECODE_THRESHOLD"])
+            assert all(pool["decode_threshold"] == c and pool["threshold_dispatch"]
+                       for worker in result["post_speed_workers"] for pool in worker["pools"])
         if result["kda_gluon_prefill"]:
             assert all(worker["kda_gluon_prefill"] and worker["kda_gluon_prefill_calls"] > 0
                 for worker in result["post_speed_workers"])
@@ -328,17 +337,18 @@ def main():
             assert all(pool["projected_leaf_calls"] > 0
                 for worker in result["post_speed_workers"] for pool in worker["pools"])
         if args.batch_size == 8:
-            timing = measured["measured_batch_timings"][0][0]
-            assert timing["last_token_spread_seconds"] == 0, "decode cohort finished in different steps"
-            assert timing["all_requests_live_overlap_seconds"] == timing["decode_window_seconds"], (
-                "not all eight requests remained live for the decode interval")
+            for repeat in measured["measured_batch_timings"]:
+                timing = repeat[0]
+                assert timing["last_token_spread_seconds"] == 0, "decode cohort finished in different steps"
+                assert timing["all_requests_live_overlap_seconds"] == timing["decode_window_seconds"], (
+                    "not all eight requests remained live for the decode interval")
         if args.mode != "full" and args.decode_tokens == 1026 and args.length % 256 == 0:
-            deltas = measured["measured_decode_update_counters"][0]
-            assert len(deltas) == args.tp
-            for worker in deltas:
-                assert len(worker) == 11, "missing MLA update counters"
-                assert all(value["catch_up_rows"] == 4 * args.batch_size
-                           for value in worker.values()), "wrong global per-request update cadence"
+            for deltas in measured["measured_decode_update_counters"]:
+                assert len(deltas) == args.tp
+                for worker in deltas:
+                    assert len(worker) == 11, "missing MLA update counters"
+                    assert all(value["catch_up_rows"] == 4 * args.batch_size
+                               for value in worker.values()), "wrong global per-request update cadence"
         result["status"] = "complete"
     except Exception as exc:
         result.update(status="failed", error=dict(type=type(exc).__name__, message=str(exc)))

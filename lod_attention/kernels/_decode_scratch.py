@@ -22,6 +22,9 @@ TRANSIENT_DECODE_BUFFERS = frozenset({
     "gqa_union_hip_out", "gqa_union_hip_lse",
     "gqa_union_hip_segment_out", "gqa_union_hip_exp_sums",
     "gqa_union_hip_max_logits", "kimi_gluon_partial", "kimi_gluon_partial_lse",
+    *(f"glm_threshold_{name}" for name in
+      ("scores", "tlse", "active", "total", "saved",
+       "flat", "bits", "partial", "lse", "mask_tiles", "mass")),
 })
 
 

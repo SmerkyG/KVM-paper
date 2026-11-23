@@ -1,0 +1,61 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64000-v-proj-doc2-rank0.pt",
+  "layer": "language_model.model.layers.19.self_attn.indexer.indexer_op",
+  "batch": 1,
+  "lengths": [
+    63999
+  ],
+  "initial_local": [
+    511
+  ],
+  "regions": [
+    4047
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "results": {
+    "original": {
+      "open_regions": 28.625,
+      "exact_leaves": 4786.1875,
+      "union_loaded_leaves": 11892.0,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.0016510896384716034,
+      "timings_us": [
+        41.161048412323,
+        41.367098689079285,
+        41.04104936122894,
+        41.071099042892456,
+        40.93509912490845,
+        41.009050607681274,
+        40.96305072307587,
+        41.00104868412018,
+        41.00104868412018,
+        41.06704890727997,
+        41.22709929943085
+      ],
+      "median_us": 41.04104936122894
+    },
+    "combined_raw_contiguous": {
+      "open_regions": 28.625,
+      "exact_leaves": 4786.1875,
+      "union_loaded_leaves": 11892.0,
+      "max_abs": 0.00800180435180664,
+      "relative_l2": 0.001651743776164949,
+      "timings_us": [
+        38.44510018825531,
+        38.40315043926239,
+        38.29315006732941,
+        38.26715052127838,
+        38.269150257110596,
+        38.395148515701294,
+        38.26315104961395,
+        38.29514980316162,
+        38.21514844894409,
+        38.23915123939514,
+        38.307151198387146
+      ],
+      "median_us": 38.29315006732941
+    }
+  }
+}

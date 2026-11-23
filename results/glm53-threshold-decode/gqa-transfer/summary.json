@@ -1,0 +1,4328 @@
+{
+  "1": {
+    "waves": {
+      "worker": {
+        "control": {
+          "config": {},
+          "us": 40.70982486009598,
+          "capture_us": [
+            43.700748682022095,
+            37.71890103816986
+          ],
+          "relative_l2_max": 0.0016517660114914179,
+          "leaves_per_head": 7162.1875
+        },
+        "pv_fma": {
+          "config": {
+            "pv": 1
+          },
+          "us": 40.599825978279114,
+          "capture_us": [
+            43.57075095176697,
+            37.62890100479126
+          ],
+          "relative_l2_max": 0.0016518539050593972,
+          "leaves_per_head": 7162.1875
+        },
+        "pv_transpose": {
+          "config": {
+            "pv": 2
+          },
+          "us": 42.08979904651642,
+          "capture_us": [
+            45.49869894981384,
+            38.680899143218994
+          ],
+          "relative_l2_max": 0.001651901751756668,
+          "leaves_per_head": 7162.1875
+        },
+        "base2": {
+          "config": {
+            "base2": true
+          },
+          "us": 41.29685014486313,
+          "capture_us": [
+            44.59474980831146,
+            37.998950481414795
+          ],
+          "relative_l2_max": 0.0016519824275746942,
+          "leaves_per_head": 7162.1875
+        },
+        "latent_cg": {
+          "config": {
+            "cg": true
+          },
+          "us": 42.71377474069595,
+          "capture_us": [
+            46.950650215148926,
+            38.47689926624298
+          ],
+          "relative_l2_max": 0.00165180501062423,
+          "leaves_per_head": 7162.1875
+        },
+        "warps8": {
+          "config": {
+            "warps": 8
+          },
+          "us": 42.10380017757416,
+          "capture_us": [
+            45.914700627326965,
+            38.29289972782135
+          ],
+          "relative_l2_max": 0.0016519527416676283,
+          "leaves_per_head": 7162.1875
+        },
+        "mfma": {
+          "config": {
+            "backend": {
+              "matrix_instr_nonkdim": 16,
+              "waves_per_eu": 2
+            }
+          },
+          "us": 41.72682464122772,
+          "capture_us": [
+            45.09874880313873,
+            38.35490047931671
+          ],
+          "relative_l2_max": 0.001651825848966837,
+          "leaves_per_head": 7162.1875
+        },
+        "precise": {
+          "config": {
+            "precise": true
+          },
+          "us": 45.51669955253601,
+          "capture_us": [
+            49.38859939575195,
+            41.64479970932007
+          ],
+          "relative_l2_max": 0.0016259066760540009,
+          "leaves_per_head": 7162.1875
+        },
+        "n16_s96": {
+          "config": {
+            "entry": 16,
+            "splits": 96
+          },
+          "us": 57.33437538146973,
+          "capture_us": [
+            67.11210012435913,
+            47.55665063858032
+          ],
+          "relative_l2_max": 0.0016498772893100977,
+          "leaves_per_head": 7162.1875
+        },
+        "n16_s128": {
+          "config": {
+            "entry": 16,
+            "splits": 128
+          },
+          "us": 51.88652575016022,
+          "capture_us": [
+            59.29235219955444,
+            44.48069930076599
+          ],
+          "relative_l2_max": 0.0016503084916621447,
+          "leaves_per_head": 7162.1875
+        },
+        "n16_s192": {
+          "config": {
+            "entry": 16,
+            "splits": 192
+          },
+          "us": 44.955724477767944,
+          "capture_us": [
+            49.756598472595215,
+            40.154850482940674
+          ],
+          "relative_l2_max": 0.0016499923076480627,
+          "leaves_per_head": 7162.1875
+        },
+        "n16_s256": {
+          "config": {
+            "entry": 16,
+            "splits": 256
+          },
+          "us": 42.987775802612305,
+          "capture_us": [
+            46.78865075111389,
+            39.18690085411072
+          ],
+          "relative_l2_max": 0.0016501049976795912,
+          "leaves_per_head": 7162.1875
+        },
+        "n32_s96": {
+          "config": {
+            "entry": 32,
+            "splits": 96
+          },
+          "us": 50.67157596349716,
+          "capture_us": [
+            58.77835154533386,
+            42.56480038166046
+          ],
+          "relative_l2_max": 0.0016517539042979479,
+          "leaves_per_head": 7162.1875
+        },
+        "n32_s128": {
+          "config": {
+            "entry": 32,
+            "splits": 128
+          },
+          "us": 46.99167460203171,
+          "capture_us": [
+            53.36650013923645,
+            40.616849064826965
+          ],
+          "relative_l2_max": 0.0016518825432285666,
+          "leaves_per_head": 7162.1875
+        },
+        "n32_s192": {
+          "config": {
+            "entry": 32,
+            "splits": 192
+          },
+          "us": 42.532800137996674,
+          "capture_us": [
+            45.89270055294037,
+            39.17289972305298
+          ],
+          "relative_l2_max": 0.0016515188617631793,
+          "leaves_per_head": 7162.1875
+        },
+        "n64_s96": {
+          "config": {
+            "entry": 64,
+            "splits": 96
+          },
+          "us": 54.776450991630554,
+          "capture_us": [
+            62.212252616882324,
+            47.340649366378784
+          ],
+          "relative_l2_max": 0.0016515640309080482,
+          "leaves_per_head": 7162.1875
+        },
+        "n64_s128": {
+          "config": {
+            "entry": 64,
+            "splits": 128
+          },
+          "us": 49.43059980869293,
+          "capture_us": [
+            56.46640062332153,
+            42.39479899406433
+          ],
+          "relative_l2_max": 0.0016514788148924708,
+          "leaves_per_head": 7162.1875
+        },
+        "n64_s192": {
+          "config": {
+            "entry": 64,
+            "splits": 192
+          },
+          "us": 47.37665057182312,
+          "capture_us": [
+            51.65650248527527,
+            43.09679865837097
+          ],
+          "relative_l2_max": 0.001651735045015812,
+          "leaves_per_head": 7162.1875
+        },
+        "n64_s256": {
+          "config": {
+            "entry": 64,
+            "splits": 256
+          },
+          "us": 42.697773873806,
+          "capture_us": [
+            46.62264883518219,
+            38.77289891242981
+          ],
+          "relative_l2_max": 0.0016512793954461813,
+          "leaves_per_head": 7162.1875
+        },
+        "n128_s96": {
+          "config": {
+            "entry": 128,
+            "splits": 96
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "n128_s128": {
+          "config": {
+            "entry": 128,
+            "splits": 128
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "n128_s192": {
+          "config": {
+            "entry": 128,
+            "splits": 192
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "n128_s256": {
+          "config": {
+            "entry": 128,
+            "splits": 256
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "k2_geometry": {
+          "config": {
+            "entry": 64,
+            "splits": 128,
+            "pv": 0,
+            "cg": true,
+            "base2": true,
+            "backend": {
+              "matrix_instr_nonkdim": 16,
+              "waves_per_eu": 2
+            }
+          },
+          "us": 101.60509645938873,
+          "capture_us": [
+            123.41444492340088,
+            79.79574799537659
+          ],
+          "relative_l2_max": 0.0016511993017047644,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "reduce": {
+        "control": {
+          "config": {},
+          "us": 41.08247607946396,
+          "capture_us": [
+            43.7994509935379,
+            38.365501165390015
+          ],
+          "relative_l2_max": 0.0016517618205398321,
+          "leaves_per_head": 7162.1875
+        },
+        "strip16_merge16": {
+          "config": {
+            "strip": 16,
+            "merge": 16
+          },
+          "us": 41.15644991397858,
+          "capture_us": [
+            43.983399868011475,
+            38.32949995994568
+          ],
+          "relative_l2_max": 0.0016517804469913244,
+          "leaves_per_head": 7162.1875
+        },
+        "strip16_merge32": {
+          "config": {
+            "strip": 16,
+            "merge": 32
+          },
+          "us": 40.993449091911316,
+          "capture_us": [
+            44.0093994140625,
+            37.97749876976013
+          ],
+          "relative_l2_max": 0.0016515873139724135,
+          "leaves_per_head": 7162.1875
+        },
+        "strip16_merge64": {
+          "config": {
+            "strip": 16,
+            "merge": 64
+          },
+          "us": 41.62144958972931,
+          "capture_us": [
+            44.689399003982544,
+            38.553500175476074
+          ],
+          "relative_l2_max": 0.001651559490710497,
+          "leaves_per_head": 7162.1875
+        },
+        "strip16_merge128": {
+          "config": {
+            "strip": 16,
+            "merge": 128
+          },
+          "us": 42.704424262046814,
+          "capture_us": [
+            45.857399702072144,
+            39.551448822021484
+          ],
+          "relative_l2_max": 0.001651896396651864,
+          "leaves_per_head": 7162.1875
+        },
+        "strip32_merge16": {
+          "config": {
+            "strip": 32,
+            "merge": 16
+          },
+          "us": 40.36944955587387,
+          "capture_us": [
+            43.903398513793945,
+            36.835500597953796
+          ],
+          "relative_l2_max": 0.0016517898766323924,
+          "leaves_per_head": 7162.1875
+        },
+        "strip32_merge32": {
+          "config": {
+            "strip": 32,
+            "merge": 32
+          },
+          "us": 40.62644988298416,
+          "capture_us": [
+            44.0854012966156,
+            37.16749846935272
+          ],
+          "relative_l2_max": 0.0016518337652087212,
+          "leaves_per_head": 7162.1875
+        },
+        "strip32_merge64": {
+          "config": {
+            "strip": 32,
+            "merge": 64
+          },
+          "us": 41.1594495177269,
+          "capture_us": [
+            44.72540020942688,
+            37.59349882602692
+          ],
+          "relative_l2_max": 0.001651793485507369,
+          "leaves_per_head": 7162.1875
+        },
+        "strip32_merge128": {
+          "config": {
+            "strip": 32,
+            "merge": 128
+          },
+          "us": 41.23445004224777,
+          "capture_us": [
+            44.65140104293823,
+            37.81749904155731
+          ],
+          "relative_l2_max": 0.0016518820775672793,
+          "leaves_per_head": 7162.1875
+        },
+        "strip64_merge16": {
+          "config": {
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 39.801475405693054,
+          "capture_us": [
+            43.73140037059784,
+            35.87155044078827
+          ],
+          "relative_l2_max": 0.0016518785851076245,
+          "leaves_per_head": 7162.1875
+        },
+        "strip64_merge32": {
+          "config": {
+            "strip": 64,
+            "merge": 32
+          },
+          "us": 40.312474966049194,
+          "capture_us": [
+            44.20144855976105,
+            36.42350137233734
+          ],
+          "relative_l2_max": 0.0016518087359145284,
+          "leaves_per_head": 7162.1875
+        },
+        "strip64_merge64": {
+          "config": {
+            "strip": 64,
+            "merge": 64
+          },
+          "us": 40.23847430944443,
+          "capture_us": [
+            44.2113995552063,
+            36.265549063682556
+          ],
+          "relative_l2_max": 0.00165173364803195,
+          "leaves_per_head": 7162.1875
+        },
+        "strip64_merge128": {
+          "config": {
+            "strip": 64,
+            "merge": 128
+          },
+          "us": 40.25750011205673,
+          "capture_us": [
+            44.07145082950592,
+            36.443549394607544
+          ],
+          "relative_l2_max": 0.0016517497133463621,
+          "leaves_per_head": 7162.1875
+        },
+        "strip128_merge16": {
+          "config": {
+            "strip": 128,
+            "merge": 16
+          },
+          "us": 40.84547460079193,
+          "capture_us": [
+            44.1274493932724,
+            37.56349980831146
+          ],
+          "relative_l2_max": 0.0016518973279744387,
+          "leaves_per_head": 7162.1875
+        },
+        "strip128_merge32": {
+          "config": {
+            "strip": 128,
+            "merge": 32
+          },
+          "us": 40.51945060491562,
+          "capture_us": [
+            43.80140006542206,
+            37.23750114440918
+          ],
+          "relative_l2_max": 0.0016518482007086277,
+          "leaves_per_head": 7162.1875
+        },
+        "strip128_merge64": {
+          "config": {
+            "strip": 128,
+            "merge": 64
+          },
+          "us": 41.15747511386871,
+          "capture_us": [
+            44.39544975757599,
+            37.91950047016144
+          ],
+          "relative_l2_max": 0.0016518936026841402,
+          "leaves_per_head": 7162.1875
+        },
+        "strip128_merge128": {
+          "config": {
+            "strip": 128,
+            "merge": 128
+          },
+          "us": 41.19047522544861,
+          "capture_us": [
+            44.58945095539093,
+            37.79149949550629
+          ],
+          "relative_l2_max": 0.0016518516931682825,
+          "leaves_per_head": 7162.1875
+        },
+        "strip512_merge16": {
+          "config": {
+            "strip": 512,
+            "merge": 16
+          },
+          "us": 41.675449907779694,
+          "capture_us": [
+            44.43345069885254,
+            38.91744911670685
+          ],
+          "relative_l2_max": 0.0016518293414264917,
+          "leaves_per_head": 7162.1875
+        },
+        "strip512_merge64": {
+          "config": {
+            "strip": 512,
+            "merge": 64
+          },
+          "us": 41.18644893169403,
+          "capture_us": [
+            44.03739869594574,
+            38.33549916744232
+          ],
+          "relative_l2_max": 0.0016517866170033813,
+          "leaves_per_head": 7162.1875
+        },
+        "strip512_merge128": {
+          "config": {
+            "strip": 512,
+            "merge": 128
+          },
+          "us": 41.431449353694916,
+          "capture_us": [
+            44.237399101257324,
+            38.62549960613251
+          ],
+          "relative_l2_max": 0.0016517115291208029,
+          "leaves_per_head": 7162.1875
+        },
+        "merge_cg": {
+          "config": {
+            "merge_cg": true
+          },
+          "us": 41.10944867134094,
+          "capture_us": [
+            44.171398878097534,
+            38.04749846458435
+          ],
+          "relative_l2_max": 0.0016519392374902964,
+          "leaves_per_head": 7162.1875
+        },
+        "closed_static": {
+          "config": {
+            "combine": true,
+            "static": true
+          },
+          "us": 40.89347571134567,
+          "capture_us": [
+            43.69345009326935,
+            38.093501329422
+          ],
+          "relative_l2_max": 0.0016517828917130828,
+          "leaves_per_head": 7162.1875
+        },
+        "closed_first": {
+          "config": {
+            "combine": true,
+            "first": true
+          },
+          "us": 41.032475233078,
+          "capture_us": [
+            43.91945004463196,
+            38.14550042152405
+          ],
+          "relative_l2_max": 0.0016517997719347477,
+          "leaves_per_head": 7162.1875
+        },
+        "closed_first_static": {
+          "config": {
+            "combine": true,
+            "first": true,
+            "static": true
+          },
+          "us": 39.44947570562363,
+          "capture_us": [
+            41.67945086956024,
+            37.21950054168701
+          ],
+          "relative_l2_max": 0.0016516216564923525,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "routing": {
+        "control": {
+          "config": {},
+          "us": 41.13844931125641,
+          "capture_us": [
+            44.21539902687073,
+            38.06149959564209
+          ],
+          "relative_l2_max": 0.0016519309720024467,
+          "leaves_per_head": 7162.1875
+        },
+        "score32": {
+          "config": {
+            "score_tile": 32
+          },
+          "us": 41.48542433977127,
+          "capture_us": [
+            44.7953999042511,
+            38.17544877529144
+          ],
+          "relative_l2_max": 0.0016518383054062724,
+          "leaves_per_head": 7162.1875
+        },
+        "score128": {
+          "config": {
+            "score_tile": 128
+          },
+          "us": 42.24044978618622,
+          "capture_us": [
+            45.631399750709534,
+            38.8494998216629
+          ],
+          "relative_l2_max": 0.0016516682226210833,
+          "leaves_per_head": 7162.1875
+        },
+        "select128": {
+          "config": {
+            "selector": 128
+          },
+          "us": 41.31844937801361,
+          "capture_us": [
+            44.58940029144287,
+            38.04749846458435
+          ],
+          "relative_l2_max": 0.0016518144402652979,
+          "leaves_per_head": 7162.1875
+        },
+        "select128_score128": {
+          "config": {
+            "selector": 128,
+            "score_tile": 128
+          },
+          "us": 42.77442544698715,
+          "capture_us": [
+            46.00340127944946,
+            39.54544961452484
+          ],
+          "relative_l2_max": 0.0016518334159627557,
+          "leaves_per_head": 7162.1875
+        },
+        "cutoff_once": {
+          "config": {
+            "cutoff": true
+          },
+          "us": 42.00344979763031,
+          "capture_us": [
+            45.207399129867554,
+            38.799500465393066
+          ],
+          "relative_l2_max": 0.001651929458603263,
+          "leaves_per_head": 7162.1875
+        },
+        "no_empty_atomic": {
+          "config": {
+            "guarded": true
+          },
+          "us": 40.79145044088364,
+          "capture_us": [
+            43.89339983463287,
+            37.6895010471344
+          ],
+          "relative_l2_max": 0.0016519484343007207,
+          "leaves_per_head": 7162.1875
+        },
+        "short_masks": {
+          "config": {
+            "half_masks": true
+          },
+          "us": 41.01642519235611,
+          "capture_us": [
+            44.26335096359253,
+            37.76949942111969
+          ],
+          "relative_l2_max": 0.0016517925541847944,
+          "leaves_per_head": 7162.1875
+        },
+        "shared_regions": {
+          "config": {
+            "union": true
+          },
+          "us": 41.379424929618835,
+          "capture_us": [
+            44.209399819374084,
+            38.549450039863586
+          ],
+          "relative_l2_max": 0.0016757003031671047,
+          "leaves_per_head": 19086.5
+        }
+      },
+      "wide": {
+        "control": {
+          "config": {},
+          "us": 41.25545024871826,
+          "capture_us": [
+            43.85339915752411,
+            38.657501339912415
+          ],
+          "relative_l2_max": 0.0016520387725904584,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n32_pv0_w4": {
+          "config": {
+            "entry": 32,
+            "pv": 0,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 40.59145003557205,
+          "capture_us": [
+            43.50540041923523,
+            37.677499651908875
+          ],
+          "relative_l2_max": 0.0016519001219421625,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n32_pv0_w8": {
+          "config": {
+            "entry": 32,
+            "pv": 0,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 42.999450862407684,
+          "capture_us": [
+            46.30340039730072,
+            39.69550132751465
+          ],
+          "relative_l2_max": 0.0016518211923539639,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n32_pv2_w4": {
+          "config": {
+            "entry": 32,
+            "pv": 2,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 42.24344938993454,
+          "capture_us": [
+            45.16739845275879,
+            39.31950032711029
+          ],
+          "relative_l2_max": 0.0016518747434020042,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n32_pv2_w8": {
+          "config": {
+            "entry": 32,
+            "pv": 2,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 43.71742606163025,
+          "capture_us": [
+            47.19735085964203,
+            40.23750126361847
+          ],
+          "relative_l2_max": 0.0016518611228093505,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n64_pv0_w4": {
+          "config": {
+            "entry": 64,
+            "pv": 0,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 39.86344933509827,
+          "capture_us": [
+            42.63339936733246,
+            37.093499302864075
+          ],
+          "relative_l2_max": 0.00165123725309968,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n64_pv0_w8": {
+          "config": {
+            "entry": 64,
+            "pv": 0,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 41.87245070934296,
+          "capture_us": [
+            45.13140022754669,
+            38.61350119113922
+          ],
+          "relative_l2_max": 0.0016514663584530354,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n64_pv2_w4": {
+          "config": {
+            "entry": 64,
+            "pv": 2,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 39.523474872112274,
+          "capture_us": [
+            41.43345057964325,
+            37.6134991645813
+          ],
+          "relative_l2_max": 0.0016512629808858037,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n64_pv2_w8": {
+          "config": {
+            "entry": 64,
+            "pv": 2,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 45.87540030479431,
+          "capture_us": [
+            49.49535131454468,
+            42.255449295043945
+          ],
+          "relative_l2_max": 0.0016513309674337506,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n128_pv0_w4": {
+          "config": {
+            "entry": 128,
+            "pv": 0,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 80.42392432689667,
+          "capture_us": [
+            86.35284900665283,
+            74.4949996471405
+          ],
+          "relative_l2_max": 0.0016541420482099056,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n128_pv0_w8": {
+          "config": {
+            "entry": 128,
+            "pv": 0,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 134.5341980457306,
+          "capture_us": [
+            161.51584386825562,
+            107.55255222320557
+          ],
+          "relative_l2_max": 0.0016540231881663203,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n128_pv2_w4": {
+          "config": {
+            "entry": 128,
+            "pv": 2,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 40.63345044851303,
+          "capture_us": [
+            41.38545095920563,
+            39.881449937820435
+          ],
+          "relative_l2_max": 0.001653713290579617,
+          "leaves_per_head": 7162.1875
+        },
+        "half_n128_pv2_w8": {
+          "config": {
+            "entry": 128,
+            "pv": 2,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 38.75647485256195,
+          "capture_us": [
+            39.61144983768463,
+            37.90149986743927
+          ],
+          "relative_l2_max": 0.00165373005438596,
+          "leaves_per_head": 7162.1875
+        },
+        "subgroup_waves_only": {
+          "config": {
+            "backend": {
+              "waves_per_eu": 2
+            }
+          },
+          "us": 42.22944974899292,
+          "capture_us": [
+            45.227399468421936,
+            39.231500029563904
+          ],
+          "relative_l2_max": 0.0016518469201400876,
+          "leaves_per_head": 7162.1875
+        },
+        "mfma16_only": {
+          "config": {
+            "backend": {
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "us": 41.268473863601685,
+          "capture_us": [
+            43.88344883918762,
+            38.65349888801575
+          ],
+          "relative_l2_max": 0.0016518707852810621,
+          "leaves_per_head": 7162.1875
+        },
+        "cg_pv64": {
+          "config": {
+            "entry": 64,
+            "cg": true,
+            "pv": 2
+          },
+          "us": 41.9794499874115,
+          "capture_us": [
+            45.56939899921417,
+            38.389500975608826
+          ],
+          "relative_l2_max": 0.0016513816080987453,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "combine": {
+        "control": {
+          "config": {},
+          "us": 40.71187525987625,
+          "capture_us": [
+            43.42480003833771,
+            37.998950481414795
+          ],
+          "relative_l2_max": 0.0016516209580004215,
+          "leaves_per_head": 7162.1875
+        },
+        "e64s128": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 128
+          },
+          "us": 43.24282556772232,
+          "capture_us": [
+            47.760701179504395,
+            38.72494995594025
+          ],
+          "relative_l2_max": 0.001651472644880414,
+          "leaves_per_head": 7162.1875
+        },
+        "e64s160": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 160
+          },
+          "us": 41.46285057067871,
+          "capture_us": [
+            43.762800097465515,
+            39.16290104389191
+          ],
+          "relative_l2_max": 0.001651523052714765,
+          "leaves_per_head": 7162.1875
+        },
+        "e64s192": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 192
+          },
+          "us": 41.81784987449646,
+          "capture_us": [
+            43.83479952812195,
+            39.80090022087097
+          ],
+          "relative_l2_max": 0.0016513548325747252,
+          "leaves_per_head": 7162.1875
+        },
+        "e64s224": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 224
+          },
+          "us": 42.49582439661026,
+          "capture_us": [
+            44.53674852848053,
+            40.45490026473999
+          ],
+          "relative_l2_max": 0.0016512391157448292,
+          "leaves_per_head": 7162.1875
+        },
+        "e64s256": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 256
+          },
+          "us": 39.07095044851303,
+          "capture_us": [
+            41.15090072154999,
+            36.991000175476074
+          ],
+          "relative_l2_max": 0.0016513117589056492,
+          "leaves_per_head": 7162.1875
+        },
+        "e64layout512m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 512,
+            "merge": 32
+          },
+          "us": 38.05295079946518,
+          "capture_us": [
+            40.02490043640137,
+            36.08100116252899
+          ],
+          "relative_l2_max": 0.0016512820729985833,
+          "leaves_per_head": 7162.1875
+        },
+        "e64layout32m16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 32,
+            "merge": 16
+          },
+          "us": 37.57594972848892,
+          "capture_us": [
+            40.09290039539337,
+            35.05899906158447
+          ],
+          "relative_l2_max": 0.0016513861482962966,
+          "leaves_per_head": 7162.1875
+        },
+        "e64layout64m16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.41500025987625,
+          "capture_us": [
+            39.660900831222534,
+            33.16909968852997
+          ],
+          "relative_l2_max": 0.0016513803275302052,
+          "leaves_per_head": 7162.1875
+        },
+        "e64layout64m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 32
+          },
+          "us": 36.820998787879944,
+          "capture_us": [
+            40.03689885139465,
+            33.605098724365234
+          ],
+          "relative_l2_max": 0.0016513763694092631,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_cg": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "cg": true
+          },
+          "us": 40.602898597717285,
+          "capture_us": [
+            43.954798579216,
+            37.25099861621857
+          ],
+          "relative_l2_max": 0.0016512231668457389,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_base2": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "base2": true
+          },
+          "us": 37.96495050191879,
+          "capture_us": [
+            39.914900064468384,
+            36.0150009393692
+          ],
+          "relative_l2_max": 0.0016515246825292706,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_contig": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "contiguous": false
+          },
+          "us": 38.40295076370239,
+          "capture_us": [
+            40.40890038013458,
+            36.3970011472702
+          ],
+          "relative_l2_max": 0.0016512235160917044,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_waves": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "backend": {
+              "waves_per_eu": 2
+            }
+          },
+          "us": 39.528900384902954,
+          "capture_us": [
+            41.45685136318207,
+            37.60094940662384
+          ],
+          "relative_l2_max": 0.0016513302689418197,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_mfma": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "backend": {
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "us": 38.158950209617615,
+          "capture_us": [
+            40.06890058517456,
+            36.24899983406067
+          ],
+          "relative_l2_max": 0.0016513393493369222,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_mask16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "half_masks": true
+          },
+          "us": 38.026949763298035,
+          "capture_us": [
+            39.93290066719055,
+            36.12099885940552
+          ],
+          "relative_l2_max": 0.001651494880206883,
+          "leaves_per_head": 7162.1875
+        },
+        "e64_combine": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "combine": false
+          },
+          "us": 39.795899391174316,
+          "capture_us": [
+            41.35285019874573,
+            38.238948583602905
+          ],
+          "relative_l2_max": 0.0016513877781108022,
+          "leaves_per_head": 7162.1875
+        },
+        "e128s128": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 128
+          },
+          "us": 39.43589925765991,
+          "capture_us": [
+            42.872798442840576,
+            35.99900007247925
+          ],
+          "relative_l2_max": 0.0016540384385734797,
+          "leaves_per_head": 7162.1875
+        },
+        "e128s160": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 160
+          },
+          "us": 39.81789946556091,
+          "capture_us": [
+            43.2888001203537,
+            36.34699881076813
+          ],
+          "relative_l2_max": 0.0016539348289370537,
+          "leaves_per_head": 7162.1875
+        },
+        "e128s192": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 192
+          },
+          "us": 40.40887504816055,
+          "capture_us": [
+            43.80879998207092,
+            37.00895011425018
+          ],
+          "relative_l2_max": 0.0016540306387469172,
+          "leaves_per_head": 7162.1875
+        },
+        "e128s224": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 224
+          },
+          "us": 40.86887538433075,
+          "capture_us": [
+            44.318801164627075,
+            37.418949604034424
+          ],
+          "relative_l2_max": 0.0016540251672267914,
+          "leaves_per_head": 7162.1875
+        },
+        "e128s256": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 256
+          },
+          "us": 38.71592432260513,
+          "capture_us": [
+            39.69489932060242,
+            37.73694932460785
+          ],
+          "relative_l2_max": 0.001653709914535284,
+          "leaves_per_head": 7162.1875
+        },
+        "e128layout512m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 512,
+            "merge": 32
+          },
+          "us": 37.55494952201843,
+          "capture_us": [
+            37.80494928359985,
+            37.30494976043701
+          ],
+          "relative_l2_max": 0.0016535823233425617,
+          "leaves_per_head": 7162.1875
+        },
+        "e128layout32m16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 32,
+            "merge": 16
+          },
+          "us": 37.39594966173172,
+          "capture_us": [
+            38.012948632240295,
+            36.778950691223145
+          ],
+          "relative_l2_max": 0.0016542758094146848,
+          "leaves_per_head": 7162.1875
+        },
+        "e128layout64m16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.64800077676773,
+          "capture_us": [
+            37.70495057106018,
+            35.59105098247528
+          ],
+          "relative_l2_max": 0.0016539640491828322,
+          "leaves_per_head": 7162.1875
+        },
+        "e128layout64m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 32
+          },
+          "us": 37.09097355604172,
+          "capture_us": [
+            37.9909485578537,
+            36.190998554229736
+          ],
+          "relative_l2_max": 0.001653803396038711,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_cg": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "cg": true
+          },
+          "us": 40.25687575340271,
+          "capture_us": [
+            41.29885137081146,
+            39.21490013599396
+          ],
+          "relative_l2_max": 0.0016541468212381005,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_base2": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "base2": true
+          },
+          "us": 37.76394873857498,
+          "capture_us": [
+            37.96694874763489,
+            37.560948729515076
+          ],
+          "relative_l2_max": 0.001654166029766202,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_contig": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "contiguous": false
+          },
+          "us": 37.810949981212616,
+          "capture_us": [
+            38.08295130729675,
+            37.53894865512848
+          ],
+          "relative_l2_max": 0.0016540845390409231,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_waves": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "backend": {
+              "waves_per_eu": 2
+            }
+          },
+          "us": 37.772949039936066,
+          "capture_us": [
+            37.960949540138245,
+            37.58494853973389
+          ],
+          "relative_l2_max": 0.0016537352930754423,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_mfma": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "backend": {
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "us": 37.76195049285889,
+          "capture_us": [
+            37.85895109176636,
+            37.664949893951416
+          ],
+          "relative_l2_max": 0.0016539398347958922,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_mask16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "half_masks": true
+          },
+          "us": 38.085949420928955,
+          "capture_us": [
+            38.01094889640808,
+            38.16094994544983
+          ],
+          "relative_l2_max": 0.0016539049101993442,
+          "leaves_per_head": 7162.1875
+        },
+        "e128_combine": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "combine": false
+          },
+          "us": 39.94490057229996,
+          "capture_us": [
+            40.92690050601959,
+            38.96290063858032
+          ],
+          "relative_l2_max": 0.0016539054922759533,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "ordered": {
+        "control": {
+          "config": {},
+          "us": 40.87947607040405,
+          "capture_us": [
+            43.955451250076294,
+            37.80350089073181
+          ],
+          "relative_l2_max": 0.0016518583288416266,
+          "leaves_per_head": 7162.1875
+        },
+        "ordered": {
+          "config": {
+            "ordered": true
+          },
+          "us": 43.72042566537857,
+          "capture_us": [
+            48.06340038776398,
+            39.377450942993164
+          ],
+          "relative_l2_max": 0.0016516090836375952,
+          "leaves_per_head": 7162.1875
+        },
+        "ordered128": {
+          "config": {
+            "ordered": true,
+            "selector": 128
+          },
+          "us": 42.07245111465454,
+          "capture_us": [
+            45.77940106391907,
+            38.365501165390015
+          ],
+          "relative_l2_max": 0.0016516090836375952,
+          "leaves_per_head": 7162.1875
+        },
+        "wide_control": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8
+          },
+          "us": 38.95750045776367,
+          "capture_us": [
+            39.787501096725464,
+            38.12749981880188
+          ],
+          "relative_l2_max": 0.0016538584604859352,
+          "leaves_per_head": 7162.1875
+        },
+        "wide_ordered": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "ordered": true
+          },
+          "us": 39.53447490930557,
+          "capture_us": [
+            41.205450892448425,
+            37.86349892616272
+          ],
+          "relative_l2_max": 0.0016535362228751183,
+          "leaves_per_head": 7162.1875
+        },
+        "wide_ordered128": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "ordered": true,
+            "selector": 128
+          },
+          "us": 39.77947533130646,
+          "capture_us": [
+            41.07944965362549,
+            38.47950100898743
+          ],
+          "relative_l2_max": 0.0016535362228751183,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "stats": {
+        "control": {
+          "config": {},
+          "us": 41.164448857307434,
+          "capture_us": [
+            44.011399149894714,
+            38.317498564720154
+          ],
+          "relative_l2_max": 0.0016516726464033127,
+          "leaves_per_head": 7162.1875
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.73650026321411,
+          "capture_us": [
+            39.92744982242584,
+            33.54555070400238
+          ],
+          "relative_l2_max": 0.0016514158342033625,
+          "leaves_per_head": 7162.1875
+        },
+        "pair_only": {
+          "config": {
+            "pair_stats": true
+          },
+          "us": 41.04045033454895,
+          "capture_us": [
+            43.837401270866394,
+            38.243499398231506
+          ],
+          "relative_l2_max": 0.001651566126383841,
+          "leaves_per_head": 7162.1875
+        },
+        "tuned_pairs": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16,
+            "pair_stats": true
+          },
+          "us": 37.04050034284592,
+          "capture_us": [
+            40.44544994831085,
+            33.63555073738098
+          ],
+          "relative_l2_max": 0.0016514064045622945,
+          "leaves_per_head": 7162.1875
+        },
+        "tuned_pairs_cg": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16,
+            "pair_stats": true,
+            "merge_cg": true
+          },
+          "us": 36.95649951696396,
+          "capture_us": [
+            40.15744924545288,
+            33.75554978847504
+          ],
+          "relative_l2_max": 0.0016513153677806258,
+          "leaves_per_head": 7162.1875
+        },
+        "tuned_union": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16,
+            "union": true
+          },
+          "us": 37.21650093793869,
+          "capture_us": [
+            40.48545062541962,
+            33.947551250457764
+          ],
+          "relative_l2_max": 0.0016764645697548985,
+          "leaves_per_head": 19086.5
+        }
+      },
+      "donor": {
+        "control": {
+          "config": {},
+          "us": 40.93545079231262,
+          "capture_us": [
+            43.93540024757385,
+            37.93550133705139
+          ],
+          "relative_l2_max": 0.0016518579795956612,
+          "leaves_per_head": 7162.1875
+        },
+        "qwen": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 64,
+            "entry": 32,
+            "splits": 128
+          },
+          "us": 49.882349371910095,
+          "capture_us": [
+            57.2332501411438,
+            42.53144860267639
+          ],
+          "relative_l2_max": 0.0016519211931154132,
+          "leaves_per_head": 7162.1875
+        },
+        "qwen_precise": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 64,
+            "entry": 32,
+            "splits": 128,
+            "precise": true
+          },
+          "us": 56.96522444486618,
+          "capture_us": [
+            65.99504947662354,
+            47.935399413108826
+          ],
+          "relative_l2_max": 0.0016259069088846445,
+          "leaves_per_head": 7162.1875
+        },
+        "qwen_split_channels": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 64,
+            "entry": 32,
+            "splits": 128,
+            "split_dim": true
+          },
+          "us": 49.99535083770752,
+          "capture_us": [
+            57.269251346588135,
+            42.721450328826904
+          ],
+          "relative_l2_max": 0.001651866128668189,
+          "leaves_per_head": 7162.1875
+        },
+        "k2": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 64,
+            "entry": 64,
+            "splits": 128,
+            "pv": 0
+          },
+          "us": 52.31730043888092,
+          "capture_us": [
+            60.38320064544678,
+            44.25140023231506
+          ],
+          "relative_l2_max": 0.0016513897571712732,
+          "leaves_per_head": 7162.1875
+        },
+        "k2_split_channels": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 64,
+            "entry": 64,
+            "splits": 128,
+            "pv": 0,
+            "split_dim": true
+          },
+          "us": 45.4823762178421,
+          "capture_us": [
+            51.40730142593384,
+            39.557451009750366
+          ],
+          "relative_l2_max": 0.0016514196759089828,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "ablate": {
+        "control": {
+          "config": {},
+          "us": 40.873898565769196,
+          "capture_us": [
+            43.66079866886139,
+            38.086998462677
+          ],
+          "relative_l2_max": 0.0016517413314431906,
+          "leaves_per_head": 7162.1875
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.685025691986084,
+          "capture_us": [
+            39.98295068740845,
+            33.38710069656372
+          ],
+          "relative_l2_max": 0.0016513218870386481,
+          "leaves_per_head": 7162.1875
+        },
+        "direct_pv": {
+          "config": {
+            "split_dim": true,
+            "pv": 0,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.473023891448975,
+          "capture_us": [
+            39.70294892787933,
+            33.243098855018616
+          ],
+          "relative_l2_max": 0.0016512582078576088,
+          "leaves_per_head": 7162.1875
+        },
+        "full_width_dot": {
+          "config": {
+            "split_dim": false,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 37.380024790763855,
+          "capture_us": [
+            40.78094959259033,
+            33.97909998893738
+          ],
+          "relative_l2_max": 0.0016514182789251208,
+          "leaves_per_head": 7162.1875
+        },
+        "narrow_entries": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 32,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 41.36592596769333,
+          "capture_us": [
+            45.990800857543945,
+            36.74105107784271
+          ],
+          "relative_l2_max": 0.0016518387710675597,
+          "leaves_per_head": 7162.1875
+        },
+        "old_partials": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 512,
+            "merge": 32
+          },
+          "us": 38.367000222206116,
+          "capture_us": [
+            40.32894968986511,
+            36.40505075454712
+          ],
+          "relative_l2_max": 0.0016514889430254698,
+          "leaves_per_head": 7162.1875
+        },
+        "all_atomics": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": false,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.886025965213776,
+          "capture_us": [
+            40.13895094394684,
+            33.63310098648071
+          ],
+          "relative_l2_max": 0.0016512008151039481,
+          "leaves_per_head": 7162.1875
+        },
+        "k2_precise": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16,
+            "precise": true
+          },
+          "us": 53.84654849767685,
+          "capture_us": [
+            59.7383975982666,
+            47.9546993970871
+          ],
+          "relative_l2_max": 0.0016259069088846445,
+          "leaves_per_head": 7162.1875
+        },
+        "closed_after": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": false,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 37.44200021028519,
+          "capture_us": [
+            40.70095121860504,
+            34.18304920196533
+          ],
+          "relative_l2_max": 0.0016514913877472281,
+          "leaves_per_head": 7162.1875
+        },
+        "dynamic_closed": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": false,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 37.17302531003952,
+          "capture_us": [
+            40.39295017719269,
+            33.95310044288635
+          ],
+          "relative_l2_max": 0.0016513412119820714,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "confirm": {
+        "control": {
+          "config": {},
+          "us": 40.85389971733093,
+          "capture_us": [
+            43.50684881210327,
+            38.200950622558594
+          ],
+          "relative_l2_max": 0.0016517845215275884,
+          "leaves_per_head": 7162.1875
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.53800040483475,
+          "capture_us": [
+            39.792901277542114,
+            33.28309953212738
+          ],
+          "relative_l2_max": 0.001651223748922348,
+          "leaves_per_head": 7162.1875
+        }
+      },
+      "profile": {
+        "control": {
+          "config": {},
+          "us": 40.77894985675812,
+          "capture_us": [
+            43.42690110206604,
+            38.130998611450195
+          ],
+          "relative_l2_max": 0.001651930739171803,
+          "leaves_per_head": 7162.1875,
+          "stage_activity_counts": [
+            {
+              "_score_regions": 45,
+              "_select_and_pack": 44,
+              "_attend_exact": 44,
+              "_merge_fields": 44
+            },
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            }
+          ],
+          "stage_us": {
+            "_score_regions": 5.19849999999991,
+            "_select_and_pack": 5.118500000000012,
+            "_attend_exact": 20.658750000000026,
+            "_merge_fields": 3.7584999999999695
+          }
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "static": true,
+            "first": true,
+            "guarded": true,
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 36.639074981212616,
+          "capture_us": [
+            39.765000343322754,
+            33.51314961910248
+          ],
+          "relative_l2_max": 0.0016511556459590793,
+          "leaves_per_head": 7162.1875,
+          "stage_activity_counts": [
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            },
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            }
+          ],
+          "stage_us": {
+            "_score_regions": 5.348749999999939,
+            "_select_and_pack": 4.898999999999944,
+            "_attend_exact": 16.479000000000028,
+            "_merge_fields": 3.859000000000009
+          }
+        }
+      }
+    },
+    "distinct_timed": 116,
+    "distinct_resource_limited": 4,
+    "serving": {
+      "ported": {
+        "ms": 8.16076010465622,
+        "repeats_ms": [
+          8.15984783194414,
+          8.1616723773683
+        ]
+      },
+      "transfer": {
+        "ms": 8.119650989225725,
+        "repeats_ms": [
+          8.119137096332341,
+          8.12016488211911
+        ]
+      }
+    }
+  },
+  "8": {
+    "waves": {
+      "worker": {
+        "control": {
+          "config": {},
+          "us": 104.15704846382141,
+          "capture_us": [
+            119.85859870910645,
+            88.45549821853638
+          ],
+          "relative_l2_max": 0.0016596994828432798,
+          "leaves_per_head": 6682.2265625
+        },
+        "pv_fma": {
+          "config": {
+            "pv": 1
+          },
+          "us": 104.05304729938507,
+          "capture_us": [
+            119.73459720611572,
+            88.37149739265442
+          ],
+          "relative_l2_max": 0.0016594968037679791,
+          "leaves_per_head": 6682.2265625
+        },
+        "pv_transpose": {
+          "config": {
+            "pv": 2
+          },
+          "us": 107.55292177200317,
+          "capture_us": [
+            124.21444654464722,
+            90.89139699935913
+          ],
+          "relative_l2_max": 0.0016599582741037011,
+          "leaves_per_head": 6682.2265625
+        },
+        "base2": {
+          "config": {
+            "base2": true
+          },
+          "us": 104.80300188064575,
+          "capture_us": [
+            120.23855447769165,
+            89.36744928359985
+          ],
+          "relative_l2_max": 0.001659394009038806,
+          "leaves_per_head": 6682.2265625
+        },
+        "latent_cg": {
+          "config": {
+            "cg": true
+          },
+          "us": 105.65100014209747,
+          "capture_us": [
+            120.21055221557617,
+            91.09144806861877
+          ],
+          "relative_l2_max": 0.0016594050684943795,
+          "leaves_per_head": 6682.2265625
+        },
+        "warps8": {
+          "config": {
+            "warps": 8
+          },
+          "us": 139.1000270843506,
+          "capture_us": [
+            168.32720041275024,
+            109.87285375595093
+          ],
+          "relative_l2_max": 0.0016597668873146176,
+          "leaves_per_head": 6682.2265625
+        },
+        "mfma": {
+          "config": {
+            "backend": {
+              "matrix_instr_nonkdim": 16,
+              "waves_per_eu": 2
+            }
+          },
+          "us": 108.75292420387268,
+          "capture_us": [
+            125.42845010757446,
+            92.0773983001709
+          ],
+          "relative_l2_max": 0.001659931498579681,
+          "leaves_per_head": 6682.2265625
+        },
+        "precise": {
+          "config": {
+            "precise": true
+          },
+          "us": 157.212495803833,
+          "capture_us": [
+            189.46454524993896,
+            124.96044635772705
+          ],
+          "relative_l2_max": 0.0016519391210749745,
+          "leaves_per_head": 6682.2265625
+        },
+        "n16_s32": {
+          "config": {
+            "entry": 16,
+            "splits": 32
+          },
+          "us": 153.0356764793396,
+          "capture_us": [
+            186.02875471115112,
+            120.04259824752808
+          ],
+          "relative_l2_max": 0.0016586275305598974,
+          "leaves_per_head": 6682.2265625
+        },
+        "n16_s48": {
+          "config": {
+            "entry": 16,
+            "splits": 48
+          },
+          "us": 129.43032383918762,
+          "capture_us": [
+            156.66954517364502,
+            102.19110250473022
+          ],
+          "relative_l2_max": 0.001658510067500174,
+          "leaves_per_head": 6682.2265625
+        },
+        "n16_s64": {
+          "config": {
+            "entry": 16,
+            "splits": 64
+          },
+          "us": 114.40372169017792,
+          "capture_us": [
+            134.0261459350586,
+            94.78129744529724
+          ],
+          "relative_l2_max": 0.0016580302035436034,
+          "leaves_per_head": 6682.2265625
+        },
+        "n16_s96": {
+          "config": {
+            "entry": 16,
+            "splits": 96
+          },
+          "us": 126.5064001083374,
+          "capture_us": [
+            152.6436448097229,
+            100.3691554069519
+          ],
+          "relative_l2_max": 0.0016578326467424631,
+          "leaves_per_head": 6682.2265625
+        },
+        "n32_s32": {
+          "config": {
+            "entry": 32,
+            "splits": 32
+          },
+          "us": 127.15337872505188,
+          "capture_us": [
+            150.93170404434204,
+            103.37505340576172
+          ],
+          "relative_l2_max": 0.0016593162436038256,
+          "leaves_per_head": 6682.2265625
+        },
+        "n32_s48": {
+          "config": {
+            "entry": 32,
+            "splits": 48
+          },
+          "us": 114.41572308540344,
+          "capture_us": [
+            135.24614572525024,
+            93.58530044555664
+          ],
+          "relative_l2_max": 0.0016598328948020935,
+          "leaves_per_head": 6682.2265625
+        },
+        "n32_s96": {
+          "config": {
+            "entry": 32,
+            "splits": 96
+          },
+          "us": 113.118776679039,
+          "capture_us": [
+            133.08420181274414,
+            93.15335154533386
+          ],
+          "relative_l2_max": 0.0016598389483988285,
+          "leaves_per_head": 6682.2265625
+        },
+        "n64_s32": {
+          "config": {
+            "entry": 64,
+            "splits": 32
+          },
+          "us": 130.6872546672821,
+          "capture_us": [
+            155.01960515975952,
+            106.35490417480469
+          ],
+          "relative_l2_max": 0.0016600938979536295,
+          "leaves_per_head": 6682.2265625
+        },
+        "n64_s48": {
+          "config": {
+            "entry": 64,
+            "splits": 48
+          },
+          "us": 144.58987712860107,
+          "capture_us": [
+            173.29305410385132,
+            115.88670015335083
+          ],
+          "relative_l2_max": 0.0016601074021309614,
+          "leaves_per_head": 6682.2265625
+        },
+        "n64_s64": {
+          "config": {
+            "entry": 64,
+            "splits": 64
+          },
+          "us": 132.65822529792786,
+          "capture_us": [
+            154.8035979270935,
+            110.5128526687622
+          ],
+          "relative_l2_max": 0.0016595999477431178,
+          "leaves_per_head": 6682.2265625
+        },
+        "n64_s96": {
+          "config": {
+            "entry": 64,
+            "splits": 96
+          },
+          "us": 135.60912609100342,
+          "capture_us": [
+            157.56750106811523,
+            113.6507511138916
+          ],
+          "relative_l2_max": 0.0016599016962572932,
+          "leaves_per_head": 6682.2265625
+        },
+        "n128_s32": {
+          "config": {
+            "entry": 128,
+            "splits": 32
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "n128_s48": {
+          "config": {
+            "entry": 128,
+            "splits": 48
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "n128_s64": {
+          "config": {
+            "entry": 128,
+            "splits": 64
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "n128_s96": {
+          "config": {
+            "entry": 128,
+            "splits": 96
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "k2_geometry": {
+          "config": {
+            "entry": 128,
+            "splits": 32,
+            "pv": 2,
+            "cg": true,
+            "base2": true,
+            "backend": {
+              "matrix_instr_nonkdim": 16,
+              "waves_per_eu": 2
+            }
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        }
+      },
+      "reduce": {
+        "control": {
+          "config": {},
+          "us": 103.97062599658966,
+          "capture_us": [
+            119.46640014648438,
+            88.47485184669495
+          ],
+          "relative_l2_max": 0.0016596419736742973,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip16_merge16": {
+          "config": {
+            "strip": 16,
+            "merge": 16
+          },
+          "us": 104.90660071372986,
+          "capture_us": [
+            120.77640295028687,
+            89.03679847717285
+          ],
+          "relative_l2_max": 0.0016598289366811514,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip16_merge32": {
+          "config": {
+            "strip": 16,
+            "merge": 32
+          },
+          "us": 104.48162853717804,
+          "capture_us": [
+            120.12840509414673,
+            88.83485198020935
+          ],
+          "relative_l2_max": 0.0016593275358900428,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip16_merge64": {
+          "config": {
+            "strip": 16,
+            "merge": 64
+          },
+          "us": 104.8255980014801,
+          "capture_us": [
+            120.63039541244507,
+            89.02080059051514
+          ],
+          "relative_l2_max": 0.0016599259106442332,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip16_merge128": {
+          "config": {
+            "strip": 16,
+            "merge": 128
+          },
+          "us": 104.56762611865997,
+          "capture_us": [
+            120.4524040222168,
+            88.68284821510315
+          ],
+          "relative_l2_max": 0.0016593449981883168,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip32_merge16": {
+          "config": {
+            "strip": 32,
+            "merge": 16
+          },
+          "us": 104.41359877586365,
+          "capture_us": [
+            120.15634775161743,
+            88.67084980010986
+          ],
+          "relative_l2_max": 0.0016596905188634992,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip32_merge32": {
+          "config": {
+            "strip": 32,
+            "merge": 32
+          },
+          "us": 104.19862270355225,
+          "capture_us": [
+            119.67239379882812,
+            88.72485160827637
+          ],
+          "relative_l2_max": 0.0016598167130723596,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip32_merge64": {
+          "config": {
+            "strip": 32,
+            "merge": 64
+          },
+          "us": 104.31065261363983,
+          "capture_us": [
+            119.76845264434814,
+            88.85285258293152
+          ],
+          "relative_l2_max": 0.0016600394155830145,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip32_merge128": {
+          "config": {
+            "strip": 32,
+            "merge": 128
+          },
+          "us": 104.25362288951874,
+          "capture_us": [
+            119.71839666366577,
+            88.7888491153717
+          ],
+          "relative_l2_max": 0.001659662346355617,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip64_merge16": {
+          "config": {
+            "strip": 64,
+            "merge": 16
+          },
+          "us": 103.94262373447418,
+          "capture_us": [
+            119.68239545822144,
+            88.20285201072693
+          ],
+          "relative_l2_max": 0.001659741741605103,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip64_merge32": {
+          "config": {
+            "strip": 64,
+            "merge": 32
+          },
+          "us": 103.21162641048431,
+          "capture_us": [
+            118.68040561676025,
+            87.74284720420837
+          ],
+          "relative_l2_max": 0.0016593164764344692,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip64_merge64": {
+          "config": {
+            "strip": 64,
+            "merge": 64
+          },
+          "us": 103.66065204143524,
+          "capture_us": [
+            118.91645193099976,
+            88.40485215187073
+          ],
+          "relative_l2_max": 0.001659567467868328,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip64_merge128": {
+          "config": {
+            "strip": 64,
+            "merge": 128
+          },
+          "us": 103.7966251373291,
+          "capture_us": [
+            119.28244829177856,
+            88.31080198287964
+          ],
+          "relative_l2_max": 0.0016599080990999937,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip128_merge16": {
+          "config": {
+            "strip": 128,
+            "merge": 16
+          },
+          "us": 104.52262461185455,
+          "capture_us": [
+            120.19239664077759,
+            88.85285258293152
+          ],
+          "relative_l2_max": 0.0016593935433775187,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip128_merge32": {
+          "config": {
+            "strip": 128,
+            "merge": 32
+          },
+          "us": 103.03764939308167,
+          "capture_us": [
+            118.56445074081421,
+            87.51084804534912
+          ],
+          "relative_l2_max": 0.0016595653723925352,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip128_merge64": {
+          "config": {
+            "strip": 128,
+            "merge": 64
+          },
+          "us": 103.78762483596802,
+          "capture_us": [
+            119.132399559021,
+            88.44285011291504
+          ],
+          "relative_l2_max": 0.0016601593233644962,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip128_merge128": {
+          "config": {
+            "strip": 128,
+            "merge": 128
+          },
+          "us": 103.74162495136261,
+          "capture_us": [
+            119.1864013671875,
+            88.29684853553772
+          ],
+          "relative_l2_max": 0.0016595358029007912,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip512_merge16": {
+          "config": {
+            "strip": 512,
+            "merge": 16
+          },
+          "us": 105.77860176563263,
+          "capture_us": [
+            121.20640277862549,
+            90.35080075263977
+          ],
+          "relative_l2_max": 0.0016596718924120069,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip512_merge64": {
+          "config": {
+            "strip": 512,
+            "merge": 64
+          },
+          "us": 104.3136477470398,
+          "capture_us": [
+            119.49044466018677,
+            89.13685083389282
+          ],
+          "relative_l2_max": 0.0016599573427811265,
+          "leaves_per_head": 6682.2265625
+        },
+        "strip512_merge128": {
+          "config": {
+            "strip": 512,
+            "merge": 128
+          },
+          "us": 104.57059741020203,
+          "capture_us": [
+            119.71639394760132,
+            89.42480087280273
+          ],
+          "relative_l2_max": 0.0016598155489191413,
+          "leaves_per_head": 6682.2265625
+        },
+        "merge_cg": {
+          "config": {
+            "merge_cg": true
+          },
+          "us": 104.41862642765045,
+          "capture_us": [
+            120.004403591156,
+            88.8328492641449
+          ],
+          "relative_l2_max": 0.0016596942441537976,
+          "leaves_per_head": 6682.2265625
+        },
+        "closed_static": {
+          "config": {
+            "combine": true,
+            "static": true
+          },
+          "us": 125.51332712173462,
+          "capture_us": [
+            149.52600002288818,
+            101.50065422058105
+          ],
+          "relative_l2_max": 0.0016599169466644526,
+          "leaves_per_head": 6682.2265625
+        },
+        "closed_first": {
+          "config": {
+            "combine": true,
+            "first": true
+          },
+          "us": 134.81722474098206,
+          "capture_us": [
+            161.8918538093567,
+            107.74259567260742
+          ],
+          "relative_l2_max": 0.0016595497727394104,
+          "leaves_per_head": 6682.2265625
+        },
+        "closed_first_static": {
+          "config": {
+            "combine": true,
+            "first": true,
+            "static": true
+          },
+          "us": 123.7713485956192,
+          "capture_us": [
+            147.61799573898315,
+            99.92470145225525
+          ],
+          "relative_l2_max": 0.0016599387163296342,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "routing": {
+        "control": {
+          "config": {},
+          "us": 104.09659743309021,
+          "capture_us": [
+            119.51639652252197,
+            88.67679834365845
+          ],
+          "relative_l2_max": 0.0016599365044385195,
+          "leaves_per_head": 6682.2265625
+        },
+        "score32": {
+          "config": {
+            "score_tile": 32
+          },
+          "us": 104.80259954929352,
+          "capture_us": [
+            119.82439756393433,
+            89.78080153465271
+          ],
+          "relative_l2_max": 0.0016599077498540282,
+          "leaves_per_head": 6682.2265625
+        },
+        "score128": {
+          "config": {
+            "score_tile": 128
+          },
+          "us": 102.1296501159668,
+          "capture_us": [
+            117.73844957351685,
+            86.52085065841675
+          ],
+          "relative_l2_max": 0.0016601082170382142,
+          "leaves_per_head": 6682.2265625
+        },
+        "select128": {
+          "config": {
+            "selector": 128
+          },
+          "us": 103.57059836387634,
+          "capture_us": [
+            118.93839836120605,
+            88.20279836654663
+          ],
+          "relative_l2_max": 0.001659734407439828,
+          "leaves_per_head": 6682.2265625
+        },
+        "select128_score128": {
+          "config": {
+            "selector": 128,
+            "score_tile": 128
+          },
+          "us": 101.23560130596161,
+          "capture_us": [
+            116.60640239715576,
+            85.86480021476746
+          ],
+          "relative_l2_max": 0.001659877598285675,
+          "leaves_per_head": 6682.2265625
+        },
+        "cutoff_once": {
+          "config": {
+            "cutoff": true
+          },
+          "us": 105.20054996013641,
+          "capture_us": [
+            120.40234804153442,
+            89.9987518787384
+          ],
+          "relative_l2_max": 0.001659658970311284,
+          "leaves_per_head": 6682.2265625
+        },
+        "no_empty_atomic": {
+          "config": {
+            "guarded": true
+          },
+          "us": 103.19657623767853,
+          "capture_us": [
+            118.48435401916504,
+            87.90879845619202
+          ],
+          "relative_l2_max": 0.0016597927315160632,
+          "leaves_per_head": 6682.2265625
+        },
+        "short_masks": {
+          "config": {
+            "half_masks": true
+          },
+          "us": 104.0715754032135,
+          "capture_us": [
+            119.36835050582886,
+            88.77480030059814
+          ],
+          "relative_l2_max": 0.0016592333558946848,
+          "leaves_per_head": 6682.2265625
+        },
+        "shared_regions": {
+          "config": {
+            "union": true
+          },
+          "us": 104.43757474422455,
+          "capture_us": [
+            119.67434883117676,
+            89.20080065727234
+          ],
+          "relative_l2_max": 0.001663553761318326,
+          "leaves_per_head": 17265.625
+        }
+      },
+      "wide": {
+        "control": {
+          "config": {},
+          "us": 104.0835976600647,
+          "capture_us": [
+            119.53239440917969,
+            88.6348009109497
+          ],
+          "relative_l2_max": 0.0016597234643995762,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n32_pv0_w4": {
+          "config": {
+            "entry": 32,
+            "pv": 0,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 107.1205735206604,
+          "capture_us": [
+            124.40634965896606,
+            89.83479738235474
+          ],
+          "relative_l2_max": 0.0016597902867943048,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n32_pv0_w8": {
+          "config": {
+            "entry": 32,
+            "pv": 0,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 150.98100304603577,
+          "capture_us": [
+            185.59550046920776,
+            116.36650562286377
+          ],
+          "relative_l2_max": 0.0016596665373072028,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n32_pv2_w4": {
+          "config": {
+            "entry": 32,
+            "pv": 2,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 108.58252346515656,
+          "capture_us": [
+            126.87629461288452,
+            90.28875231742859
+          ],
+          "relative_l2_max": 0.0016598711954429746,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n32_pv2_w8": {
+          "config": {
+            "entry": 32,
+            "pv": 2,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 147.7330505847931,
+          "capture_us": [
+            180.26360273361206,
+            115.20249843597412
+          ],
+          "relative_l2_max": 0.0016597239300608635,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n64_pv0_w4": {
+          "config": {
+            "entry": 64,
+            "pv": 0,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 122.79937267303467,
+          "capture_us": [
+            143.34609508514404,
+            102.2526502609253
+          ],
+          "relative_l2_max": 0.0016599618829786777,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n64_pv0_w8": {
+          "config": {
+            "entry": 64,
+            "pv": 0,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 136.95417642593384,
+          "capture_us": [
+            162.52185106277466,
+            111.38650178909302
+          ],
+          "relative_l2_max": 0.00166052405256778,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n64_pv2_w4": {
+          "config": {
+            "entry": 64,
+            "pv": 2,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 98.9177018404007,
+          "capture_us": [
+            111.87255382537842,
+            85.96284985542297
+          ],
+          "relative_l2_max": 0.0016595660708844662,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n64_pv2_w8": {
+          "config": {
+            "entry": 64,
+            "pv": 2,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 171.10272645950317,
+          "capture_us": [
+            206.84325695037842,
+            135.36219596862793
+          ],
+          "relative_l2_max": 0.0016598476795479655,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n128_pv0_w4": {
+          "config": {
+            "entry": 128,
+            "pv": 0,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 362.4622106552124,
+          "capture_us": [
+            447.16806411743164,
+            277.75635719299316
+          ],
+          "relative_l2_max": 0.0016613774932920933,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n128_pv0_w8": {
+          "config": {
+            "entry": 128,
+            "pv": 0,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 572.0373868942261,
+          "capture_us": [
+            715.978479385376,
+            428.0962944030762
+          ],
+          "relative_l2_max": 0.001661156420595944,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n128_pv2_w4": {
+          "config": {
+            "entry": 128,
+            "pv": 2,
+            "warps": 4,
+            "split_dim": true
+          },
+          "us": 121.51240110397339,
+          "capture_us": [
+            140.4761552810669,
+            102.54864692687988
+          ],
+          "relative_l2_max": 0.001662018126808107,
+          "leaves_per_head": 6682.2265625
+        },
+        "half_n128_pv2_w8": {
+          "config": {
+            "entry": 128,
+            "pv": 2,
+            "warps": 8,
+            "split_dim": true
+          },
+          "us": 110.90052723884583,
+          "capture_us": [
+            126.56035423278809,
+            95.24070024490356
+          ],
+          "relative_l2_max": 0.0016617535147815943,
+          "leaves_per_head": 6682.2265625
+        },
+        "subgroup_waves_only": {
+          "config": {
+            "backend": {
+              "waves_per_eu": 2
+            }
+          },
+          "us": 108.94155204296112,
+          "capture_us": [
+            125.5603551864624,
+            92.32274889945984
+          ],
+          "relative_l2_max": 0.0016591929597780108,
+          "leaves_per_head": 6682.2265625
+        },
+        "mfma16_only": {
+          "config": {
+            "backend": {
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "us": 104.23562228679657,
+          "capture_us": [
+            119.56044435501099,
+            88.91080021858215
+          ],
+          "relative_l2_max": 0.0016594664193689823,
+          "leaves_per_head": 6682.2265625
+        },
+        "cg_pv64": {
+          "config": {
+            "entry": 64,
+            "cg": true,
+            "pv": 2
+          },
+          "us": 124.11834597587585,
+          "capture_us": [
+            142.42409467697144,
+            105.81259727478027
+          ],
+          "relative_l2_max": 0.0016598179936408997,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "combine": {
+        "control": {
+          "config": {},
+          "us": 104.36512231826782,
+          "capture_us": [
+            120.10469436645508,
+            88.62555027008057
+          ],
+          "relative_l2_max": 0.0016602403484284878,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64s32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 32
+          },
+          "us": 114.47787284851074,
+          "capture_us": [
+            135.51429510116577,
+            93.44145059585571
+          ],
+          "relative_l2_max": 0.0016602196265012026,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64s48": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 48
+          },
+          "us": 105.30707538127899,
+          "capture_us": [
+            122.58059978485107,
+            88.03355097770691
+          ],
+          "relative_l2_max": 0.001659817760810256,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64s64": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 64
+          },
+          "us": 99.11127388477325,
+          "capture_us": [
+            112.28289604187012,
+            85.93965172767639
+          ],
+          "relative_l2_max": 0.0016599026275798678,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64s80": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 80
+          },
+          "us": 104.55512702465057,
+          "capture_us": [
+            123.83860349655151,
+            85.27165055274963
+          ],
+          "relative_l2_max": 0.0016597445355728269,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64s96": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "splits": 96
+          },
+          "us": 109.25100147724152,
+          "capture_us": [
+            125.50455331802368,
+            92.99744963645935
+          ],
+          "relative_l2_max": 0.0016602635150775313,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64layout512m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 512,
+            "merge": 32
+          },
+          "us": 95.38737535476685,
+          "capture_us": [
+            108.17304849624634,
+            82.60170221328735
+          ],
+          "relative_l2_max": 0.0016599800437688828,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64layout64m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64,
+            "merge": 32
+          },
+          "us": 94.34739947319031,
+          "capture_us": [
+            107.24304914474487,
+            81.45174980163574
+          ],
+          "relative_l2_max": 0.0016601396491751075,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64layout128m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 128,
+            "merge": 32
+          },
+          "us": 94.64537501335144,
+          "capture_us": [
+            107.437002658844,
+            81.85374736785889
+          ],
+          "relative_l2_max": 0.00165907246991992,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_cg": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "cg": true
+          },
+          "us": 96.35432660579681,
+          "capture_us": [
+            108.1570029258728,
+            84.55165028572083
+          ],
+          "relative_l2_max": 0.0016598027432337403,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_base2": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "base2": true
+          },
+          "us": 94.94637548923492,
+          "capture_us": [
+            107.6390027999878,
+            82.25374817848206
+          ],
+          "relative_l2_max": 0.0016593008767813444,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_contig": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "contiguous": true
+          },
+          "us": 94.5603758096695,
+          "capture_us": [
+            107.88300037384033,
+            81.23775124549866
+          ],
+          "relative_l2_max": 0.001660608104430139,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_waves": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "backend": {
+              "waves_per_eu": 2
+            }
+          },
+          "us": 97.59730100631714,
+          "capture_us": [
+            110.70095300674438,
+            84.49364900588989
+          ],
+          "relative_l2_max": 0.0016601178795099258,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_mfma": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "backend": {
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "us": 95.374396443367,
+          "capture_us": [
+            108.17904472351074,
+            82.56974816322327
+          ],
+          "relative_l2_max": 0.0016602545510977507,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_mask16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "half_masks": true
+          },
+          "us": 95.0533777475357,
+          "capture_us": [
+            107.71100521087646,
+            82.39575028419495
+          ],
+          "relative_l2_max": 0.0016598344082012773,
+          "leaves_per_head": 6682.2265625
+        },
+        "e64_combine": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "combine": true
+          },
+          "us": 111.709925532341,
+          "capture_us": [
+            130.95040321350098,
+            92.46944785118103
+          ],
+          "relative_l2_max": 0.0016598744550719857,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128s32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 32
+          },
+          "us": 106.03207647800446,
+          "capture_us": [
+            120.61065435409546,
+            91.45349860191345
+          ],
+          "relative_l2_max": 0.0016617962392047048,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128s48": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 48
+          },
+          "us": 118.8357263803482,
+          "capture_us": [
+            137.69220113754272,
+            99.97925162315369
+          ],
+          "relative_l2_max": 0.0016632165061309934,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128s64": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 64
+          },
+          "us": 111.22392416000366,
+          "capture_us": [
+            126.64049863815308,
+            95.80734968185425
+          ],
+          "relative_l2_max": 0.00166141742374748,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128s80": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 80
+          },
+          "us": 113.808873295784,
+          "capture_us": [
+            129.7984480857849,
+            97.81929850578308
+          ],
+          "relative_l2_max": 0.0016619215020909905,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128s96": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "splits": 96
+          },
+          "us": 117.68575310707092,
+          "capture_us": [
+            132.26635456085205,
+            103.1051516532898
+          ],
+          "relative_l2_max": 0.0016615580534562469,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128layout512m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 512,
+            "merge": 32
+          },
+          "us": 107.57302641868591,
+          "capture_us": [
+            122.98660278320312,
+            92.1594500541687
+          ],
+          "relative_l2_max": 0.001661524293012917,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128layout64m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64,
+            "merge": 32
+          },
+          "us": 107.11304843425751,
+          "capture_us": [
+            122.20464944839478,
+            92.02144742012024
+          ],
+          "relative_l2_max": 0.0016617741202935576,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128layout128m32": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 128,
+            "merge": 32
+          },
+          "us": 107.41702616214752,
+          "capture_us": [
+            122.46659994125366,
+            92.36745238304138
+          ],
+          "relative_l2_max": 0.0016617303481325507,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_cg": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "cg": true
+          },
+          "us": 109.04197096824646,
+          "capture_us": [
+            123.00659418106079,
+            95.07734775543213
+          ],
+          "relative_l2_max": 0.0016615131171420217,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_base2": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "base2": true
+          },
+          "us": 106.07507228851318,
+          "capture_us": [
+            121.34064435958862,
+            90.80950021743774
+          ],
+          "relative_l2_max": 0.0016617070650681853,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_contig": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "contiguous": true
+          },
+          "us": 106.5270721912384,
+          "capture_us": [
+            121.68464660644531,
+            91.3694977760315
+          ],
+          "relative_l2_max": 0.0016623289557173848,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_waves": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "backend": {
+              "waves_per_eu": 2
+            }
+          },
+          "us": 105.49209713935852,
+          "capture_us": [
+            120.8666443824768,
+            90.11754989624023
+          ],
+          "relative_l2_max": 0.0016616067150607705,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_mfma": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "backend": {
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "us": 107.40705132484436,
+          "capture_us": [
+            122.69860506057739,
+            92.11549758911133
+          ],
+          "relative_l2_max": 0.0016616942593827844,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_mask16": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "half_masks": true
+          },
+          "us": 107.57802426815033,
+          "capture_us": [
+            122.93260097503662,
+            92.22344756126404
+          ],
+          "relative_l2_max": 0.0016617082292214036,
+          "leaves_per_head": 6682.2265625
+        },
+        "e128_combine": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 128,
+            "warps": 8,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "combine": true
+          },
+          "us": 101.46722197532654,
+          "capture_us": [
+            116.91279411315918,
+            86.0216498374939
+          ],
+          "relative_l2_max": 0.0016620319802314043,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "ordered": {
+        "control": {
+          "config": {},
+          "us": 104.4346272945404,
+          "capture_us": [
+            119.93440389633179,
+            88.93485069274902
+          ],
+          "relative_l2_max": 0.0016599063528701663,
+          "leaves_per_head": 6682.2265625
+        },
+        "ordered": {
+          "config": {
+            "ordered": true
+          },
+          "us": 120.10442614555359,
+          "capture_us": [
+            140.93815088272095,
+            99.27070140838623
+          ],
+          "relative_l2_max": 0.001660049194470048,
+          "leaves_per_head": 6682.2265625
+        },
+        "ordered128": {
+          "config": {
+            "ordered": true,
+            "selector": 128
+          },
+          "us": 112.98049688339233,
+          "capture_us": [
+            131.7562460899353,
+            94.20474767684937
+          ],
+          "relative_l2_max": 0.001660049194470048,
+          "leaves_per_head": 6682.2265625
+        },
+        "wide_control": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4
+          },
+          "us": 99.12970066070557,
+          "capture_us": [
+            112.00054883956909,
+            86.25885248184204
+          ],
+          "relative_l2_max": 0.001660489826463163,
+          "leaves_per_head": 6682.2265625
+        },
+        "wide_ordered": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "ordered": true
+          },
+          "us": 132.6152265071869,
+          "capture_us": [
+            156.31589889526367,
+            108.91455411911011
+          ],
+          "relative_l2_max": 0.0016603523399680853,
+          "leaves_per_head": 6682.2265625
+        },
+        "wide_ordered128": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "warps": 4,
+            "ordered": true,
+            "selector": 128
+          },
+          "us": 129.5183002948761,
+          "capture_us": [
+            152.91399955749512,
+            106.12260103225708
+          ],
+          "relative_l2_max": 0.0016603523399680853,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "stats": {
+        "control": {
+          "config": {},
+          "us": 104.10260260105133,
+          "capture_us": [
+            119.6444034576416,
+            88.56080174446106
+          ],
+          "relative_l2_max": 0.0016603481490164995,
+          "leaves_per_head": 6682.2265625
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 94.94175016880035,
+          "capture_us": [
+            108.16454887390137,
+            81.71895146369934
+          ],
+          "relative_l2_max": 0.0016601476818323135,
+          "leaves_per_head": 6682.2265625
+        },
+        "pair_only": {
+          "config": {
+            "pair_stats": true
+          },
+          "us": 104.02162671089172,
+          "capture_us": [
+            119.51240301132202,
+            88.53085041046143
+          ],
+          "relative_l2_max": 0.0016599722439423203,
+          "leaves_per_head": 6682.2265625
+        },
+        "tuned_pairs": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64,
+            "pair_stats": true
+          },
+          "us": 94.98672187328339,
+          "capture_us": [
+            108.26654434204102,
+            81.70689940452576
+          ],
+          "relative_l2_max": 0.0016599235823377967,
+          "leaves_per_head": 6682.2265625
+        },
+        "tuned_pairs_cg": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64,
+            "pair_stats": true,
+            "merge_cg": true
+          },
+          "us": 94.90675032138824,
+          "capture_us": [
+            108.1505537033081,
+            81.66294693946838
+          ],
+          "relative_l2_max": 0.0016597084468230605,
+          "leaves_per_head": 6682.2265625
+        },
+        "tuned_union": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64,
+            "union": true
+          },
+          "us": 94.91072595119476,
+          "capture_us": [
+            108.25254917144775,
+            81.56890273094177
+          ],
+          "relative_l2_max": 0.001663623028434813,
+          "leaves_per_head": 17265.625
+        }
+      },
+      "donor": {
+        "control": {
+          "config": {},
+          "us": 104.4526219367981,
+          "capture_us": [
+            119.87844705581665,
+            89.02679681777954
+          ],
+          "relative_l2_max": 0.0016590249724686146,
+          "leaves_per_head": 6682.2265625
+        },
+        "qwen": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 128,
+            "entry": 64,
+            "splits": 64
+          },
+          "us": 143.98507475852966,
+          "capture_us": [
+            168.92575025558472,
+            119.04439926147461
+          ],
+          "relative_l2_max": 0.001660431851632893,
+          "leaves_per_head": 6682.2265625
+        },
+        "qwen_precise": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 128,
+            "entry": 64,
+            "splits": 64,
+            "precise": true
+          },
+          "us": 244.22074556350708,
+          "capture_us": [
+            281.74424171447754,
+            206.69724941253662
+          ],
+          "relative_l2_max": 0.0016519391210749745,
+          "leaves_per_head": 6682.2265625
+        },
+        "qwen_split_channels": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 128,
+            "entry": 64,
+            "splits": 64,
+            "split_dim": true
+          },
+          "us": 115.13647437095642,
+          "capture_us": [
+            132.45224952697754,
+            97.8206992149353
+          ],
+          "relative_l2_max": 0.0016604939009994268,
+          "leaves_per_head": 6682.2265625
+        },
+        "k2": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 128,
+            "entry": 128,
+            "splits": 32,
+            "pv": 2,
+            "backend": {
+              "waves_per_eu": 2,
+              "matrix_instr_nonkdim": 16
+            }
+          },
+          "errors": [
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help.",
+            "out of resource: shared memory, Required: 131072, Hardware limit: 65536. Reducing block sizes or `num_stages` may help."
+          ]
+        },
+        "k2_split_channels": {
+          "config": {
+            "base2": true,
+            "cg": true,
+            "contiguous": true,
+            "first": false,
+            "combine": true,
+            "strip": 32,
+            "merge": 32,
+            "selector": 128,
+            "entry": 128,
+            "splits": 32,
+            "pv": 2,
+            "backend": {
+              "waves_per_eu": 2,
+              "matrix_instr_nonkdim": 16
+            },
+            "split_dim": true
+          },
+          "us": 208.69120359420776,
+          "capture_us": [
+            253.80055904388428,
+            163.58184814453125
+          ],
+          "relative_l2_max": 0.0016615043859928846,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "ablate": {
+        "control": {
+          "config": {},
+          "us": 104.29422557353973,
+          "capture_us": [
+            119.67480182647705,
+            88.91364932060242
+          ],
+          "relative_l2_max": 0.0016600730596110225,
+          "leaves_per_head": 6682.2265625
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 94.15650069713593,
+          "capture_us": [
+            106.98314905166626,
+            81.32985234260559
+          ],
+          "relative_l2_max": 0.0016600837698206306,
+          "leaves_per_head": 6682.2265625
+        },
+        "direct_pv": {
+          "config": {
+            "split_dim": true,
+            "pv": 0,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 118.18885207176208,
+          "capture_us": [
+            138.0763053894043,
+            98.30139875411987
+          ],
+          "relative_l2_max": 0.0016596377827227116,
+          "leaves_per_head": 6682.2265625
+        },
+        "full_width_dot": {
+          "config": {
+            "split_dim": false,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 118.27485263347626,
+          "capture_us": [
+            137.6563549041748,
+            98.89335036277771
+          ],
+          "relative_l2_max": 0.0016592461615800858,
+          "leaves_per_head": 6682.2265625
+        },
+        "narrow_entries": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 32,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 104.07322347164154,
+          "capture_us": [
+            122.3907470703125,
+            85.75569987297058
+          ],
+          "relative_l2_max": 0.0016598522197455168,
+          "leaves_per_head": 6682.2265625
+        },
+        "old_partials": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 512,
+            "merge": 32
+          },
+          "us": 95.20345032215118,
+          "capture_us": [
+            107.94709920883179,
+            82.45980143547058
+          ],
+          "relative_l2_max": 0.0016598599031567574,
+          "leaves_per_head": 6682.2265625
+        },
+        "all_atomics": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": false,
+            "strip": 64
+          },
+          "us": 95.03444731235504,
+          "capture_us": [
+            107.8650951385498,
+            82.20379948616028
+          ],
+          "relative_l2_max": 0.0016603732947260141,
+          "leaves_per_head": 6682.2265625
+        },
+        "k2_precise": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64,
+            "precise": true
+          },
+          "us": 141.03222489356995,
+          "capture_us": [
+            166.84155464172363,
+            115.22289514541626
+          ],
+          "relative_l2_max": 0.0016519391210749745,
+          "leaves_per_head": 6682.2265625
+        },
+        "old_score_tiles": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 64,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 97.56737351417542,
+          "capture_us": [
+            110.23705005645752,
+            84.89769697189331
+          ],
+          "relative_l2_max": 0.0016597119392827153,
+          "leaves_per_head": 6682.2265625
+        },
+        "old_select_tiles": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 64,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 95.53645253181458,
+          "capture_us": [
+            108.09110403060913,
+            82.98180103302002
+          ],
+          "relative_l2_max": 0.0016600972739979625,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "confirm": {
+        "control": {
+          "config": {},
+          "us": 104.47615385055542,
+          "capture_us": [
+            119.95675563812256,
+            88.99555206298828
+          ],
+          "relative_l2_max": 0.0016592246247455478,
+          "leaves_per_head": 6682.2265625
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 94.43942308425903,
+          "capture_us": [
+            107.27709531784058,
+            81.60175085067749
+          ],
+          "relative_l2_max": 0.0016601997194811702,
+          "leaves_per_head": 6682.2265625
+        }
+      },
+      "profile": {
+        "control": {
+          "config": {},
+          "us": 104.21424806118011,
+          "capture_us": [
+            119.76884603500366,
+            88.65965008735657
+          ],
+          "relative_l2_max": 0.0016599453520029783,
+          "leaves_per_head": 6682.2265625,
+          "stage_activity_counts": [
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            },
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            }
+          ],
+          "stage_us": {
+            "_score_regions": 14.808750000000089,
+            "_select_and_pack": 20.698499999999967,
+            "_attend_exact": 54.048000000000116,
+            "_merge_fields": 8.959000000000188
+          }
+        },
+        "tuned": {
+          "config": {
+            "split_dim": true,
+            "pv": 2,
+            "entry": 64,
+            "score_tile": 128,
+            "selector": 128,
+            "guarded": true,
+            "strip": 64
+          },
+          "us": 94.51152384281158,
+          "capture_us": [
+            107.38719701766968,
+            81.63585066795349
+          ],
+          "relative_l2_max": 0.0016602815594524145,
+          "leaves_per_head": 6682.2265625,
+          "stage_activity_counts": [
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            },
+            {
+              "_score_regions": 50,
+              "_select_and_pack": 50,
+              "_attend_exact": 50,
+              "_merge_fields": 50
+            }
+          ],
+          "stage_us": {
+            "_score_regions": 13.058500000000095,
+            "_select_and_pack": 18.778250000000128,
+            "_attend_exact": 49.817999999999984,
+            "_merge_fields": 9.168499999999995
+          }
+        }
+      }
+    },
+    "distinct_timed": 112,
+    "distinct_resource_limited": 6,
+    "serving": {
+      "ported": {
+        "ms": 13.52707308603496,
+        "repeats_ms": [
+          13.542741315393913,
+          13.511404856676009
+        ]
+      },
+      "transfer": {
+        "ms": 13.460114443810975,
+        "repeats_ms": [
+          13.45508948331926,
+          13.46513940430269
+        ]
+      }
+    },
+    "earlier_serving_pair": {
+      "ported": {
+        "ms": 13.515164606818338,
+        "repeats_ms": [
+          13.519327129896094,
+          13.511002083740584
+        ]
+      },
+      "transfer": {
+        "ms": 13.429997754169673,
+        "repeats_ms": [
+          13.432402080152093,
+          13.427593428187254
+        ]
+      }
+    }
+  }
+}

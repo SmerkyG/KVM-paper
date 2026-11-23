@@ -1,0 +1,213 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64k-absorbed-rank0.pt",
+  "layer": "language_model.model.layers.3.self_attn.indexer.indexer_op",
+  "batch": 1,
+  "lengths": [
+    65535
+  ],
+  "initial_local": [
+    511
+  ],
+  "regions": [
+    4095
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "qwen": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 64,
+      "entry": 32,
+      "splits": 128
+    },
+    "qwen_precise": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 64,
+      "entry": 32,
+      "splits": 128,
+      "precise": true
+    },
+    "qwen_split_channels": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 64,
+      "entry": 32,
+      "splits": 128,
+      "split_dim": true
+    },
+    "k2": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 64,
+      "entry": 64,
+      "splits": 128,
+      "pv": 0
+    },
+    "k2_split_channels": {
+      "base2": true,
+      "cg": true,
+      "contiguous": true,
+      "first": false,
+      "combine": true,
+      "strip": 32,
+      "merge": 32,
+      "selector": 64,
+      "entry": 64,
+      "splits": 128,
+      "pv": 0,
+      "split_dim": true
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.001622580224648118,
+      "timings_us": [
+        44.22540068626404,
+        43.917450308799744,
+        43.8214510679245,
+        43.93540024757385,
+        43.945398926734924,
+        43.81139874458313,
+        43.979451060295105,
+        43.95945072174072,
+        43.795400857925415,
+        43.93540024757385,
+        44.007399678230286
+      ],
+      "median_us": 43.93540024757385
+    },
+    "qwen": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016225726576521993,
+      "timings_us": [
+        57.11519718170166,
+        57.297247648239136,
+        57.18724727630615,
+        57.20524787902832,
+        57.32719898223877,
+        57.193249464035034,
+        57.35325217247009,
+        57.22324848175049,
+        57.2332501411438,
+        57.28920102119446,
+        57.29925036430359
+      ],
+      "median_us": 57.2332501411438
+    },
+    "qwen_precise": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016210614703595638,
+      "timings_us": [
+        65.48715233802795,
+        65.86310267448425,
+        65.85310101509094,
+        65.97309708595276,
+        66.04509949684143,
+        67.55110025405884,
+        66.10314846038818,
+        65.87914824485779,
+        65.99504947662354,
+        66.02314710617065,
+        66.02709889411926
+      ],
+      "median_us": 65.99504947662354
+    },
+    "qwen_split_channels": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016229855827987194,
+      "timings_us": [
+        56.77124857902527,
+        57.269251346588135,
+        57.09124803543091,
+        57.10325241088867,
+        57.4352502822876,
+        57.325249910354614,
+        57.38924741744995,
+        57.23724961280823,
+        57.35725164413452,
+        57.25125074386597,
+        57.83519744873047
+      ],
+      "median_us": 57.269251346588135
+    },
+    "k2": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.001622845302335918,
+      "timings_us": [
+        60.62120199203491,
+        60.457199811935425,
+        60.22719740867615,
+        60.36120057106018,
+        60.35919785499573,
+        60.599201917648315,
+        60.38320064544678,
+        60.17320156097412,
+        60.49314737319946,
+        60.381197929382324,
+        60.39320230484009
+      ],
+      "median_us": 60.38320064544678
+    },
+    "k2_split_channels": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.001623249496333301,
+      "timings_us": [
+        51.113301515579224,
+        51.44129991531372,
+        51.40730142593384,
+        51.52530074119568,
+        51.491349935531616,
+        51.29929780960083,
+        51.3713002204895,
+        51.48730278015137,
+        51.39930248260498,
+        51.43929719924927,
+        51.40330195426941
+      ],
+      "median_us": 51.40730142593384
+    }
+  }
+}

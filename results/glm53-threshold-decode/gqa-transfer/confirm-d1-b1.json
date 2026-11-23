@@ -1,0 +1,74 @@
+{
+  "scope": "one TP4-rank MLA serving pool, warmed graph; saved final-prefill queries used as decode inputs",
+  "source": "/home/dan/subusers/agent/.cache/glm53-indexer-probe/trained64k-absorbed-rank0.pt",
+  "layer": "language_model.model.layers.3.self_attn.indexer.indexer_op",
+  "batch": 1,
+  "lengths": [
+    65535
+  ],
+  "initial_local": [
+    511
+  ],
+  "regions": [
+    4095
+  ],
+  "heads": 16,
+  "gpu": "AMD Instinct MI325X",
+  "transfer_cases": {
+    "control": {},
+    "tuned": {
+      "split_dim": true,
+      "pv": 2,
+      "entry": 64,
+      "static": true,
+      "first": true,
+      "guarded": true,
+      "strip": 64,
+      "merge": 16
+    }
+  },
+  "results": {
+    "control": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016225717263296247,
+      "timings_us": [
+        43.540799617767334,
+        43.522799015045166,
+        43.39680075645447,
+        43.45879852771759,
+        43.39680075645447,
+        43.536800146102905,
+        43.50684881210327,
+        43.30680072307587,
+        43.564799427986145,
+        43.55480074882507,
+        43.39885115623474
+      ],
+      "median_us": 43.50684881210327
+    },
+    "tuned": {
+      "open_regions": 34.5625,
+      "exact_leaves": 9538.1875,
+      "union_loaded_leaves": 26281.0,
+      "max_abs": 0.0018465518951416016,
+      "relative_l2": 0.0016229951288551092,
+      "timings_us": [
+        39.98290002346039,
+        39.792901277542114,
+        39.82290029525757,
+        40.13094902038574,
+        39.754900336265564,
+        39.88089859485626,
+        39.684951305389404,
+        39.768898487091064,
+        39.914900064468384,
+        39.78095054626465,
+        39.77695107460022
+      ],
+      "median_us": 39.792901277542114
+    }
+  }
+}
